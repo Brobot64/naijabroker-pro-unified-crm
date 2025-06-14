@@ -33,34 +33,52 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Function to fetch user data with proper error handling
+  const fetchUserData = async (userId: string) => {
+    try {
+      // Fetch user profile and organization
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', userId)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error fetching profile:', profileError);
+        return;
+      }
+
+      // Fetch user role
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+
+      if (roleError && roleError.code !== 'PGRST116') {
+        console.error('Error fetching role:', roleError);
+        return;
+      }
+
+      setOrganizationId(profile?.organization_id || null);
+      setUserRole(roleData?.role || null);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+  };
+
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user role and organization
-          setTimeout(async () => {
-            try {
-              const { data: profile } = await supabase
-                .from('profiles')
-                .select('organization_id')
-                .eq('id', session.user.id)
-                .single();
-
-              const { data: roleData } = await supabase
-                .from('user_roles')
-                .select('role')
-                .eq('user_id', session.user.id)
-                .single();
-
-              setOrganizationId(profile?.organization_id || null);
-              setUserRole(roleData?.role || null);
-            } catch (error) {
-              console.error('Error fetching user data:', error);
-            }
+          // Use setTimeout to prevent potential recursion issues
+          setTimeout(() => {
+            fetchUserData(session.user.id);
           }, 0);
         } else {
           setUserRole(null);
@@ -75,6 +93,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        fetchUserData(session.user.id);
+      }
+      
       setLoading(false);
     });
 

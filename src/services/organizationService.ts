@@ -45,7 +45,9 @@ export interface OnboardingData {
 export const organizationService = {
   async createOrganizationFromOnboarding(data: OnboardingData, userId: string) {
     try {
-      // Create organization
+      console.log('Creating organization for user:', userId, data);
+
+      // Create organization with proper error handling
       const { data: organization, error: orgError } = await supabase
         .from('organizations')
         .insert({
@@ -67,7 +69,12 @@ export const organizationService = {
         .select()
         .single();
 
-      if (orgError) throw orgError;
+      if (orgError) {
+        console.error('Organization creation error:', orgError);
+        throw orgError;
+      }
+
+      console.log('Organization created:', organization);
 
       // Update user profile with organization
       const { error: profileError } = await supabase
@@ -80,9 +87,14 @@ export const organizationService = {
         })
         .eq('id', userId);
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        throw profileError;
+      }
 
-      // Assign admin role
+      console.log('Profile updated for user:', userId);
+
+      // Assign admin role with proper type casting
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
@@ -91,9 +103,14 @@ export const organizationService = {
           organization_id: organization.id,
         });
 
-      if (roleError) throw roleError;
+      if (roleError) {
+        console.error('Role assignment error:', roleError);
+        throw roleError;
+      }
 
-      // Create team invitations
+      console.log('Role assigned:', data.adminUser.role);
+
+      // Create team invitations if any
       if (data.team.length > 0) {
         const invitations = data.team.map(member => ({
           organization_id: organization.id,
@@ -108,7 +125,12 @@ export const organizationService = {
           .from('team_invitations')
           .insert(invitations);
 
-        if (inviteError) throw inviteError;
+        if (inviteError) {
+          console.error('Team invitation error:', inviteError);
+          throw inviteError;
+        }
+
+        console.log('Team invitations created:', data.team.length);
       }
 
       return { organization, error: null };
@@ -119,15 +141,24 @@ export const organizationService = {
   },
 
   async getUserOrganization(userId: string) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select(`
-        organization_id,
-        organizations (*)
-      `)
-      .eq('id', userId)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          organization_id,
+          organizations (*)
+        `)
+        .eq('id', userId)
+        .single();
 
-    return { data, error };
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching user organization:', error);
+      }
+
+      return { data, error };
+    } catch (error) {
+      console.error('Unexpected error fetching user organization:', error);
+      return { data: null, error };
+    }
   }
 };

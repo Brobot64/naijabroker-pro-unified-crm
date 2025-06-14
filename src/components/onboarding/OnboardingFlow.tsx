@@ -64,7 +64,7 @@ export const OnboardingFlow = ({ onComplete }: { onComplete: (data: OnboardingDa
   const [currentStep, setCurrentStep] = useState(0);
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({
     organization: { name: '', plan: '', industry: '', size: '' },
-    adminUser: { firstName: '', lastName: '', email: '', phone: '', role: 'OrganizationAdmin' },
+    adminUser: { firstName: '', lastName: '', email: '', phone: '', role: 'BrokerAdmin' }, // Fixed: Changed from 'OrganizationAdmin' to 'BrokerAdmin'
     systemConfig: {
       currency: 'NGN',
       timezone: 'Africa/Lagos',
