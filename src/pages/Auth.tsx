@@ -19,15 +19,20 @@ const Auth = () => {
     confirmPassword: ''
   });
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, organizationId } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if already authenticated
+  // Redirect logic for authenticated users
   useEffect(() => {
     if (user) {
-      navigate('/app');
+      // If user has organization, go to app, otherwise go to onboarding
+      if (organizationId) {
+        navigate('/app');
+      } else {
+        navigate('/onboarding');
+      }
     }
-  }, [user, navigate]);
+  }, [user, organizationId, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +42,8 @@ const Auth = () => {
       if (isLogin) {
         const { error } = await signIn(formData.email, formData.password);
         if (!error) {
-          navigate('/app');
+          // Navigation will be handled by useEffect based on organizationId
+          return;
         }
       } else {
         if (formData.password !== formData.confirmPassword) {
@@ -51,7 +57,9 @@ const Auth = () => {
         });
 
         if (!error) {
-          setIsLogin(true);
+          // For new signups, we'll wait for auth state to update
+          // and then redirect via useEffect
+          return;
         }
       }
     } finally {
