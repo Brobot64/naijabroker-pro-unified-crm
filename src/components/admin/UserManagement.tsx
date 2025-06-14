@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
 import { UserInvitation } from "./UserInvitation";
 import { PermissionManager } from "./PermissionManager";
 import { useToast } from "@/hooks/use-toast";
+import { adminService } from "@/services/adminService";
 
 interface User {
   id: string;
@@ -72,7 +73,6 @@ export const UserManagement = () => {
   ]);
 
   const handleInviteUsers = (invitedUsers: any[]) => {
-    // Add invited users to the users list
     const newUsers = invitedUsers.map((user, index) => ({
       id: `USR-${String(users.length + index + 1).padStart(3, '0')}`,
       name: `${user.firstName} ${user.lastName}`,
@@ -85,6 +85,14 @@ export const UserManagement = () => {
     
     setUsers([...users, ...newUsers]);
     setShowInviteDialog(false);
+
+    // Log the invitation action
+    adminService.logAction(
+      "USER_INVITED", 
+      "User Management", 
+      `Invited ${invitedUsers.length} new user(s)`,
+      "medium"
+    );
   };
 
   const handleEditUser = (user: User) => {
@@ -92,11 +100,25 @@ export const UserManagement = () => {
       title: "Edit User",
       description: `Editing user: ${user.name}`,
     });
+    
+    adminService.logAction(
+      "USER_EDIT_INITIATED", 
+      "User Management", 
+      `Started editing user: ${user.email}`,
+      "low"
+    );
   };
 
   const handleManagePermissions = (user: User) => {
     setSelectedUser(user);
     setShowPermissionDialog(true);
+    
+    adminService.logAction(
+      "PERMISSIONS_VIEW", 
+      "User Management", 
+      `Viewing permissions for user: ${user.email}`,
+      "low"
+    );
   };
 
   const handleSavePermissions = (userPermissions: any) => {
@@ -105,6 +127,14 @@ export const UserManagement = () => {
       title: "Permissions Updated",
       description: `Successfully updated permissions for ${selectedUser?.name}`,
     });
+    
+    adminService.logAction(
+      "PERMISSIONS_UPDATED", 
+      "User Management", 
+      `Updated permissions for user: ${selectedUser?.email}`,
+      "medium"
+    );
+    
     setShowPermissionDialog(false);
     setSelectedUser(null);
   };
