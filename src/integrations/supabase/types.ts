@@ -9,16 +9,211 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      organizations: {
+        Row: {
+          address: string | null
+          business_hours: string | null
+          created_at: string | null
+          currency: string | null
+          email: string | null
+          id: string
+          industry: string | null
+          logo_url: string | null
+          mfa_required: boolean | null
+          name: string
+          password_policy: string | null
+          phone: string | null
+          plan: string
+          primary_color: string | null
+          secondary_color: string | null
+          size: string | null
+          timezone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          business_hours?: string | null
+          created_at?: string | null
+          currency?: string | null
+          email?: string | null
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          mfa_required?: boolean | null
+          name: string
+          password_policy?: string | null
+          phone?: string | null
+          plan: string
+          primary_color?: string | null
+          secondary_color?: string | null
+          size?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          business_hours?: string | null
+          created_at?: string | null
+          currency?: string | null
+          email?: string | null
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          mfa_required?: boolean | null
+          name?: string
+          password_policy?: string | null
+          phone?: string | null
+          plan?: string
+          primary_color?: string | null
+          secondary_color?: string | null
+          size?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          organization_id: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          organization_id?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          organization_id?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_invitations: {
+        Row: {
+          created_at: string | null
+          email: string
+          expires_at: string | null
+          first_name: string | null
+          id: string
+          invited_by: string | null
+          last_name: string | null
+          organization_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          expires_at?: string | null
+          first_name?: string | null
+          id?: string
+          invited_by?: string | null
+          last_name?: string | null
+          organization_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          expires_at?: string | null
+          first_name?: string | null
+          id?: string
+          invited_by?: string | null
+          last_name?: string | null
+          organization_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_organization: {
+        Args: { _user_id: string }
+        Returns: string
+      }
+      has_role: {
+        Args: {
+          _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role:
+        | "SuperAdmin"
+        | "BrokerAdmin"
+        | "Agent"
+        | "Underwriter"
+        | "Compliance"
+        | "User"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +328,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: [
+        "SuperAdmin",
+        "BrokerAdmin",
+        "Agent",
+        "Underwriter",
+        "Compliance",
+        "User",
+      ],
+    },
   },
 } as const

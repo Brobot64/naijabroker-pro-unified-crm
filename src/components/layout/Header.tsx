@@ -1,47 +1,57 @@
 
+import { Bell, Search, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
+import { Input } from "@/components/ui/input";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
 
-interface HeaderProps {
-  userRole: string;
-  sidebarCollapsed: boolean;
-  setSidebarCollapsed: (collapsed: boolean) => void;
-}
+export const Header = () => {
+  const { user, signOut, userRole } = useAuth();
 
-export const Header = ({ userRole, sidebarCollapsed, setSidebarCollapsed }: HeaderProps) => {
+  const handleSignOut = async () => {
+    await signOut();
+    window.location.href = '/';
+  };
+
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
+    <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <h2 className="text-2xl font-semibold text-gray-800">Insurance Brokerage Management</h2>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              type="text"
+              placeholder="Search..."
+              className="pl-10 w-64"
+            />
+          </div>
         </div>
 
         <div className="flex items-center space-x-4">
-          <div className="text-right">
-            <p className="text-sm font-medium text-gray-700">John Doe</p>
-            <p className="text-xs text-gray-500">{userRole}</p>
-          </div>
-          
+          <Button variant="ghost" size="sm">
+            <Bell className="w-4 h-4" />
+          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src="/placeholder.svg" alt="User" />
-                  <AvatarFallback>JD</AvatarFallback>
-                </Avatar>
+              <Button variant="ghost" className="flex items-center space-x-2">
+                <User className="w-4 h-4" />
+                <span className="text-sm">
+                  {user?.email} {userRole && `(${userRole})`}
+                </span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem>Profile Settings</DropdownMenuItem>
-              <DropdownMenuItem>Company Settings</DropdownMenuItem>
-              <DropdownMenuItem>Switch Role</DropdownMenuItem>
-              <DropdownMenuItem className="text-red-600">Sign Out</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

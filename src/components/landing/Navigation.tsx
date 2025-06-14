@@ -13,12 +13,12 @@ const Navigation = () => {
             <span className="ml-2 text-xl font-bold text-gray-900">NaijaBroker Pro</span>
           </div>
           <div className="flex items-center space-x-4">
-            <Link to="/app" className="text-gray-700 hover:text-blue-600">Features</Link>
+            <a href="#features" className="text-gray-700 hover:text-blue-600">Features</a>
             <a href="#pricing" className="text-gray-700 hover:text-blue-600">Pricing</a>
-            <Link to="/app">
+            <Link to="/auth">
               <Button variant="outline">Sign In</Button>
             </Link>
-            <Link to="/app">
+            <Link to="/auth">
               <Button>Get Started</Button>
             </Link>
           </div>

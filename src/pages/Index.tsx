@@ -3,62 +3,78 @@ import { useEffect, useState } from "react";
 import { Sidebar } from "../components/layout/Sidebar";
 import { Header } from "../components/layout/Header";
 import { Dashboard } from "../components/dashboard/Dashboard";
-import { LeadManagement } from "../components/crm/LeadManagement";
-import { QuoteManagement } from "../components/quotes/QuoteManagement";
-import { PolicyManagement } from "../components/policies/PolicyManagement";
-import { FinancialManagement } from "../components/financial/FinancialManagement";
-import { ClaimsManagement } from "../components/claims/ClaimsManagement";
 import { UserManagement } from "../components/admin/UserManagement";
-import { ComplianceReports } from "../components/compliance/ComplianceReports";
-import { DeveloperDashboard } from "../components/developer/DeveloperDashboard";
+import { AdminControls } from "../components/developer/AdminControls";
+import { useAuth } from "@/contexts/AuthContext";
+import { organizationService } from "@/services/organizationService";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
-  const [activeModule, setActiveModule] = useState("dashboard");
-  const [userRole, setUserRole] = useState("BrokerAdmin");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeSection, setActiveSection] = useState("dashboard");
+  const [hasOrganization, setHasOrganization] = useState<boolean | null>(null);
+  const { user, userRole, loading } = useAuth();
+  const navigate = useNavigate();
 
-  const renderActiveModule = () => {
-    switch (activeModule) {
+  useEffect(() => {
+    const checkOrganization = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await organizationService.getUserOrganization(user.id);
+        
+        if (error) {
+          console.error('Error fetching organization:', error);
+          return;
+        }
+
+        const hasOrg = !!data?.organization_id;
+        setHasOrganization(hasOrg);
+        
+        // If user doesn't have an organization, redirect to onboarding
+        if (!hasOrg) {
+          navigate('/onboarding');
+        }
+      } catch (error) {
+        console.error('Error checking organization:', error);
+      }
+    };
+
+    if (!loading && user) {
+      checkOrganization();
+    }
+  }, [user, loading, navigate]);
+
+  if (loading || hasOrganization === null) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const renderContent = () => {
+    switch (activeSection) {
       case "dashboard":
-        return <Dashboard userRole={userRole} />;
-      case "leads":
-        return <LeadManagement />;
-      case "quotes":
-        return <QuoteManagement />;
-      case "policies":
-        return <PolicyManagement />;
-      case "financial":
-        return <FinancialManagement />;
-      case "claims":
-        return <ClaimsManagement />;
-      case "users":
+        return <Dashboard userRole={userRole || "User"} />;
+      case "user-management":
         return <UserManagement />;
-      case "compliance":
-        return <ComplianceReports />;
-      case "developer":
-        return <DeveloperDashboard />;
+      case "admin-controls":
+        return <AdminControls />;
       default:
-        return <Dashboard userRole={userRole} />;
+        return <Dashboard userRole={userRole || "User"} />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar 
-        activeModule={activeModule}
-        setActiveModule={setActiveModule}
-        userRole={userRole}
-        collapsed={sidebarCollapsed}
-        setCollapsed={setSidebarCollapsed}
-      />
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
-        <Header 
-          userRole={userRole}
-          sidebarCollapsed={sidebarCollapsed}
-          setSidebarCollapsed={setSidebarCollapsed}
-        />
-        <main className="flex-1 p-6 overflow-auto">
-          {renderActiveModule()}
+    <div className="flex h-screen bg-gray-100">
+      <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} userRole={userRole || "User"} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
+          {renderContent()}
         </main>
       </div>
     </div>

@@ -1,67 +1,70 @@
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { OnboardingFlow } from "../components/onboarding/OnboardingFlow";
-
-interface OnboardingData {
-  organization: {
-    name: string;
-    plan: string;
-    industry: string;
-    size: string;
-  };
-  adminUser: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    role: string;
-  };
-  systemConfig: {
-    currency: string;
-    timezone: string;
-    businessHours: string;
-    security: {
-      mfaRequired: boolean;
-      passwordPolicy: string;
-    };
-  };
-  branding: {
-    primaryColor: string;
-    secondaryColor: string;
-    logo?: string;
-    companyInfo: {
-      address: string;
-      phone: string;
-      email: string;
-    };
-  };
-  team: Array<{
-    email: string;
-    role: string;
-    firstName: string;
-    lastName: string;
-  }>;
-}
+import { useAuth } from "@/contexts/AuthContext";
+import { organizationService, OnboardingData } from "@/services/organizationService";
+import { useToast } from "@/hooks/use-toast";
 
 const Onboarding = () => {
-  const handleOnboardingComplete = (data: OnboardingData) => {
-    console.log('Onboarding completed with data:', data);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleOnboardingComplete = async (data: OnboardingData) => {
+    if (!user) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to complete onboarding.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
     
-    // Here you would typically:
-    // 1. Save the onboarding data to your backend
-    // 2. Create the organization and admin user
-    // 3. Send team invitations
-    // 4. Configure the system settings
-    // 5. Redirect to the main dashboard
-    
-    // For now, we'll simulate this and redirect
-    localStorage.setItem('onboarding_completed', 'true');
-    localStorage.setItem('user_role', data.adminUser.role);
-    localStorage.setItem('organization_data', JSON.stringify(data));
-    
-    // Redirect to dashboard
-    window.location.href = '/';
+    try {
+      const { organization, error } = await organizationService.createOrganizationFromOnboarding(data, user.id);
+      
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Setup Complete!",
+        description: "Your organization has been successfully configured.",
+      });
+
+      // Store completion status
+      localStorage.setItem('onboarding_completed', 'true');
+      localStorage.setItem('user_role', data.adminUser.role);
+      localStorage.setItem('organization_data', JSON.stringify(data));
+      
+      // Redirect to dashboard
+      navigate('/app');
+    } catch (error) {
+      console.error('Onboarding error:', error);
+      toast({
+        title: "Setup Failed",
+        description: "There was an error setting up your organization. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
+
+  if (isProcessing) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Setting up your organization...</p>
+        </div>
+      </div>
+    );
+  }
 
   return <OnboardingFlow onComplete={handleOnboardingComplete} />;
 };
