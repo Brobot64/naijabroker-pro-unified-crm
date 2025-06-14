@@ -30,9 +30,9 @@ export const ROLES: Record<string, Role> = {
       { module: 'system', actions: ['configure', 'backup', 'restore'] }
     ]
   },
-  OrganizationAdmin: {
-    id: 'OrganizationAdmin',
-    name: 'Organization Admin',
+  BrokerAdmin: {
+    id: 'BrokerAdmin',
+    name: 'Broker Admin',
     description: 'Complete organization management capabilities',
     level: 90,
     permissions: [
@@ -45,22 +45,6 @@ export const ROLES: Record<string, Role> = {
       { module: 'users', actions: ['create', 'read', 'update', 'delete', 'invite'] },
       { module: 'compliance', actions: ['read', 'update', 'delete', 'audit'] },
       { module: 'branding', actions: ['configure'] }
-    ]
-  },
-  BrokerAdmin: {
-    id: 'BrokerAdmin',
-    name: 'Broker Admin',
-    description: 'Broker operations and team management',
-    level: 80,
-    permissions: [
-      { module: 'dashboard', actions: ['read'] },
-      { module: 'leads', actions: ['create', 'read', 'update', 'delete'] },
-      { module: 'quotes', actions: ['create', 'read', 'update', 'delete'] },
-      { module: 'policies', actions: ['create', 'read', 'update', 'delete'] },
-      { module: 'financial', actions: ['read', 'update'] },
-      { module: 'claims', actions: ['create', 'read', 'update'] },
-      { module: 'users', actions: ['read', 'update', 'invite'] },
-      { module: 'compliance', actions: ['read'] }
     ]
   },
   Underwriter: {
@@ -84,9 +68,7 @@ export const ROLES: Record<string, Role> = {
     level: 60,
     permissions: [
       { module: 'dashboard', actions: ['read'] },
-      { module: 'leads', actions: ['create', 'read',
-
- 'update'] },
+      { module: 'leads', actions: ['create', 'read', 'update'] },
       { module: 'quotes', actions: ['create', 'read', 'update'] },
       { module: 'policies', actions: ['read'] },
       { module: 'claims', actions: ['create', 'read'] }

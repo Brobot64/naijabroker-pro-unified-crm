@@ -42,35 +42,86 @@ export interface OnboardingData {
   }>;
 }
 
+// Validation helper functions
+const validateOrganizationData = (data: OnboardingData, userId: string): string | null => {
+  if (!userId) return 'User ID is required';
+  if (!data.organization.name?.trim()) return 'Organization name is required';
+  if (!data.organization.plan?.trim()) return 'Organization plan is required';
+  if (!data.adminUser.firstName?.trim()) return 'Admin first name is required';
+  if (!data.adminUser.lastName?.trim()) return 'Admin last name is required';
+  if (!data.adminUser.email?.trim()) return 'Admin email is required';
+  
+  const validRoles = ['SuperAdmin', 'BrokerAdmin', 'Agent', 'Underwriter', 'Compliance', 'User'];
+  if (!validRoles.includes(data.adminUser.role)) {
+    return `Invalid admin role: ${data.adminUser.role}. Must be one of: ${validRoles.join(', ')}`;
+  }
+  
+  return null;
+};
+
+const validateTeamData = (team: OnboardingData['team']): string | null => {
+  if (!Array.isArray(team)) return 'Team data must be an array';
+  
+  const validRoles = ['SuperAdmin', 'BrokerAdmin', 'Agent', 'Underwriter', 'Compliance', 'User'];
+  
+  for (let i = 0; i < team.length; i++) {
+    const member = team[i];
+    if (!member.email?.trim()) return `Team member ${i + 1}: Email is required`;
+    if (!member.role?.trim()) return `Team member ${i + 1}: Role is required`;
+    if (!validRoles.includes(member.role)) {
+      return `Team member ${i + 1}: Invalid role ${member.role}. Must be one of: ${validRoles.join(', ')}`;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(member.email)) {
+      return `Team member ${i + 1}: Invalid email format`;
+    }
+  }
+  
+  return null;
+};
+
 export const organizationService = {
   async createOrganizationFromOnboarding(data: OnboardingData, userId: string) {
     try {
       console.log('Creating organization for user:', userId, data);
 
-      // Validate required data
-      if (!data.organization.name || !data.organization.plan || !userId) {
-        throw new Error('Missing required organization data');
+      // Validate input data
+      const validationError = validateOrganizationData(data, userId);
+      if (validationError) {
+        throw new Error(validationError);
       }
 
-      // Create organization with proper error handling
+      // Validate team data if provided
+      if (data.team && data.team.length > 0) {
+        const teamValidationError = validateTeamData(data.team);
+        if (teamValidationError) {
+          throw new Error(teamValidationError);
+        }
+      }
+
+      // Create organization with comprehensive error handling
+      const organizationPayload = {
+        name: data.organization.name.trim(),
+        plan: data.organization.plan.trim(),
+        industry: data.organization.industry?.trim() || null,
+        size: data.organization.size?.trim() || null,
+        primary_color: data.branding.primaryColor || '#2563eb',
+        secondary_color: data.branding.secondaryColor || '#64748b',
+        address: data.branding.companyInfo.address?.trim() || null,
+        phone: data.branding.companyInfo.phone?.trim() || null,
+        email: data.branding.companyInfo.email?.trim() || null,
+        currency: data.systemConfig.currency || 'NGN',
+        timezone: data.systemConfig.timezone || 'Africa/Lagos',
+        business_hours: data.systemConfig.businessHours || '9:00-17:00',
+        mfa_required: data.systemConfig.security.mfaRequired || false,
+        password_policy: data.systemConfig.security.passwordPolicy || 'standard',
+      };
+
       const { data: organization, error: orgError } = await supabase
         .from('organizations')
-        .insert({
-          name: data.organization.name,
-          plan: data.organization.plan,
-          industry: data.organization.industry || null,
-          size: data.organization.size || null,
-          primary_color: data.branding.primaryColor || '#2563eb',
-          secondary_color: data.branding.secondaryColor || '#64748b',
-          address: data.branding.companyInfo.address || null,
-          phone: data.branding.companyInfo.phone || null,
-          email: data.branding.companyInfo.email || null,
-          currency: data.systemConfig.currency || 'NGN',
-          timezone: data.systemConfig.timezone || 'Africa/Lagos',
-          business_hours: data.systemConfig.businessHours || '9:00-17:00',
-          mfa_required: data.systemConfig.security.mfaRequired || false,
-          password_policy: data.systemConfig.security.passwordPolicy || 'standard',
-        })
+        .insert(organizationPayload)
         .select()
         .single();
 
@@ -79,61 +130,63 @@ export const organizationService = {
         throw new Error(`Failed to create organization: ${orgError.message}`);
       }
 
-      console.log('Organization created:', organization);
+      if (!organization?.id) {
+        throw new Error('Organization created but no ID returned');
+      }
 
-      // Update user profile with organization
+      console.log('Organization created successfully:', organization.id);
+
+      // Update user profile with organization - use upsert for safety
+      const profilePayload = {
+        id: userId,
+        organization_id: organization.id,
+        first_name: data.adminUser.firstName.trim(),
+        last_name: data.adminUser.lastName.trim(),
+        phone: data.adminUser.phone?.trim() || null,
+      };
+
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({
-          organization_id: organization.id,
-          first_name: data.adminUser.firstName || null,
-          last_name: data.adminUser.lastName || null,
-          phone: data.adminUser.phone || null,
-        })
-        .eq('id', userId);
+        .upsert(profilePayload);
 
       if (profileError) {
         console.error('Profile update error:', profileError);
         throw new Error(`Failed to update profile: ${profileError.message}`);
       }
 
-      console.log('Profile updated for user:', userId);
+      console.log('Profile updated successfully for user:', userId);
 
-      // Assign admin role with proper validation
-      const adminRole = data.adminUser.role || 'BrokerAdmin';
-      if (!['SuperAdmin', 'BrokerAdmin', 'Agent', 'Underwriter', 'Compliance', 'User'].includes(adminRole)) {
-        throw new Error(`Invalid role: ${adminRole}`);
-      }
+      // Assign admin role with validation
+      const rolePayload = {
+        user_id: userId,
+        role: data.adminUser.role as any,
+        organization_id: organization.id,
+      };
 
       const { error: roleError } = await supabase
         .from('user_roles')
-        .insert({
-          user_id: userId,
-          role: adminRole as any,
-          organization_id: organization.id,
-        });
+        .insert(rolePayload);
 
       if (roleError) {
         console.error('Role assignment error:', roleError);
         throw new Error(`Failed to assign role: ${roleError.message}`);
       }
 
-      console.log('Role assigned:', adminRole);
+      console.log('Admin role assigned successfully:', data.adminUser.role);
 
-      // Create team invitations if any
+      // Create team invitations if any - handle gracefully
       if (data.team && data.team.length > 0) {
         const validInvitations = data.team.filter(member => 
-          member.email && member.role && 
-          ['SuperAdmin', 'BrokerAdmin', 'Agent', 'Underwriter', 'Compliance', 'User'].includes(member.role)
+          member.email?.trim() && member.role?.trim()
         );
 
         if (validInvitations.length > 0) {
           const invitations = validInvitations.map(member => ({
             organization_id: organization.id,
-            email: member.email,
+            email: member.email.trim().toLowerCase(),
             role: member.role as any,
-            first_name: member.firstName || null,
-            last_name: member.lastName || null,
+            first_name: member.firstName?.trim() || null,
+            last_name: member.lastName?.trim() || null,
             invited_by: userId,
           }));
 
@@ -146,7 +199,7 @@ export const organizationService = {
             // Don't throw here as this is not critical to the main flow
             console.warn('Failed to create some team invitations, but organization setup completed');
           } else {
-            console.log('Team invitations created:', validInvitations.length);
+            console.log('Team invitations created successfully:', validInvitations.length);
           }
         }
       }
@@ -163,7 +216,7 @@ export const organizationService = {
 
   async getUserOrganization(userId: string) {
     try {
-      if (!userId) {
+      if (!userId?.trim()) {
         return { data: null, error: new Error('User ID is required') };
       }
 
@@ -179,6 +232,15 @@ export const organizationService = {
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching user organization:', error);
         return { data: null, error };
+      }
+
+      // Validate the returned data structure
+      if (data && data.organization_id && !data.organizations) {
+        console.warn('Organization ID exists but organization data is missing');
+        return { 
+          data: null, 
+          error: new Error('Organization data inconsistency detected') 
+        };
       }
 
       return { data, error: null };
