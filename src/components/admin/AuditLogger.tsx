@@ -1,12 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Filter, Download } from "lucide-react";
+import { Download } from "lucide-react";
+import { AuditFilters } from "./AuditFilters";
+import { AuditLogTable } from "./AuditLogTable";
 
 interface AuditLogEntry {
   id: string;
@@ -28,7 +25,6 @@ export const AuditLogger = () => {
   const [severityFilter, setSeverityFilter] = useState('all');
   const [actionFilter, setActionFilter] = useState('all');
 
-  // Mock audit log data
   useEffect(() => {
     const mockLogs: AuditLogEntry[] = [
       {
@@ -97,7 +93,6 @@ export const AuditLogger = () => {
     setFilteredLogs(mockLogs);
   }, []);
 
-  // Filter logs based on search and filters
   useEffect(() => {
     let filtered = auditLogs;
 
@@ -120,21 +115,6 @@ export const AuditLogger = () => {
 
     setFilteredLogs(filtered);
   }, [auditLogs, searchTerm, severityFilter, actionFilter]);
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'critical':
-        return 'bg-red-100 text-red-800';
-      case 'high':
-        return 'bg-orange-100 text-orange-800';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'low':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   const exportLogs = () => {
     const csvContent = [
@@ -168,74 +148,15 @@ export const AuditLogger = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Input
-              placeholder="Search logs..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Select value={severityFilter} onValueChange={setSeverityFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by severity" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Severities</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={actionFilter} onValueChange={setActionFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by action" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Actions</SelectItem>
-                <SelectItem value="USER">User Actions</SelectItem>
-                <SelectItem value="SECURITY">Security Actions</SelectItem>
-                <SelectItem value="LOGIN">Login Actions</SelectItem>
-                <SelectItem value="POLICY">Policy Actions</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline">
-              <Filter className="w-4 h-4 mr-2" />
-              More Filters
-            </Button>
-          </div>
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Timestamp</TableHead>
-                <TableHead>User</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Resource</TableHead>
-                <TableHead>Details</TableHead>
-                <TableHead>IP Address</TableHead>
-                <TableHead>Severity</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredLogs.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell className="font-mono text-sm">{log.timestamp}</TableCell>
-                  <TableCell>{log.userName}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{log.action}</Badge>
-                  </TableCell>
-                  <TableCell>{log.resource}</TableCell>
-                  <TableCell className="max-w-xs truncate">{log.details}</TableCell>
-                  <TableCell className="font-mono text-sm">{log.ipAddress}</TableCell>
-                  <TableCell>
-                    <Badge className={getSeverityColor(log.severity)}>
-                      {log.severity}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <AuditFilters
+            searchTerm={searchTerm}
+            severityFilter={severityFilter}
+            actionFilter={actionFilter}
+            onSearchChange={setSearchTerm}
+            onSeverityChange={setSeverityFilter}
+            onActionChange={setActionFilter}
+          />
+          <AuditLogTable logs={filteredLogs} />
         </CardContent>
       </Card>
     </div>
