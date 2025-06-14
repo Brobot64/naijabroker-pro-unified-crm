@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -151,8 +152,8 @@ const Landing = () => {
             <div className="relative">
               <div className="relative overflow-hidden rounded-2xl shadow-2xl">
                 <img 
-                  src="/lovable-uploads/8f916a73-5470-4ef3-b7e6-90ad79431433.png"
-                  alt="Nigerian professionals using NaijaBroker Pro insurance management system"
+                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=400&fit=crop&crop=faces"
+                  alt="Nigerian insurance professional working with clients"
                   className="w-full h-96 object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/10 to-transparent"></div>
@@ -221,16 +222,16 @@ const Landing = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative overflow-hidden rounded-lg shadow-lg transform rotate-3 hover:rotate-0 transition-transform duration-300">
                   <img 
-                    src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=300&h=400&fit=crop&crop=faces"
-                    alt="Insurance professional"
+                    src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&h=400&fit=crop&crop=faces"
+                    alt="Nigerian insurance professional"
                     className="w-full h-48 object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-blue-600/30 to-transparent"></div>
                 </div>
                 <div className="relative overflow-hidden rounded-lg shadow-lg transform -rotate-2 hover:rotate-0 transition-transform duration-300 mt-8">
                   <img 
-                    src="https://images.unsplash.com/photo-1581092795360-fd1ca04f0952?w=300&h=400&fit=crop&crop=faces"
-                    alt="Business professional"
+                    src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=300&h=400&fit=crop&crop=faces"
+                    alt="Nigerian business professional"
                     className="w-full h-48 object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-indigo-600/30 to-transparent"></div>
@@ -408,8 +409,8 @@ const Landing = () => {
             <div className="relative">
               <div className="relative overflow-hidden rounded-2xl shadow-2xl">
                 <img 
-                  src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=600&h=400&fit=crop&crop=center"
-                  alt="Team collaboration in modern office"
+                  src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&h=400&fit=crop&crop=center"
+                  alt="Nigerian insurance team collaboration"
                   className="w-full h-96 object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-tr from-indigo-600/20 to-transparent"></div>
