@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -221,16 +222,16 @@ const Landing = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative overflow-hidden rounded-lg shadow-lg transform rotate-3 hover:rotate-0 transition-transform duration-300">
                   <img 
-                    src="https://images.unsplash.com/photo-1594736797933-d0a9ba4864d0?w=300&h=400&fit=crop&crop=faces"
-                    alt="Nigerian insurance professional in formal business suit"
+                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=400&fit=crop&crop=faces"
+                    alt="Professional Nigerian businessman in formal suit"
                     className="w-full h-48 object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-blue-600/30 to-transparent"></div>
                 </div>
                 <div className="relative overflow-hidden rounded-lg shadow-lg transform -rotate-2 hover:rotate-0 transition-transform duration-300 mt-8">
                   <img 
-                    src="https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=300&h=400&fit=crop&crop=faces"
-                    alt="Nigerian business executive in professional attire"
+                    src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&h=400&fit=crop&crop=faces"
+                    alt="Professional African businesswoman in formal attire"
                     className="w-full h-48 object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-indigo-600/30 to-transparent"></div>
@@ -408,8 +409,8 @@ const Landing = () => {
             <div className="relative">
               <div className="relative overflow-hidden rounded-2xl shadow-2xl">
                 <img 
-                  src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=600&h=400&fit=crop&crop=center"
-                  alt="Nigerian insurance professionals in formal meeting discussing business"
+                  src="https://images.unsplash.com/photo-1531482615713-2afd69097998?w=600&h=400&fit=crop&crop=center"
+                  alt="African business professionals collaborating in modern office meeting"
                   className="w-full h-96 object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-tr from-indigo-600/20 to-transparent"></div>
