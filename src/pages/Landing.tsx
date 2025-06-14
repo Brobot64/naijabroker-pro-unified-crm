@@ -151,8 +151,8 @@ const Landing = () => {
             <div className="relative">
               <div className="relative overflow-hidden rounded-2xl shadow-2xl">
                 <img 
-                  src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=600&h=400&fit=crop&crop=center"
-                  alt="Professional Nigerian insurance executive in formal business attire"
+                  src="/lovable-uploads/84cc8568-8d63-4568-8548-1cadae1afa0f.png"
+                  alt="Nigerian insurance professionals using AI-enabled brokerage management system"
                   className="w-full h-96 object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/10 to-transparent"></div>
@@ -169,7 +169,7 @@ const Landing = () => {
               <div className="absolute -bottom-4 -left-4 bg-white rounded-lg shadow-lg p-3 animate-pulse">
                 <div className="flex items-center space-x-2">
                   <Zap className="h-5 w-5 text-blue-500" />
-                  <span className="text-sm font-semibold">Real-time Updates</span>
+                  <span className="text-sm font-semibold">A.I Enabled</span>
                 </div>
               </div>
               
