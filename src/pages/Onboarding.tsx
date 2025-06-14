@@ -7,7 +7,7 @@ import { organizationService, OnboardingData } from "@/services/organizationServ
 import { useToast } from "@/hooks/use-toast";
 
 const Onboarding = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -31,23 +31,33 @@ const Onboarding = () => {
         throw error;
       }
 
+      if (!organization) {
+        throw new Error('Organization was not created');
+      }
+
       toast({
         title: "Setup Complete!",
         description: "Your organization has been successfully configured.",
       });
 
-      // Store completion status
-      localStorage.setItem('onboarding_completed', 'true');
-      localStorage.setItem('user_role', data.adminUser.role);
-      localStorage.setItem('organization_data', JSON.stringify(data));
+      // Force a sign out and back in to refresh the auth context with new organization data
+      // This ensures the auth context picks up the updated profile with organization_id
+      console.log('Onboarding completed, refreshing auth state...');
       
-      // Redirect to dashboard
-      navigate('/app');
+      // Sign out and immediately redirect to auth with a flag to auto-sign back in
+      await signOut();
+      
+      // Store the completion flag and redirect to auth
+      localStorage.setItem('onboarding_just_completed', 'true');
+      localStorage.setItem('redirect_after_signin', '/app');
+      
+      navigate('/auth');
+      
     } catch (error) {
       console.error('Onboarding error:', error);
       toast({
         title: "Setup Failed",
-        description: "There was an error setting up your organization. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error setting up your organization. Please try again.",
         variant: "destructive",
       });
     } finally {

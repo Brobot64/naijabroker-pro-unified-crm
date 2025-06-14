@@ -22,9 +22,29 @@ const Auth = () => {
   const { signIn, signUp, user, organizationId } = useAuth();
   const navigate = useNavigate();
 
+  // Check for onboarding completion flag
+  useEffect(() => {
+    const justCompleted = localStorage.getItem('onboarding_just_completed');
+    if (justCompleted === 'true') {
+      localStorage.removeItem('onboarding_just_completed');
+      setIsLogin(true); // Ensure we're in login mode
+      toast({
+        title: "Please sign in again",
+        description: "Complete your setup by signing in with your credentials.",
+      });
+    }
+  }, []);
+
   // Redirect logic for authenticated users
   useEffect(() => {
     if (user) {
+      const redirectTo = localStorage.getItem('redirect_after_signin');
+      if (redirectTo) {
+        localStorage.removeItem('redirect_after_signin');
+        navigate(redirectTo);
+        return;
+      }
+      
       // If user has organization, go to app, otherwise go to onboarding
       if (organizationId) {
         navigate('/app');
