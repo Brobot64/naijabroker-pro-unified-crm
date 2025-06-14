@@ -7,10 +7,35 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { UserInvitation } from "../admin/UserInvitation";
+import { AuditLogger } from "../admin/AuditLogger";
+import { useToast } from "@/hooks/use-toast";
+
+interface AdminUser {
+  id: string;
+  name: string;
+  email: string; 
+  role: string;
+  lastLogin: string;
+  status: string;
+  permissions: string[];
+}
+
+interface SecuritySettings {
+  ssoEnabled: boolean;
+  mfaRequired: boolean;
+  passwordExpiry: number;
+  ipRestriction: boolean;
+  sessionTimeout: number;
+}
 
 export const AdminControls = () => {
-  const [adminUsers, setAdminUsers] = useState([
+  const { toast } = useToast();
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [showAuditLogs, setShowAuditLogs] = useState(false);
+  
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([
     {
       id: "admin-001",
       name: "John Developer",
@@ -40,13 +65,56 @@ export const AdminControls = () => {
     }
   ]);
 
-  const [securitySettings, setSecuritySettings] = useState({
+  const [securitySettings, setSecuritySettings] = useState<SecuritySettings>({
     ssoEnabled: true,
     mfaRequired: true,
     passwordExpiry: 90,
     ipRestriction: true,
     sessionTimeout: 480
   });
+
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  const updateSecuritySetting = (key: keyof SecuritySettings, value: boolean | number) => {
+    setSecuritySettings(prev => ({ ...prev, [key]: value }));
+    setHasUnsavedChanges(true);
+  };
+
+  const saveSecuritySettings = () => {
+    // Simulate API call to save settings
+    console.log('Saving security settings:', securitySettings);
+    
+    toast({
+      title: "Security Settings Updated",
+      description: "Your security settings have been successfully saved.",
+    });
+    
+    setHasUnsavedChanges(false);
+    
+    // Log the action for audit purposes
+    console.log('AUDIT: Security settings updated by admin user');
+  };
+
+  const handleInviteAdminUsers = (invitedUsers: any[]) => {
+    const newAdminUsers = invitedUsers.map((user, index) => ({
+      id: `admin-${String(adminUsers.length + index + 1).padStart(3, '0')}`,
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      role: user.role === 'SuperAdmin' ? 'Super Admin' : 
+            user.role === 'BrokerAdmin' ? 'System Admin' : 'Support Engineer',
+      lastLogin: "Never",
+      status: "pending",
+      permissions: user.role === 'SuperAdmin' ? ["all"] : ["support", "logs"]
+    }));
+    
+    setAdminUsers([...adminUsers, ...newAdminUsers]);
+    setShowInviteDialog(false);
+    
+    toast({
+      title: "Admin Users Invited",
+      description: `Successfully invited ${invitedUsers.length} admin user(s).`,
+    });
+  };
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -65,12 +133,33 @@ export const AdminControls = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold">Admin Controls & Security</h2>
-        <Button>Add Admin User</Button>
+        <div className="flex space-x-2">
+          <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+            <DialogTrigger asChild>
+              <Button>Add Admin User</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <UserInvitation onInvite={handleInviteAdminUsers} onClose={() => setShowInviteDialog(false)} />
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline" onClick={() => setShowAuditLogs(!showAuditLogs)}>
+            {showAuditLogs ? 'Hide' : 'View'} Audit Logs
+          </Button>
+        </div>
       </div>
+
+      {showAuditLogs && <AuditLogger />}
 
       <Card>
         <CardHeader>
-          <CardTitle>Security Settings</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Security Settings</CardTitle>
+            {hasUnsavedChanges && (
+              <Badge variant="outline" className="bg-yellow-50 text-yellow-800">
+                Unsaved Changes
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -80,7 +169,7 @@ export const AdminControls = () => {
                 <Switch 
                   id="sso"
                   checked={securitySettings.ssoEnabled}
-                  onCheckedChange={(checked) => setSecuritySettings({...securitySettings, ssoEnabled: checked})}
+                  onCheckedChange={(checked) => updateSecuritySetting('ssoEnabled', checked)}
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -88,7 +177,7 @@ export const AdminControls = () => {
                 <Switch 
                   id="mfa"
                   checked={securitySettings.mfaRequired}
-                  onCheckedChange={(checked) => setSecuritySettings({...securitySettings, mfaRequired: checked})}
+                  onCheckedChange={(checked) => updateSecuritySetting('mfaRequired', checked)}
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -96,7 +185,7 @@ export const AdminControls = () => {
                 <Switch 
                   id="ipRestriction"
                   checked={securitySettings.ipRestriction}
-                  onCheckedChange={(checked) => setSecuritySettings({...securitySettings, ipRestriction: checked})}
+                  onCheckedChange={(checked) => updateSecuritySetting('ipRestriction', checked)}
                 />
               </div>
             </div>
@@ -107,7 +196,7 @@ export const AdminControls = () => {
                   id="passwordExpiry"
                   type="number"
                   value={securitySettings.passwordExpiry}
-                  onChange={(e) => setSecuritySettings({...securitySettings, passwordExpiry: parseInt(e.target.value)})}
+                  onChange={(e) => updateSecuritySetting('passwordExpiry', parseInt(e.target.value))}
                 />
               </div>
               <div>
@@ -116,12 +205,18 @@ export const AdminControls = () => {
                   id="sessionTimeout"
                   type="number"
                   value={securitySettings.sessionTimeout}
-                  onChange={(e) => setSecuritySettings({...securitySettings, sessionTimeout: parseInt(e.target.value)})}
+                  onChange={(e) => updateSecuritySetting('sessionTimeout', parseInt(e.target.value))}
                 />
               </div>
             </div>
           </div>
-          <Button>Update Security Settings</Button>
+          <Button 
+            onClick={saveSecuritySettings}
+            disabled={!hasUnsavedChanges}
+            className="w-full md:w-auto"
+          >
+            {hasUnsavedChanges ? 'Save Security Settings' : 'Settings Saved'}
+          </Button>
         </CardContent>
       </Card>
 
@@ -151,7 +246,9 @@ export const AdminControls = () => {
                   </TableCell>
                   <TableCell>{user.lastLogin}</TableCell>
                   <TableCell>
-                    <Badge className="bg-green-100 text-green-800">{user.status}</Badge>
+                    <Badge className={user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                      {user.status}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">

@@ -1,9 +1,9 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { 
   Table,
   TableBody,
@@ -12,9 +12,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { UserInvitation } from "./UserInvitation";
+import { PermissionManager } from "./PermissionManager";
+import { useToast } from "@/hooks/use-toast";
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  department: string;
+  lastLogin: string;
+  status: string;
+}
 
 export const UserManagement = () => {
-  const users = [
+  const { toast } = useToast();
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [showPermissionDialog, setShowPermissionDialog] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  
+  const [users, setUsers] = useState<User[]>([
     {
       id: "USR-001",
       name: "John Smith",
@@ -51,7 +69,56 @@ export const UserManagement = () => {
       lastLogin: "2024-06-09 14:15",
       status: "inactive"
     },
-  ];
+  ]);
+
+  const handleInviteUsers = (invitedUsers: any[]) => {
+    // Add invited users to the users list
+    const newUsers = invitedUsers.map((user, index) => ({
+      id: `USR-${String(users.length + index + 1).padStart(3, '0')}`,
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      role: user.role,
+      department: getDepartmentByRole(user.role),
+      lastLogin: "Never",
+      status: "pending"
+    }));
+    
+    setUsers([...users, ...newUsers]);
+    setShowInviteDialog(false);
+  };
+
+  const handleEditUser = (user: User) => {
+    toast({
+      title: "Edit User",
+      description: `Editing user: ${user.name}`,
+    });
+  };
+
+  const handleManagePermissions = (user: User) => {
+    setSelectedUser(user);
+    setShowPermissionDialog(true);
+  };
+
+  const handleSavePermissions = (userPermissions: any) => {
+    console.log('Saving permissions:', userPermissions);
+    toast({
+      title: "Permissions Updated",
+      description: `Successfully updated permissions for ${selectedUser?.name}`,
+    });
+    setShowPermissionDialog(false);
+    setSelectedUser(null);
+  };
+
+  const getDepartmentByRole = (role: string) => {
+    const roleDepartmentMap: Record<string, string> = {
+      'BrokerAdmin': 'Administration',
+      'Underwriter': 'Underwriting',
+      'Agent': 'Sales',
+      'Compliance': 'Risk & Compliance',
+      'User': 'General'
+    };
+    return roleDepartmentMap[role] || 'General';
+  };
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -71,38 +138,54 @@ export const UserManagement = () => {
   };
 
   const getStatusColor = (status: string) => {
-    return status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'inactive':
+        return 'bg-red-100 text-red-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-        <Button>Invite New User</Button>
+        <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+          <DialogTrigger asChild>
+            <Button>Invite New User</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <UserInvitation onInvite={handleInviteUsers} onClose={() => setShowInviteDialog(false)} />
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">24</div>
+            <div className="text-2xl font-bold">{users.length}</div>
             <p className="text-xs text-muted-foreground">Total Users</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">22</div>
+            <div className="text-2xl font-bold">{users.filter(u => u.status === 'active').length}</div>
             <p className="text-xs text-muted-foreground">Active Users</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">8</div>
+            <div className="text-2xl font-bold">{users.filter(u => u.role === 'Agent').length}</div>
             <p className="text-xs text-muted-foreground">Sales Agents</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">5</div>
+            <div className="text-2xl font-bold">{users.filter(u => u.role === 'Underwriter').length}</div>
             <p className="text-xs text-muted-foreground">Underwriters</p>
           </CardContent>
         </Card>
@@ -149,8 +232,12 @@ export const UserManagement = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Button size="sm" variant="outline">Edit</Button>
-                      <Button size="sm" variant="outline">Permissions</Button>
+                      <Button size="sm" variant="outline" onClick={() => handleEditUser(user)}>
+                        Edit
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleManagePermissions(user)}>
+                        Permissions
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -159,6 +246,19 @@ export const UserManagement = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Permission Management Dialog */}
+      <Dialog open={showPermissionDialog} onOpenChange={setShowPermissionDialog}>
+        <DialogContent className="max-w-4xl">
+          {selectedUser && (
+            <PermissionManager
+              user={selectedUser}
+              onClose={() => setShowPermissionDialog(false)}
+              onSave={handleSavePermissions}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
