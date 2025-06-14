@@ -36,12 +36,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Function to fetch user data with proper error handling
   const fetchUserData = async (userId: string) => {
     try {
+      console.log('Fetching user data for:', userId);
+      
       // Fetch user profile and organization
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('organization_id')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (profileError && profileError.code !== 'PGRST116') {
         console.error('Error fetching profile:', profileError);
@@ -53,12 +55,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (roleError && roleError.code !== 'PGRST116') {
         console.error('Error fetching role:', roleError);
         return;
       }
+
+      console.log('Profile data:', profile);
+      console.log('Role data:', roleData);
 
       setOrganizationId(profile?.organization_id || null);
       setUserRole(roleData?.role || null);
@@ -68,18 +73,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
+    let isMounted = true;
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.id);
+        
+        if (!isMounted) return;
+        
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
           // Use setTimeout to prevent potential recursion issues
           setTimeout(() => {
-            fetchUserData(session.user.id);
-          }, 0);
+            if (isMounted) {
+              fetchUserData(session.user.id);
+            }
+          }, 100);
         } else {
           setUserRole(null);
           setOrganizationId(null);
@@ -91,6 +103,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return;
+      
+      console.log('Initial session check:', session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -101,7 +116,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, metadata?: any) => {
@@ -117,6 +135,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     if (error) {
+      console.error('Sign up error:', error);
       toast({
         title: "Sign up failed",
         description: error.message,
@@ -139,6 +158,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     if (error) {
+      console.error('Sign in error:', error);
       toast({
         title: "Sign in failed",
         description: error.message,
