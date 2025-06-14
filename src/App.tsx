@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Index from "./pages/Index";
+import Landing from "./pages/Landing";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 
@@ -39,15 +40,21 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* If onboarding is not complete, show onboarding flow */}
+            {/* Landing page is always accessible */}
+            <Route path="/landing" element={<Landing />} />
+            
+            {/* If onboarding is not complete, redirect to onboarding */}
             {!isOnboardingComplete ? (
               <>
                 <Route path="/" element={<Onboarding />} />
+                <Route path="/app" element={<Onboarding />} />
+                <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="*" element={<Onboarding />} />
               </>
             ) : (
               <>
-                <Route path="/" element={<Index />} />
+                <Route path="/" element={<Landing />} />
+                <Route path="/app" element={<Index />} />
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="*" element={<NotFound />} />
               </>
