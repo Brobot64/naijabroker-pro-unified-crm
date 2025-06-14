@@ -10,6 +10,7 @@ import { FinancialManagement } from "../components/financial/FinancialManagement
 import { ClaimsManagement } from "../components/claims/ClaimsManagement";
 import { UserManagement } from "../components/admin/UserManagement";
 import { ComplianceReports } from "../components/compliance/ComplianceReports";
+import { DeveloperDashboard } from "../components/developer/DeveloperDashboard";
 
 const Index = () => {
   const [activeModule, setActiveModule] = useState("dashboard");
@@ -34,6 +35,8 @@ const Index = () => {
         return <UserManagement />;
       case "compliance":
         return <ComplianceReports />;
+      case "developer":
+        return <DeveloperDashboard />;
       default:
         return <Dashboard userRole={userRole} />;
     }
