@@ -127,7 +127,7 @@ export const AuditLogs = () => {
               <Select value={filters.status} onValueChange={(value) => setFilters({...filters, status: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Filter by Status" />
-                </SelectTrig>
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="success">Success</SelectItem>
