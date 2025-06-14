@@ -151,11 +151,11 @@ const Landing = () => {
             <div className="relative">
               <div className="relative overflow-hidden rounded-2xl shadow-2xl">
                 <img 
-                  src="https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=600&h=400&fit=crop&crop=faces"
-                  alt="Professional using NaijaBroker Pro"
+                  src="/lovable-uploads/8f916a73-5470-4ef3-b7e6-90ad79431433.png"
+                  alt="Nigerian professionals using NaijaBroker Pro insurance management system"
                   className="w-full h-96 object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/20 to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/10 to-transparent"></div>
               </div>
               
               {/* Floating Stats Cards */}
