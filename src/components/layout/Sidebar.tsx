@@ -8,7 +8,8 @@ import {
   FileCheck, 
   Check, 
   Plus, 
-  X 
+  X,
+  Settings
 } from "lucide-react";
 
 interface SidebarProps {
@@ -28,6 +29,7 @@ const menuItems = [
   { id: "claims", label: "Claims", icon: FileX, roles: ["SuperAdmin", "BrokerAdmin", "Underwriter"] },
   { id: "users", label: "User Management", icon: Plus, roles: ["SuperAdmin", "BrokerAdmin"] },
   { id: "compliance", label: "Compliance", icon: Check, roles: ["SuperAdmin", "BrokerAdmin", "Compliance"] },
+  { id: "developer", label: "Developer Dashboard", icon: Settings, roles: ["SuperAdmin", "BrokerAdmin"] },
 ];
 
 export const Sidebar = ({ activeModule, setActiveModule, userRole, collapsed, setCollapsed }: SidebarProps) => {
