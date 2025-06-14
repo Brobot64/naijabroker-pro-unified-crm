@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -33,12 +32,14 @@ export const SystemConfiguration = ({ data, onUpdate }: SystemConfigurationProps
     const updated = { ...formData };
     if (field.includes('.')) {
       const [parent, child] = field.split('.');
-      updated[parent as keyof SystemConfigData] = {
-        ...updated[parent as keyof SystemConfigData],
-        [child]: value
-      };
+      if (parent === 'security') {
+        updated.security = {
+          ...updated.security,
+          [child]: value
+        };
+      }
     } else {
-      updated[field as keyof SystemConfigData] = value;
+      (updated as any)[field] = value;
     }
     setFormData(updated);
     onUpdate(updated);

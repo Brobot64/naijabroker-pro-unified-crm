@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,9 +28,11 @@ export const BrandingSetup = ({ data, onUpdate }: BrandingSetupProps) => {
     const updated = { ...formData };
     if (field.includes('.')) {
       const [parent, child] = field.split('.');
-      updated.companyInfo = { ...updated.companyInfo, [child]: value };
+      if (parent === 'companyInfo') {
+        updated.companyInfo = { ...updated.companyInfo, [child]: value };
+      }
     } else {
-      updated[field as keyof BrandingData] = value;
+      (updated as any)[field] = value;
     }
     setFormData(updated);
     onUpdate(updated);
