@@ -5,14 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DebitCreditNotes } from "./DebitCreditNotes";
+import { ReceiptProcessing } from "./ReceiptProcessing";
+import { RemittanceManagement } from "./RemittanceManagement";
 
 export const FinancialManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -104,105 +100,18 @@ export const FinancialManagement = () => {
 
       <Tabs defaultValue="debit-notes" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="debit-notes">Debit Notes</TabsTrigger>
-          <TabsTrigger value="receipts">Receipts</TabsTrigger>
+          <TabsTrigger value="debit-notes">Debit & Credit Notes</TabsTrigger>
+          <TabsTrigger value="receipts">Receipt Processing</TabsTrigger>
           <TabsTrigger value="commissions">Commissions</TabsTrigger>
           <TabsTrigger value="remittances">Remittances</TabsTrigger>
         </TabsList>
 
         <TabsContent value="debit-notes">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Debit Notes</CardTitle>
-                <div className="flex space-x-2">
-                  <Input placeholder="Search debit notes..." className="w-64" />
-                  <Button>Generate Debit Note</Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Debit Note ID</TableHead>
-                    <TableHead>Policy Number</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Gross Premium</TableHead>
-                    <TableHead>VAT</TableHead>
-                    <TableHead>Net Premium</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {debitNotes.map((note) => (
-                    <TableRow key={note.id}>
-                      <TableCell className="font-medium">{note.id}</TableCell>
-                      <TableCell>{note.policyNumber}</TableCell>
-                      <TableCell>{note.client}</TableCell>
-                      <TableCell>{note.grossPremium}</TableCell>
-                      <TableCell>{note.vat}</TableCell>
-                      <TableCell className="font-semibold">{note.netPremium}</TableCell>
-                      <TableCell>
-                        <Badge className={note.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                          {note.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <Button size="sm" variant="outline">View</Button>
-                          <Button size="sm">Send Reminder</Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <DebitCreditNotes />
         </TabsContent>
 
         <TabsContent value="receipts">
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment Receipts</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Receipt ID</TableHead>
-                    <TableHead>Debit Note</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Payment Method</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {receipts.map((receipt) => (
-                    <TableRow key={receipt.id}>
-                      <TableCell className="font-medium">{receipt.id}</TableCell>
-                      <TableCell>{receipt.debitNoteId}</TableCell>
-                      <TableCell>{receipt.client}</TableCell>
-                      <TableCell className="font-semibold">{receipt.amount}</TableCell>
-                      <TableCell>{receipt.paymentMethod}</TableCell>
-                      <TableCell>{receipt.receiptDate}</TableCell>
-                      <TableCell>
-                        <Badge className="bg-green-100 text-green-800">{receipt.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button size="sm" variant="outline">Download</Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <ReceiptProcessing />
         </TabsContent>
 
         <TabsContent value="commissions">
@@ -248,17 +157,7 @@ export const FinancialManagement = () => {
         </TabsContent>
 
         <TabsContent value="remittances">
-          <Card>
-            <CardHeader>
-              <CardTitle>Underwriter Remittances</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-gray-500">
-                <p>Remittance records will appear here when premium payments are processed.</p>
-                <Button className="mt-4">Process Remittance</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <RemittanceManagement />
         </TabsContent>
       </Tabs>
     </div>
