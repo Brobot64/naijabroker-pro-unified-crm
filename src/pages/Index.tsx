@@ -13,6 +13,7 @@ const Index = () => {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [hasOrganization, setHasOrganization] = useState<boolean | null>(null);
   const [isCheckingOrganization, setIsCheckingOrganization] = useState(false);
+  const [checkAttempts, setCheckAttempts] = useState(0);
   const { user, userRole, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -28,15 +29,30 @@ const Index = () => {
       return;
     }
 
+    // Prevent infinite loops by limiting attempts
+    if (checkAttempts >= 3) {
+      console.warn('Maximum organization check attempts reached, redirecting to onboarding');
+      setHasOrganization(false);
+      navigate('/onboarding', { replace: true });
+      return;
+    }
+
     setIsCheckingOrganization(true);
+    setCheckAttempts(prev => prev + 1);
     
     try {
-      console.log('Checking organization for user:', user.id);
+      console.log(`Checking organization for user (attempt ${checkAttempts + 1}):`, user.id);
       const { data, error } = await organizationService.getUserOrganization(user.id);
       
       if (error) {
         console.error('Error fetching organization:', error);
         setHasOrganization(false);
+        
+        // If it's a specific relationship error, redirect immediately
+        if (error.message?.includes('relationship') || error.code === 'PGRST200') {
+          console.log('Database relationship error detected, redirecting to onboarding');
+          navigate('/onboarding', { replace: true });
+        }
         return;
       }
 
@@ -52,12 +68,16 @@ const Index = () => {
     } catch (error) {
       console.error('Error checking organization:', error);
       setHasOrganization(false);
+      navigate('/onboarding', { replace: true });
     } finally {
       setIsCheckingOrganization(false);
     }
-  }, [user?.id, isCheckingOrganization, navigate]);
+  }, [user?.id, isCheckingOrganization, navigate, checkAttempts]);
 
   useEffect(() => {
+    // Reset check attempts when user changes
+    setCheckAttempts(0);
+    
     // Only check organization if we have a user and auth is not loading
     if (!loading && user) {
       checkOrganization();
@@ -66,10 +86,10 @@ const Index = () => {
       console.log('No user found and not loading');
       setHasOrganization(false);
     }
-  }, [user, loading, checkOrganization]);
+  }, [user?.id, loading]); // Removed checkOrganization from deps to prevent loops
 
-  // Show loading while auth is loading or while checking organization
-  if (loading || hasOrganization === null || isCheckingOrganization) {
+  // Show loading while auth is loading or while checking organization (with timeout)
+  if (loading || (hasOrganization === null && checkAttempts < 3)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -77,6 +97,14 @@ const Index = () => {
           <p className="mt-4 text-gray-600">
             {loading ? 'Loading your dashboard...' : 'Checking organization setup...'}
           </p>
+          {checkAttempts >= 2 && (
+            <button 
+              onClick={() => navigate('/onboarding')}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              Continue to Setup
+            </button>
+          )}
         </div>
       </div>
     );
