@@ -83,6 +83,27 @@ const validateTeamData = (team: OnboardingData['team']): string | null => {
 };
 
 export const organizationService = {
+  // Test function to verify database setup
+  async testDatabaseSetup() {
+    try {
+      console.log('🧪 Testing database setup...');
+      
+      // Check if we can call our test function
+      const { data, error } = await supabase.rpc('test_organization_insert');
+      
+      if (error) {
+        console.error('❌ Database test failed:', error);
+        return { success: false, error: error.message };
+      }
+      
+      console.log('✅ Database test result:', data);
+      return { success: true, message: data };
+    } catch (error) {
+      console.error('💥 Database test error:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  },
+
   async createOrganizationFromOnboarding(data: OnboardingData, userId: string) {
     try {
       console.log('🚀 Starting organization creation for user:', userId);
@@ -118,7 +139,15 @@ export const organizationService = {
 
       console.log('✅ User authentication verified:', user.id);
 
-      // Create organization with comprehensive error handling
+      // Test database setup first
+      const testResult = await this.testDatabaseSetup();
+      if (!testResult.success) {
+        console.error('❌ Database setup test failed:', testResult.error);
+        throw new Error(`Database setup issue: ${testResult.error}`);
+      }
+      console.log('✅ Database setup verified');
+
+      // Create organization with the fresh table structure
       const organizationPayload = {
         name: data.organization.name.trim(),
         plan: data.organization.plan.trim(),
