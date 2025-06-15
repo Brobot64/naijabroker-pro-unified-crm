@@ -14,6 +14,7 @@ export const useAuthForm = () => {
     confirmPassword: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   const { signIn, signUp, user, organizationId } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -31,9 +32,9 @@ export const useAuthForm = () => {
     }
   }, [toast]);
 
-  // Redirect logic for authenticated users
+  // Only redirect after successful authentication action
   useEffect(() => {
-    if (user) {
+    if (user && shouldRedirect) {
       const redirectTo = localStorage.getItem('redirect_after_signin');
       if (redirectTo) {
         localStorage.removeItem('redirect_after_signin');
@@ -46,8 +47,9 @@ export const useAuthForm = () => {
       } else {
         navigate('/onboarding');
       }
+      setShouldRedirect(false);
     }
-  }, [user, organizationId, navigate]);
+  }, [user, organizationId, navigate, shouldRedirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +59,7 @@ export const useAuthForm = () => {
       if (isLogin) {
         const { error } = await signIn(formData.email, formData.password);
         if (!error) {
+          setShouldRedirect(true);
           return;
         }
       } else {
@@ -71,6 +74,7 @@ export const useAuthForm = () => {
         });
 
         if (!error) {
+          setShouldRedirect(true);
           return;
         }
       }
