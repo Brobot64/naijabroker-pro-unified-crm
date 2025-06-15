@@ -29,7 +29,7 @@ const HeroSection = () => {
               and compliance tools designed specifically for Nigerian insurance brokers.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/app">
+              <Link to="/auth">
                 <Button size="lg" className="text-lg px-8 py-3 hover:scale-105 transition-transform">
                   Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
