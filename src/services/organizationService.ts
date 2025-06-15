@@ -85,11 +85,13 @@ const validateTeamData = (team: OnboardingData['team']): string | null => {
 export const organizationService = {
   async createOrganizationFromOnboarding(data: OnboardingData, userId: string) {
     try {
-      console.log('Creating organization for user:', userId, data);
+      console.log('🚀 Starting organization creation for user:', userId);
+      console.log('📊 Organization data:', data.organization);
 
       // Validate input data
       const validationError = validateOrganizationData(data, userId);
       if (validationError) {
+        console.error('❌ Validation failed:', validationError);
         throw new Error(validationError);
       }
 
@@ -97,9 +99,24 @@ export const organizationService = {
       if (data.team && data.team.length > 0) {
         const teamValidationError = validateTeamData(data.team);
         if (teamValidationError) {
+          console.error('❌ Team validation failed:', teamValidationError);
           throw new Error(teamValidationError);
         }
       }
+
+      // Check current user authentication
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error('❌ Authentication check failed:', authError);
+        throw new Error('User is not authenticated');
+      }
+      
+      if (user.id !== userId) {
+        console.error('❌ User ID mismatch:', { expected: userId, actual: user.id });
+        throw new Error('User ID mismatch');
+      }
+
+      console.log('✅ User authentication verified:', user.id);
 
       // Create organization with comprehensive error handling
       const organizationPayload = {
@@ -119,6 +136,8 @@ export const organizationService = {
         password_policy: data.systemConfig.security.passwordPolicy || 'standard',
       };
 
+      console.log('📤 Creating organization with payload:', organizationPayload);
+
       const { data: organization, error: orgError } = await supabase
         .from('organizations')
         .insert(organizationPayload)
@@ -126,15 +145,19 @@ export const organizationService = {
         .single();
 
       if (orgError) {
-        console.error('Organization creation error:', orgError);
+        console.error('❌ Organization creation error:', orgError);
+        console.error('❌ Error code:', orgError.code);
+        console.error('❌ Error message:', orgError.message);
+        console.error('❌ Error details:', orgError.details);
         throw new Error(`Failed to create organization: ${orgError.message}`);
       }
 
       if (!organization?.id) {
+        console.error('❌ Organization created but no ID returned');
         throw new Error('Organization created but no ID returned');
       }
 
-      console.log('Organization created successfully:', organization.id);
+      console.log('✅ Organization created successfully:', organization.id);
 
       // Update user profile with organization - use upsert for safety
       const profilePayload = {
@@ -145,16 +168,20 @@ export const organizationService = {
         phone: data.adminUser.phone?.trim() || null,
       };
 
+      console.log('📤 Updating profile with payload:', profilePayload);
+
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert(profilePayload);
 
       if (profileError) {
-        console.error('Profile update error:', profileError);
+        console.error('❌ Profile update error:', profileError);
+        console.error('❌ Profile error code:', profileError.code);
+        console.error('❌ Profile error message:', profileError.message);
         throw new Error(`Failed to update profile: ${profileError.message}`);
       }
 
-      console.log('Profile updated successfully for user:', userId);
+      console.log('✅ Profile updated successfully for user:', userId);
 
       // Assign admin role with validation
       const rolePayload = {
@@ -163,16 +190,20 @@ export const organizationService = {
         organization_id: organization.id,
       };
 
+      console.log('📤 Creating role with payload:', rolePayload);
+
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert(rolePayload);
 
       if (roleError) {
-        console.error('Role assignment error:', roleError);
+        console.error('❌ Role assignment error:', roleError);
+        console.error('❌ Role error code:', roleError.code);
+        console.error('❌ Role error message:', roleError.message);
         throw new Error(`Failed to assign role: ${roleError.message}`);
       }
 
-      console.log('Admin role assigned successfully:', data.adminUser.role);
+      console.log('✅ Admin role assigned successfully:', data.adminUser.role);
 
       // Create team invitations if any - handle gracefully
       if (data.team && data.team.length > 0) {
@@ -190,23 +221,26 @@ export const organizationService = {
             invited_by: userId,
           }));
 
+          console.log('📤 Creating team invitations:', invitations.length);
+
           const { error: inviteError } = await supabase
             .from('team_invitations')
             .insert(invitations);
 
           if (inviteError) {
-            console.error('Team invitation error:', inviteError);
+            console.error('⚠️ Team invitation error:', inviteError);
             // Don't throw here as this is not critical to the main flow
             console.warn('Failed to create some team invitations, but organization setup completed');
           } else {
-            console.log('Team invitations created successfully:', validInvitations.length);
+            console.log('✅ Team invitations created successfully:', validInvitations.length);
           }
         }
       }
 
+      console.log('🎉 Organization creation completed successfully!');
       return { organization, error: null };
     } catch (error) {
-      console.error('Error creating organization:', error);
+      console.error('💥 Critical error in organization creation:', error);
       return { 
         organization: null, 
         error: error instanceof Error ? error : new Error('Unknown error occurred') 
