@@ -7,7 +7,9 @@ import {
   Shield, 
   Settings,
   Building2,
-  UserCog
+  UserCog,
+  Code,
+  Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -59,10 +61,28 @@ export const Sidebar = ({ activeSection, onSectionChange, userRole }: SidebarPro
       roles: ["SuperAdmin", "BrokerAdmin", "Agent", "Underwriter"]
     },
     {
+      id: "claims",
+      label: "Claims",
+      icon: Zap,
+      roles: ["SuperAdmin", "BrokerAdmin", "Agent", "Underwriter", "Compliance"]
+    },
+    {
       id: "financial",
       label: "Financial",
       icon: DollarSign,
       roles: ["SuperAdmin", "BrokerAdmin"]
+    },
+    {
+      id: "compliance",
+      label: "Compliance",
+      icon: Shield,
+      roles: ["SuperAdmin", "BrokerAdmin", "Compliance"]
+    },
+    {
+      id: "developer",
+      label: "Developer Portal",
+      icon: Code,
+      roles: ["SuperAdmin"]
     },
     {
       id: "settings",

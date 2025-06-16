@@ -5,6 +5,13 @@ import { Header } from "../components/layout/Header";
 import { Dashboard } from "../components/dashboard/Dashboard";
 import { UserManagement } from "../components/admin/UserManagement";
 import { AdminControls } from "../components/developer/AdminControls";
+import { DeveloperDashboard } from "../components/developer/DeveloperDashboard";
+import { LeadManagement } from "../components/crm/LeadManagement";
+import { QuoteManagement } from "../components/quotes/QuoteManagement";
+import { PolicyManagement } from "../components/policies/PolicyManagement";
+import { ClaimsManagement } from "../components/claims/ClaimsManagement";
+import { FinancialManagement } from "../components/financial/FinancialManagement";
+import { ComplianceReports } from "../components/compliance/ComplianceReports";
 import { useAuth } from "@/contexts/AuthContext";
 import { organizationService } from "@/services/organizationService";
 import { useNavigate } from "react-router-dom";
@@ -140,6 +147,27 @@ const Index = () => {
         return <UserManagement />;
       case "admin-controls":
         return <AdminControls />;
+      case "developer":
+        return <DeveloperDashboard />;
+      case "leads":
+        return <LeadManagement />;
+      case "quotes":
+        return <QuoteManagement />;
+      case "policies":
+        return <PolicyManagement />;
+      case "claims":
+        return <ClaimsManagement />;
+      case "financial":
+        return <FinancialManagement />;
+      case "compliance":
+        return <ComplianceReports />;
+      case "settings":
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold mb-4">Settings</h2>
+            <p className="text-gray-600">Settings functionality coming soon...</p>
+          </div>
+        );
       default:
         return <Dashboard userRole={validatedUserRole} />;
     }
