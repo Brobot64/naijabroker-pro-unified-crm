@@ -1,6 +1,6 @@
 
 // Re-export everything from the modular organization service files
-export { OnboardingData, CreateOrganizationResult, GetUserOrganizationResult } from './organization/types';
+export type { OnboardingData, CreateOrganizationResult, GetUserOrganizationResult } from './organization/types';
 export { validateOrganizationData, validateTeamData } from './organization/validation';
 export { testDatabaseSetup, getUserOrganization } from './organization/database';
 export { createOrganizationFromOnboarding } from './organization/creation';

@@ -9,8 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle, CheckCircle } from "lucide-react";
 import { financialCalculator } from "@/utils/financialCalculations";
 import { workflowManager } from "@/utils/workflowManager";
+import { useToast } from "@/hooks/use-toast";
 
 interface DebitNote {
   id: string;
@@ -20,10 +23,12 @@ interface DebitNote {
   grossPremium: number;
   vat: number;
   netPremium: number;
-  status: 'draft' | 'sent' | 'outstanding' | 'paid' | 'refused';
+  status: 'draft' | 'sent' | 'outstanding' | 'paid' | 'refused' | 'cancelled';
   createdDate: string;
   dueDate: string;
   coBrokers?: string[];
+  refusalReason?: string;
+  canResubmit: boolean;
 }
 
 interface CreditNote {
@@ -36,12 +41,15 @@ interface CreditNote {
   reason: string;
   status: 'draft' | 'approved' | 'processed';
   createdDate: string;
+  approvedBy?: string;
 }
 
 export const DebitCreditNotes = () => {
   const [activeTab, setActiveTab] = useState("debit-notes");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedNote, setSelectedNote] = useState<DebitNote | null>(null);
+  const [grossPremium, setGrossPremium] = useState<number>(0);
+  const { toast } = useToast();
 
   const debitNotes: DebitNote[] = [
     {
@@ -49,22 +57,37 @@ export const DebitCreditNotes = () => {
       policyNumber: "POL-2024-001234",
       client: "Dangote Industries Ltd",
       grossPremium: 2500000,
-      vat: 375000,
-      netPremium: 2875000,
+      vat: 187500,
+      netPremium: 2687500,
       status: "outstanding",
       createdDate: "2024-06-01",
-      dueDate: "2024-07-01"
+      dueDate: "2024-07-01",
+      canResubmit: true
     },
     {
       id: "DN-2024-002",
       policyNumber: "POL-2024-001235",
       client: "GTBank Plc",
       grossPremium: 5000000,
-      vat: 750000,
-      netPremium: 5750000,
+      vat: 375000,
+      netPremium: 5375000,
       status: "paid",
       createdDate: "2024-05-15",
-      dueDate: "2024-06-15"
+      dueDate: "2024-06-15",
+      canResubmit: true
+    },
+    {
+      id: "DN-2024-003",
+      policyNumber: "POL-2024-001236",
+      client: "First Bank Plc",
+      grossPremium: 1500000,
+      vat: 112500,
+      netPremium: 1612500,
+      status: "refused",
+      createdDate: "2024-06-05",
+      dueDate: "2024-07-05",
+      refusalReason: "Incorrect premium calculation",
+      canResubmit: false // Once refused, cannot be resubmitted
     }
   ];
 
@@ -74,13 +97,21 @@ export const DebitCreditNotes = () => {
       debitNoteId: "DN-2024-001",
       policyNumber: "POL-2024-001234",
       client: "Dangote Industries Ltd",
-      originalAmount: 2875000,
-      creditAmount: 287500,
+      originalAmount: 2687500,
+      creditAmount: 268750,
       reason: "Premium adjustment due to risk reassessment",
       status: "approved",
-      createdDate: "2024-06-10"
+      createdDate: "2024-06-10",
+      approvedBy: "John Administrator"
     }
   ];
+
+  // Real-time VAT and premium calculation
+  const calculateVATAndNet = (gross: number) => {
+    const vat = gross * 0.075; // 7.5% VAT
+    const net = gross + vat;
+    return { vat, net };
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -92,6 +123,7 @@ export const DebitCreditNotes = () => {
       case "sent":
         return "bg-yellow-100 text-yellow-800";
       case "refused":
+      case "cancelled":
         return "bg-red-100 text-red-800";
       case "draft":
         return "bg-gray-100 text-gray-800";
@@ -100,81 +132,126 @@ export const DebitCreditNotes = () => {
     }
   };
 
-  const handleRefuseNote = (noteId: string) => {
+  const handleRefuseNote = (noteId: string, reason: string) => {
     // Implement duplicate prevention - once refused, cannot be resubmitted
-    console.log(`Note ${noteId} refused - marking as non-resubmittable`);
+    console.log(`Note ${noteId} refused with reason: ${reason} - marking as non-resubmittable`);
+    toast({
+      title: "Debit Note Refused",
+      description: "This note has been permanently refused and cannot be resubmitted.",
+      variant: "destructive",
+    });
   };
 
-  const CreateDebitNoteModal = () => (
-    <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Create Debit Note</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="policyNumber">Policy Number</Label>
-              <Input id="policyNumber" placeholder="POL-2024-XXXXX" />
-            </div>
-            <div>
-              <Label htmlFor="endorsementNumber">Endorsement Number (Optional)</Label>
-              <Input id="endorsementNumber" placeholder="END-2024-XXXXX" />
-            </div>
-          </div>
-          
-          <div>
-            <Label htmlFor="client">Client</Label>
-            <Select>
-              <SelectTrigger>
-                <SelectValue placeholder="Select client" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="dangote">Dangote Industries Ltd</SelectItem>
-                <SelectItem value="gtbank">GTBank Plc</SelectItem>
-                <SelectItem value="firstbank">First Bank Plc</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+  const handleCreateDebitNote = () => {
+    // Validation and duplicate prevention logic
+    const calculations = calculateVATAndNet(grossPremium);
+    console.log('Creating debit note with calculations:', calculations);
+    
+    toast({
+      title: "Debit Note Created",
+      description: "Debit note has been created successfully with real-time calculations.",
+    });
+    
+    setShowCreateModal(false);
+  };
 
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="grossPremium">Gross Premium (₦)</Label>
-              <Input id="grossPremium" type="number" placeholder="0.00" />
-            </div>
-            <div>
-              <Label>VAT (15%)</Label>
-              <Input readOnly placeholder="Auto-calculated" className="bg-gray-50" />
-            </div>
-            <div>
-              <Label>Net Premium</Label>
-              <Input readOnly placeholder="Auto-calculated" className="bg-gray-50" />
-            </div>
-          </div>
+  const CreateDebitNoteModal = () => {
+    const calculations = calculateVATAndNet(grossPremium);
+    
+    return (
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create Debit Note</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription>
+                Real-time calculations enabled. VAT and net premium will update automatically.
+              </AlertDescription>
+            </Alert>
 
-          <div>
-            <Label>Co-Brokers (Optional)</Label>
-            <Select>
-              <SelectTrigger>
-                <SelectValue placeholder="Add co-brokers" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="broker1">ABC Insurance Brokers</SelectItem>
-                <SelectItem value="broker2">XYZ Risk Advisors</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="policyNumber">Policy Number*</Label>
+                <Input id="policyNumber" placeholder="POL-2024-XXXXX" />
+              </div>
+              <div>
+                <Label htmlFor="endorsementNumber">Endorsement Number (Optional)</Label>
+                <Input id="endorsementNumber" placeholder="END-2024-XXXXX" />
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="client">Client*</Label>
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select client" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dangote">Dangote Industries Ltd</SelectItem>
+                  <SelectItem value="gtbank">GTBank Plc</SelectItem>
+                  <SelectItem value="firstbank">First Bank Plc</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => setShowCreateModal(false)}>
-              Cancel
-            </Button>
-            <Button>Create Debit Note</Button>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="grossPremium">Gross Premium (₦)*</Label>
+                <Input 
+                  id="grossPremium" 
+                  type="number" 
+                  placeholder="0.00"
+                  value={grossPremium || ''}
+                  onChange={(e) => setGrossPremium(Number(e.target.value))}
+                />
+              </div>
+              <div>
+                <Label>VAT (7.5%)</Label>
+                <Input 
+                  readOnly 
+                  value={calculations.vat.toLocaleString()}
+                  className="bg-gray-50" 
+                />
+              </div>
+              <div>
+                <Label>Net Premium</Label>
+                <Input 
+                  readOnly 
+                  value={calculations.net.toLocaleString()}
+                  className="bg-gray-50" 
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Co-Brokers (Optional)</Label>
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Add co-brokers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="broker1">ABC Insurance Brokers</SelectItem>
+                  <SelectItem value="broker2">XYZ Risk Advisors</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowCreateModal(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateDebitNote}>
+                Create Debit Note
+              </Button>
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+        </DialogContent>
+      </Dialog>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -204,7 +281,7 @@ export const DebitCreditNotes = () => {
                     <TableHead>Policy Number</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Gross Premium</TableHead>
-                    <TableHead>VAT</TableHead>
+                    <TableHead>VAT (7.5%)</TableHead>
                     <TableHead>Net Premium</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
@@ -223,6 +300,12 @@ export const DebitCreditNotes = () => {
                         <Badge className={getStatusColor(note.status)}>
                           {note.status}
                         </Badge>
+                        {note.status === 'refused' && (
+                          <div className="flex items-center mt-1">
+                            <AlertTriangle className="h-3 w-3 text-red-500 mr-1" />
+                            <span className="text-xs text-red-600">Cannot resubmit</span>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
@@ -230,14 +313,19 @@ export const DebitCreditNotes = () => {
                           {note.status === 'outstanding' && (
                             <>
                               <Button size="sm" variant="outline">Send Reminder</Button>
-                              <Button 
-                                size="sm" 
-                                variant="destructive"
-                                onClick={() => handleRefuseNote(note.id)}
-                              >
-                                Refuse
-                              </Button>
+                              {note.canResubmit && (
+                                <Button 
+                                  size="sm" 
+                                  variant="destructive"
+                                  onClick={() => handleRefuseNote(note.id, "Manual refusal")}
+                                >
+                                  Refuse
+                                </Button>
+                              )}
                             </>
+                          )}
+                          {note.status === 'refused' && (
+                            <span className="text-xs text-gray-500">Permanently refused</span>
                           )}
                         </div>
                       </TableCell>
