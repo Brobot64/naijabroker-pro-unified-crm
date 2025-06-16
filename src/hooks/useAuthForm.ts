@@ -15,6 +15,7 @@ export const useAuthForm = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [shouldRedirect, setShouldRedirect] = useState(false);
+  const [signUpSuccess, setSignUpSuccess] = useState(false);
   const { signIn, signUp, user, organizationId } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -64,7 +65,11 @@ export const useAuthForm = () => {
         }
       } else {
         if (formData.password !== formData.confirmPassword) {
-          alert('Passwords do not match');
+          toast({
+            title: "Password mismatch",
+            description: "Passwords do not match. Please try again.",
+            variant: "destructive",
+          });
           return;
         }
 
@@ -74,7 +79,15 @@ export const useAuthForm = () => {
         });
 
         if (!error) {
-          setShouldRedirect(true);
+          setSignUpSuccess(true);
+          // Clear form
+          setFormData({
+            email: '',
+            password: '',
+            firstName: '',
+            lastName: '',
+            confirmPassword: ''
+          });
           return;
         }
       }
@@ -95,6 +108,8 @@ export const useAuthForm = () => {
     setIsLogin,
     formData,
     isLoading,
+    signUpSuccess,
+    setSignUpSuccess,
     handleSubmit,
     handleChange
   };

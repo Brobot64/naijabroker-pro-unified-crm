@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -188,9 +187,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         variant: "destructive",
       });
     } else {
+      // Enhanced success notification
       toast({
-        title: "Check your email",
-        description: "We've sent you a confirmation link to complete your signup.",
+        title: "Account created successfully! 🎉",
+        description: `Please check your email (${email}) for a confirmation link to activate your account. The email may take a few minutes to arrive.`,
+        duration: 8000, // Show for 8 seconds
       });
     }
 
