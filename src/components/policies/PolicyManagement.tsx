@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Table,
   TableBody,
@@ -12,11 +13,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PolicyUpdateModal } from "./PolicyUpdateModal";
+import { RenewalReminders } from "./RenewalReminders";
+
+interface Policy {
+  id: string;
+  client: string;
+  type: string;
+  sumInsured: string;
+  premium: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  underwriter: string;
+  commission: string;
+}
 
 export const PolicyManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null);
 
-  const policies = [
+  const policies: Policy[] = [
     {
       id: "POL-2024-001234",
       client: "Dangote Industries Ltd",
@@ -68,6 +86,11 @@ export const PolicyManagement = () => {
     }
   };
 
+  const handlePolicyUpdate = (policy: Policy) => {
+    setSelectedPolicy(policy);
+    setShowUpdateModal(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -102,60 +125,84 @@ export const PolicyManagement = () => {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Policy Portfolio</CardTitle>
-            <div className="flex space-x-2">
-              <Input
-                placeholder="Search policies..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-64"
-              />
-              <Button variant="outline">Filter</Button>
-              <Button variant="outline">Export</Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Policy Number</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Sum Insured</TableHead>
-                <TableHead>Premium</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Expiry Date</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {policies.map((policy) => (
-                <TableRow key={policy.id}>
-                  <TableCell className="font-medium">{policy.id}</TableCell>
-                  <TableCell>{policy.client}</TableCell>
-                  <TableCell>{policy.type}</TableCell>
-                  <TableCell className="font-semibold">{policy.sumInsured}</TableCell>
-                  <TableCell className="font-semibold text-green-600">{policy.premium}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(policy.status)}>{policy.status}</Badge>
-                  </TableCell>
-                  <TableCell>{policy.endDate}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button size="sm" variant="outline">View</Button>
-                      <Button size="sm">Renew</Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="policies" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="policies">Policy Portfolio</TabsTrigger>
+          <TabsTrigger value="renewals">Renewal Reminders</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="policies">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Policy Portfolio</CardTitle>
+                <div className="flex space-x-2">
+                  <Input
+                    placeholder="Search policies..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-64"
+                  />
+                  <Button variant="outline">Filter</Button>
+                  <Button variant="outline">Export</Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Policy Number</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Sum Insured</TableHead>
+                    <TableHead>Premium</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Expiry Date</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {policies.map((policy) => (
+                    <TableRow key={policy.id}>
+                      <TableCell className="font-medium">{policy.id}</TableCell>
+                      <TableCell>{policy.client}</TableCell>
+                      <TableCell>{policy.type}</TableCell>
+                      <TableCell className="font-semibold">{policy.sumInsured}</TableCell>
+                      <TableCell className="font-semibold text-green-600">{policy.premium}</TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(policy.status)}>{policy.status}</Badge>
+                      </TableCell>
+                      <TableCell>{policy.endDate}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="outline">View</Button>
+                          <Button 
+                            size="sm"
+                            onClick={() => handlePolicyUpdate(policy)}
+                          >
+                            Update/Renew
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="renewals">
+          <RenewalReminders />
+        </TabsContent>
+      </Tabs>
+
+      <PolicyUpdateModal
+        open={showUpdateModal}
+        onOpenChange={setShowUpdateModal}
+        policy={selectedPolicy}
+      />
     </div>
   );
 };
