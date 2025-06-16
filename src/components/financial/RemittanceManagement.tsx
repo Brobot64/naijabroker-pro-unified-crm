@@ -1,15 +1,9 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle, AlertTriangle } from "lucide-react";
-import { workflowManager } from "@/utils/workflowManager";
+import { RemittanceApprovalModal } from "./RemittanceApprovalModal";
 import { useToast } from "@/hooks/use-toast";
 
 interface RemittanceAdvice {
@@ -29,73 +23,68 @@ interface RemittanceAdvice {
 export const RemittanceManagement = () => {
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [selectedRemittance, setSelectedRemittance] = useState<RemittanceAdvice | null>(null);
-  const [approvalComments, setApprovalComments] = useState("");
   const { toast } = useToast();
 
+  // Enhanced remittance data with granular breakdowns
   const remittances: RemittanceAdvice[] = [
     {
       id: "REM-2024-001",
       underwriter: "AXA Mansard Insurance",
       policyNumber: "POL-2024-001235",
       premium: 5000000,
-      commission: 500000,
-      adminCharges: 100000,
-      netRemittance: 4400000,
+      commission: 500000, // 10% commission
+      adminCharges: 100000, // 2% admin charges
+      netRemittance: 4400000, // Premium - Commission - Admin charges
       status: "pending",
       createdDate: "2024-06-20",
-      requiresApproval: true
+      requiresApproval: true // Exceeds threshold
     },
     {
       id: "REM-2024-002",
       underwriter: "AIICO Insurance",
       policyNumber: "POL-2024-001236",
       premium: 750000,
-      commission: 75000,
-      adminCharges: 15000,
+      commission: 75000, // 10% commission
+      adminCharges: 15000, // 2% admin charges
       netRemittance: 660000,
       status: "approved",
       createdDate: "2024-06-18",
       approvedBy: "John Administrator",
-      requiresApproval: false
+      requiresApproval: false // Within auto-approval limits
+    },
+    {
+      id: "REM-2024-003",
+      underwriter: "Leadway Assurance",
+      policyNumber: "POL-2024-001237",
+      premium: 12000000,
+      commission: 1200000, // 10% commission
+      adminCharges: 240000, // 2% admin charges
+      netRemittance: 10560000, // Large amount requiring approval
+      status: "pending",
+      createdDate: "2024-06-21",
+      requiresApproval: true
     }
   ];
 
-  const handleApproval = (remittance: RemittanceAdvice, action: 'approve' | 'reject') => {
-    const requiresApproval = workflowManager.requiresApproval('remittance', remittance.netRemittance, 'BrokerAdmin');
-    
-    if (requiresApproval && action === 'approve') {
-      console.log(`Remittance ${remittance.id} approved with comments: ${approvalComments}`);
-      
-      // Generate notification for underwriter
-      const notification = workflowManager.generateNotification('remittance_ready', {
-        remittanceId: remittance.id,
-        amount: remittance.netRemittance,
-        underwriterEmail: 'underwriter@example.com'
-      });
-      
-      toast({
-        title: "Remittance Approved",
-        description: `Remittance ${remittance.id} has been approved and underwriter notified.`,
-      });
-    } else if (action === 'reject') {
-      console.log(`Remittance ${remittance.id} rejected with comments: ${approvalComments}`);
-      toast({
-        title: "Remittance Rejected",
-        description: `Remittance ${remittance.id} has been rejected.`,
-        variant: "destructive",
-      });
-    }
-    
-    setShowApprovalModal(false);
-    setSelectedRemittance(null);
-    setApprovalComments("");
-  };
-
   const generateRemittanceAdvice = (remittance: RemittanceAdvice) => {
-    console.log("Generating detailed remittance advice PDF for:", remittance.id);
+    console.log('Generating Enhanced Remittance Advice PDF:', {
+      remittanceId: remittance.id,
+      underwriter: remittance.underwriter,
+      policyNumber: remittance.policyNumber,
+      breakdown: {
+        grossPremium: remittance.premium,
+        commission: remittance.commission,
+        adminCharges: remittance.adminCharges,
+        netRemittance: remittance.netRemittance,
+        commissionRate: ((remittance.commission / remittance.premium) * 100).toFixed(2) + '%',
+        adminRate: ((remittance.adminCharges / remittance.premium) * 100).toFixed(2) + '%'
+      },
+      timestamp: new Date().toISOString()
+    });
+
     toast({
-      title: "PDF Generated",
-      description: "Remittance advice PDF has been generated with detailed breakdown.",
+      title: "Remittance Advice Generated",
+      description: `Detailed PDF generated for ${remittance.id} with complete breakdown and calculations.`,
     });
   };
 
@@ -114,90 +103,10 @@ export const RemittanceManagement = () => {
     }
   };
 
-  const ApprovalModal = () => (
-    <Dialog open={showApprovalModal} onOpenChange={setShowApprovalModal}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Remittance Approval - Enhanced Workflow</DialogTitle>
-        </DialogHeader>
-        {selectedRemittance && (
-          <div className="space-y-4">
-            {selectedRemittance.requiresApproval && (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  This remittance exceeds approval threshold and requires senior authorization.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-semibold">{selectedRemittance.underwriter}</h4>
-              <p className="text-sm text-gray-600">Policy: {selectedRemittance.policyNumber}</p>
-              <div className="mt-2 space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Premium:</span>
-                  <span>₦{selectedRemittance.premium.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Commission:</span>
-                  <span className="text-red-600">-₦{selectedRemittance.commission.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Admin Charges:</span>
-                  <span className="text-red-600">-₦{selectedRemittance.adminCharges.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between font-semibold border-t pt-1">
-                  <span>Net Remittance:</span>
-                  <span className="text-green-600">₦{selectedRemittance.netRemittance.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="comments">Approval Comments*</Label>
-              <Textarea
-                id="comments"
-                value={approvalComments}
-                onChange={(e) => setApprovalComments(e.target.value)}
-                placeholder="Add detailed comments for this approval decision..."
-                className="min-h-[100px]"
-              />
-            </div>
-
-            {!selectedRemittance.requiresApproval && (
-              <Alert>
-                <CheckCircle className="h-4 w-4" />
-                <AlertDescription>
-                  This remittance is within auto-approval limits but still requires confirmation.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex justify-end space-x-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowApprovalModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                variant="destructive"
-                onClick={() => handleApproval(selectedRemittance, 'reject')}
-              >
-                Reject
-              </Button>
-              <Button 
-                onClick={() => handleApproval(selectedRemittance, 'approve')}
-              >
-                Approve & Process
-              </Button>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
+  const handleApprovalClick = (remittance: RemittanceAdvice) => {
+    setSelectedRemittance(remittance);
+    setShowApprovalModal(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -206,36 +115,41 @@ export const RemittanceManagement = () => {
         <Button>Generate Batch Remittance</Button>
       </div>
 
+      {/* Enhanced Metrics Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">₦12.5M</div>
+            <div className="text-2xl font-bold">₦16.96M</div>
             <p className="text-xs text-muted-foreground">Pending Approvals</p>
+            <p className="text-xs text-gray-500 mt-1">2 high-value remittances</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">₦40.7M</div>
             <p className="text-xs text-muted-foreground">Approved This Month</p>
+            <p className="text-xs text-gray-500 mt-1">Average processing: 2.5 days</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">₦4.5M</div>
+            <div className="text-2xl font-bold">₦1.775M</div>
             <p className="text-xs text-muted-foreground">Commission Retained</p>
+            <p className="text-xs text-gray-500 mt-1">10% average rate</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">₦28.2M</div>
-            <p className="text-xs text-muted-foreground">Automated Remittances</p>
+            <div className="text-2xl font-bold">₦355K</div>
+            <p className="text-xs text-muted-foreground">Admin Charges</p>
+            <p className="text-xs text-gray-500 mt-1">2% average rate</p>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Automated Remittance Advice with Approval Workflows</CardTitle>
+          <CardTitle>Automated Remittance with Granular Breakdown & Approvals</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -246,6 +160,7 @@ export const RemittanceManagement = () => {
                 <TableHead>Policy Number</TableHead>
                 <TableHead>Premium</TableHead>
                 <TableHead>Commission</TableHead>
+                <TableHead>Admin Charges</TableHead>
                 <TableHead>Net Remittance</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
@@ -260,6 +175,15 @@ export const RemittanceManagement = () => {
                   <TableCell>₦{remittance.premium.toLocaleString()}</TableCell>
                   <TableCell className="text-red-600">
                     -₦{remittance.commission.toLocaleString()}
+                    <div className="text-xs text-gray-500">
+                      ({((remittance.commission / remittance.premium) * 100).toFixed(1)}%)
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-red-600">
+                    -₦{remittance.adminCharges.toLocaleString()}
+                    <div className="text-xs text-gray-500">
+                      ({((remittance.adminCharges / remittance.premium) * 100).toFixed(1)}%)
+                    </div>
                   </TableCell>
                   <TableCell className="font-semibold text-green-600">
                     ₦{remittance.netRemittance.toLocaleString()}
@@ -286,10 +210,7 @@ export const RemittanceManagement = () => {
                       {remittance.status === 'pending' && (
                         <Button 
                           size="sm"
-                          onClick={() => {
-                            setSelectedRemittance(remittance);
-                            setShowApprovalModal(true);
-                          }}
+                          onClick={() => handleApprovalClick(remittance)}
                         >
                           {remittance.requiresApproval ? 'Review & Approve' : 'Quick Approve'}
                         </Button>
@@ -308,7 +229,11 @@ export const RemittanceManagement = () => {
         </CardContent>
       </Card>
 
-      <ApprovalModal />
+      <RemittanceApprovalModal
+        open={showApprovalModal}
+        onOpenChange={setShowApprovalModal}
+        selectedRemittance={selectedRemittance}
+      />
     </div>
   );
 };
