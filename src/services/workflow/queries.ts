@@ -18,7 +18,7 @@ export const workflowQueries = {
         .order('created_at', { ascending: false });
 
       if (filters?.status) {
-        query = query.eq('status', filters.status);
+        query = query.eq('status', filters.status as 'pending' | 'approved' | 'rejected');
       }
 
       if (filters?.workflow_type) {

@@ -46,7 +46,7 @@ export interface WorkflowStepData {
 }
 
 export interface WorkflowFilters {
-  status?: string;
+  status?: 'pending' | 'approved' | 'rejected';
   workflow_type?: string;
   assigned_to_me?: boolean;
 }
