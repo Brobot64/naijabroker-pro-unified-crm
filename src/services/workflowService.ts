@@ -68,7 +68,7 @@ export const workflowService = {
           amount: workflowData.amount,
           metadata: workflowData.metadata || {},
           created_by: user.id,
-          status: 'pending',
+          status: 'pending' as const,
           current_step: 1,
           total_steps: 1, // Will be updated when steps are added
         })
@@ -165,7 +165,7 @@ export const workflowService = {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const status = action === 'approve' ? 'approved' : 'rejected';
+      const status = action === 'approve' ? 'approved' as const : 'rejected' as const;
 
       // Update the workflow step
       const { data: step, error: stepError } = await supabase
@@ -198,7 +198,7 @@ export const workflowService = {
           await supabase
             .from('workflows')
             .update({
-              status: 'approved',
+              status: 'approved' as const,
               completed_at: new Date().toISOString(),
             })
             .eq('id', step.workflow_id);
@@ -216,7 +216,7 @@ export const workflowService = {
         await supabase
           .from('workflows')
           .update({
-            status: 'rejected',
+            status: 'rejected' as const,
             completed_at: new Date().toISOString(),
           })
           .eq('id', step.workflow_id);
