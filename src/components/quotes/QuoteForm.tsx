@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -36,7 +35,7 @@ export const QuoteForm = ({ open, onOpenChange, quote, onSuccess }: QuoteFormPro
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, organizationId } = useAuth();
 
   useEffect(() => {
     if (quote) {
@@ -86,7 +85,7 @@ export const QuoteForm = ({ open, onOpenChange, quote, onSuccess }: QuoteFormPro
       return;
     }
 
-    if (!user?.organization_id) {
+    if (!organizationId) {
       toast({
         title: "Error",
         description: "No organization found",
@@ -99,7 +98,7 @@ export const QuoteForm = ({ open, onOpenChange, quote, onSuccess }: QuoteFormPro
 
     try {
       const quoteData: QuoteInsert = {
-        organization_id: user.organization_id,
+        organization_id: organizationId,
         quote_number: formData.quote_number,
         client_name: formData.client_name,
         client_email: formData.client_email || null,
@@ -110,7 +109,7 @@ export const QuoteForm = ({ open, onOpenChange, quote, onSuccess }: QuoteFormPro
         premium: parseFloat(formData.premium) || 0,
         commission_rate: parseFloat(formData.commission_rate) || 0,
         valid_until: formData.valid_until,
-        created_by: user.id,
+        created_by: user!.id,
         terms_conditions: formData.terms_conditions || null,
         notes: formData.notes || null
       };
@@ -119,7 +118,7 @@ export const QuoteForm = ({ open, onOpenChange, quote, onSuccess }: QuoteFormPro
       if (quote) {
         result = await QuoteService.update(quote.id, quoteData);
         await AuditService.log({
-          user_id: user.id,
+          user_id: user!.id,
           action: 'QUOTE_UPDATED',
           resource_type: 'quote',
           resource_id: quote.id,
@@ -129,7 +128,7 @@ export const QuoteForm = ({ open, onOpenChange, quote, onSuccess }: QuoteFormPro
       } else {
         result = await QuoteService.create(quoteData);
         await AuditService.log({
-          user_id: user.id,
+          user_id: user!.id,
           action: 'QUOTE_CREATED',
           resource_type: 'quote',
           resource_id: result.id,

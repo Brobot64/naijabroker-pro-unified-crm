@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -39,7 +38,7 @@ export const PolicyForm = ({ open, onOpenChange, policy, onSuccess }: PolicyForm
   const [coInsurers, setCoInsurers] = useState<Array<{name: string, percentage: number}>>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, organizationId } = useAuth();
 
   useEffect(() => {
     if (policy) {
@@ -102,7 +101,7 @@ export const PolicyForm = ({ open, onOpenChange, policy, onSuccess }: PolicyForm
       return;
     }
 
-    if (!user?.organization_id) {
+    if (!organizationId) {
       toast({
         title: "Error",
         description: "No organization found",
@@ -115,7 +114,7 @@ export const PolicyForm = ({ open, onOpenChange, policy, onSuccess }: PolicyForm
 
     try {
       const policyData: PolicyInsert = {
-        organization_id: user.organization_id,
+        organization_id: organizationId,
         policy_number: formData.policy_number,
         client_name: formData.client_name,
         client_email: formData.client_email || null,
@@ -128,7 +127,7 @@ export const PolicyForm = ({ open, onOpenChange, policy, onSuccess }: PolicyForm
         commission_amount: parseFloat(formData.commission_amount) || 0,
         start_date: formData.start_date,
         end_date: formData.end_date,
-        created_by: user.id,
+        created_by: user!.id,
         co_insurers: coInsurers,
         terms_conditions: formData.terms_conditions || null,
         notes: formData.notes || null
@@ -138,7 +137,7 @@ export const PolicyForm = ({ open, onOpenChange, policy, onSuccess }: PolicyForm
       if (policy) {
         result = await PolicyService.update(policy.id, policyData);
         await AuditService.log({
-          user_id: user.id,
+          user_id: user!.id,
           action: 'POLICY_UPDATED',
           resource_type: 'policy',
           resource_id: policy.id,
@@ -148,7 +147,7 @@ export const PolicyForm = ({ open, onOpenChange, policy, onSuccess }: PolicyForm
       } else {
         result = await PolicyService.create(policyData);
         await AuditService.log({
-          user_id: user.id,
+          user_id: user!.id,
           action: 'POLICY_CREATED',
           resource_type: 'policy',
           resource_id: result.id,
