@@ -75,6 +75,7 @@ export const SettlementVoucherModal = ({ open, onOpenChange, claim, onSuccess }:
       // Create settlement voucher
       const voucherNumber = generateVoucherNumber();
       await SettlementService.createSettlementVoucher({
+        organization_id: claim.organization_id,
         voucher_number: voucherNumber,
         claim_id: claim.id,
         policy_number: claim.policy_number,

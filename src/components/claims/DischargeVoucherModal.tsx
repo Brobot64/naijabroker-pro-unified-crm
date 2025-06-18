@@ -89,6 +89,7 @@ export const DischargeVoucherModal = ({ open, onOpenChange, claim, onSuccess }: 
 
       // Create discharge voucher
       await SettlementService.createDischargeVoucher({
+        organization_id: claim.organization_id,
         voucher_number: dischargeNumber,
         settlement_voucher_id: settlementVoucher.id,
         claim_id: claim.id,
