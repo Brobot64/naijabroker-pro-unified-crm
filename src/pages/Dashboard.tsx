@@ -12,7 +12,9 @@ import {
   CheckCircle,
   Clock,
   TrendingUp,
-  Activity
+  Activity,
+  Settings,
+  BarChart3
 } from "lucide-react";
 import { PolicyManagement } from "@/components/policies/PolicyManagement";
 import { QuoteManagement } from "@/components/quotes/QuoteManagement";
@@ -20,6 +22,8 @@ import { ClaimsManagement } from "@/components/claims/ClaimsManagement";
 import { FinancialManagement } from "@/components/financial/FinancialManagement";
 import { WorkflowManager } from "@/components/workflow/WorkflowManager";
 import { RenewalReminders } from "@/components/policies/RenewalReminders";
+import { UserManagement } from "@/components/admin/UserManagement";
+import { ComplianceReports } from "@/components/compliance/ComplianceReports";
 
 export const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -123,13 +127,15 @@ export const Dashboard = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="policies">Policies</TabsTrigger>
             <TabsTrigger value="quotes">Quotes</TabsTrigger>
             <TabsTrigger value="claims">Claims</TabsTrigger>
             <TabsTrigger value="financial">Financial</TabsTrigger>
             <TabsTrigger value="workflows">Workflows</TabsTrigger>
+            <TabsTrigger value="admin">Admin</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -205,6 +211,26 @@ export const Dashboard = () => {
 
           <TabsContent value="workflows">
             <WorkflowManager />
+          </TabsContent>
+
+          <TabsContent value="admin">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Administration</h2>
+                <Settings className="h-6 w-6 text-gray-600" />
+              </div>
+              <UserManagement />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="reports">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Reports & Compliance</h2>
+                <BarChart3 className="h-6 w-6 text-gray-600" />
+              </div>
+              <ComplianceReports />
+            </div>
           </TabsContent>
         </Tabs>
       </div>
