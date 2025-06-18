@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface WorkflowStep {
@@ -165,7 +164,7 @@ export const workflowService = {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const status = action === 'approve' ? 'approved' as const : 'rejected' as const;
+      const status = action === 'approve' ? ('approved' as const) : ('rejected' as const);
 
       // Update the workflow step
       const { data: step, error: stepError } = await supabase
