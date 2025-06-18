@@ -6,30 +6,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { adminService } from "@/services/adminService";
-
-interface Claim {
-  id: string;
-  policyNumber: string;
-  client: string;
-  type: string;
-  estimatedLoss: number;
-  settlementAmount?: number;
-}
+import { SettlementService } from "@/services/database/settlementService";
+import { AuditService } from "@/services/database/auditService";
+import { ClaimService } from "@/services/database/claimService";
+import { useAuth } from "@/contexts/AuthContext";
+import { Claim } from "@/services/database/types";
 
 interface SettlementVoucherModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   claim: Claim | null;
+  onSuccess?: () => void;
 }
 
-export const SettlementVoucherModal = ({ open, onOpenChange, claim }: SettlementVoucherModalProps) => {
+export const SettlementVoucherModal = ({ open, onOpenChange, claim, onSuccess }: SettlementVoucherModalProps) => {
   const [settlementData, setSettlementData] = useState({
-    agreedAmount: claim?.settlementAmount?.toString() || "",
-    settlementType: "full",
+    agreedAmount: claim?.settlement_amount?.toString() || "",
+    settlementType: "full" as const,
     chequeNumber: "",
     chequeDate: "",
     bankName: "",
@@ -38,6 +33,12 @@ export const SettlementVoucherModal = ({ open, onOpenChange, claim }: Settlement
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  const generateVoucherNumber = () => {
+    const timestamp = Date.now().toString().slice(-6);
+    return `SV-${timestamp}`;
+  };
 
   const handleSubmit = async () => {
     if (!settlementData.agreedAmount || !settlementData.chequeNumber || !settlementData.chequeDate) {
@@ -49,8 +50,17 @@ export const SettlementVoucherModal = ({ open, onOpenChange, claim }: Settlement
       return;
     }
 
+    if (!claim || !user) {
+      toast({
+        title: "Error",
+        description: "Missing claim or user information",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const agreedAmount = parseFloat(settlementData.agreedAmount);
-    if (agreedAmount > (claim?.estimatedLoss || 0)) {
+    if (agreedAmount > claim.estimated_loss) {
       toast({
         title: "Settlement Validation Error",
         description: "Settlement amount cannot exceed the estimated loss amount",
@@ -62,46 +72,58 @@ export const SettlementVoucherModal = ({ open, onOpenChange, claim }: Settlement
     setIsProcessing(true);
 
     try {
-      console.log('Processing settlement voucher with immutable logging:', {
-        claimId: claim?.id,
-        policyNumber: claim?.policyNumber,
-        client: claim?.client,
-        estimatedLoss: claim?.estimatedLoss,
-        settlementAmount: agreedAmount,
-        settlementType: settlementData.settlementType,
-        chequeDetails: {
-          number: settlementData.chequeNumber,
-          date: settlementData.chequeDate,
-          bank: settlementData.bankName
-        },
-        dischargingOfficer: settlementData.dischargingOfficer,
-        timestamp: new Date().toISOString()
+      // Create settlement voucher
+      const voucherNumber = generateVoucherNumber();
+      await SettlementService.createSettlementVoucher({
+        voucher_number: voucherNumber,
+        claim_id: claim.id,
+        policy_number: claim.policy_number,
+        client_name: claim.client_name,
+        agreed_amount: agreedAmount,
+        settlement_type: settlementData.settlementType,
+        cheque_number: settlementData.chequeNumber,
+        cheque_date: settlementData.chequeDate,
+        bank_name: settlementData.bankName,
+        discharging_officer: settlementData.dischargingOfficer,
+        remarks: settlementData.remarks,
+        created_by: user.id
       });
 
-      // Log settlement processing for immutable audit trail
-      adminService.logAction(
-        'CLAIM_SETTLEMENT_PROCESSED',
-        'Claims Settlement',
-        `Settlement voucher processed for claim ${claim?.id}. Amount: ₦${agreedAmount.toLocaleString()}. Cheque: ${settlementData.chequeNumber}`,
-        'high'
-      );
+      // Update claim status and settlement amount
+      await ClaimService.update(claim.id, {
+        settlement_amount: agreedAmount,
+        status: 'settled'
+      });
 
-      // Log payment details for compliance
-      adminService.logAction(
-        'SETTLEMENT_PAYMENT_DETAILS',
-        'Financial Records',
-        `Payment details recorded - Cheque ${settlementData.chequeNumber} dated ${settlementData.chequeDate} from ${settlementData.bankName}`,
-        'critical'
-      );
+      // Create audit log
+      await AuditService.log({
+        user_id: user.id,
+        action: 'SETTLEMENT_VOUCHER_CREATED',
+        resource_type: 'settlement_voucher',
+        resource_id: claim.id,
+        new_values: {
+          voucher_number: voucherNumber,
+          agreed_amount: agreedAmount,
+          settlement_type: settlementData.settlementType,
+          cheque_number: settlementData.chequeNumber
+        },
+        severity: 'high',
+        metadata: {
+          claim_id: claim.id,
+          policy_number: claim.policy_number
+        }
+      });
 
       toast({
         title: "Settlement Processed Successfully",
-        description: `Settlement voucher generated for ₦${agreedAmount.toLocaleString()}. Discharge voucher can now be issued.`,
+        description: `Settlement voucher ${voucherNumber} generated for ₦${agreedAmount.toLocaleString()}. Discharge voucher can now be issued.`,
       });
 
+      if (onSuccess) onSuccess();
       onOpenChange(false);
 
     } catch (error) {
+      console.error('Settlement processing error:', error);
       toast({
         title: "Settlement Processing Failed",
         description: "Failed to process settlement. Please try again.",
@@ -133,19 +155,19 @@ export const SettlementVoucherModal = ({ open, onOpenChange, claim }: Settlement
               </div>
               <div className="flex justify-between">
                 <span className="font-medium">Policy Number:</span>
-                <span>{claim.policyNumber}</span>
+                <span>{claim.policy_number}</span>
               </div>
               <div className="flex justify-between">
                 <span className="font-medium">Insured:</span>
-                <span>{claim.client}</span>
+                <span>{claim.client_name}</span>
               </div>
               <div className="flex justify-between">
                 <span className="font-medium">Claim Type:</span>
-                <span>{claim.type}</span>
+                <span>{claim.claim_type}</span>
               </div>
               <div className="flex justify-between">
                 <span className="font-medium">Estimated Loss:</span>
-                <span className="font-semibold">₦{claim.estimatedLoss.toLocaleString()}</span>
+                <span className="font-semibold">₦{claim.estimated_loss.toLocaleString()}</span>
               </div>
             </CardContent>
           </Card>
@@ -166,7 +188,7 @@ export const SettlementVoucherModal = ({ open, onOpenChange, claim }: Settlement
                   placeholder="0.00"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Maximum: ₦{claim.estimatedLoss.toLocaleString()}
+                  Maximum: ₦{claim.estimated_loss.toLocaleString()}
                 </p>
               </div>
 
@@ -175,7 +197,7 @@ export const SettlementVoucherModal = ({ open, onOpenChange, claim }: Settlement
                 <select
                   id="settlementType"
                   value={settlementData.settlementType}
-                  onChange={(e) => setSettlementData({...settlementData, settlementType: e.target.value})}
+                  onChange={(e) => setSettlementData({...settlementData, settlementType: e.target.value as any})}
                   className="w-full p-2 border rounded"
                 >
                   <option value="full">Full Settlement</option>

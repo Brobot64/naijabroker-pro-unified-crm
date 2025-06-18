@@ -1,391 +1,245 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ClaimRegistrationModal } from "./ClaimRegistrationModal";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { ClaimService } from "@/services/database/claimService";
 import { SettlementVoucherModal } from "./SettlementVoucherModal";
 import { DischargeVoucherModal } from "./DischargeVoucherModal";
-import { useToast } from "@/hooks/use-toast";
-import { workflowManager } from "@/utils/workflowManager";
-import { adminService } from "@/services/adminService";
-
-interface Claim {
-  id: string;
-  policyNumber: string;
-  client: string;
-  type: string;
-  reportedDate: string;
-  claimAmount: string;
-  estimatedLoss: number;
-  status: 'reported' | 'investigating' | 'approved' | 'settled' | 'rejected';
-  adjuster?: string;
-  lastUpdate: string;
-  documents: string[];
-  investigationNotes?: string;
-  settlementAmount?: number;
-  settlementDate?: string;
-  dischargeVoucherIssued?: boolean;
-}
+import { Claim } from "@/services/database/types";
+import { Plus, Search, FileText, CheckCircle, AlertCircle } from "lucide-react";
 
 export const ClaimsManagement = () => {
-  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [showDischargeModal, setShowDischargeModal] = useState(false);
-  const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const claims: Claim[] = [
-    {
-      id: "CLM-2024-001",
-      policyNumber: "POL-2024-001234",
-      client: "Dangote Industries Ltd",
-      type: "Fire Damage",
-      reportedDate: "2024-06-01",
-      claimAmount: "₦5,000,000",
-      estimatedLoss: 5000000,
-      status: "investigating",
-      adjuster: "John Adjuster",
-      lastUpdate: "2024-06-10",
-      documents: ["fire_report.pdf", "damage_photos.zip"],
-      investigationNotes: "Site inspection completed. Cause under investigation."
-    },
-    {
-      id: "CLM-2024-002",
-      policyNumber: "POL-2024-001235",
-      client: "GTBank Plc",
-      type: "Cyber Security",
-      reportedDate: "2024-05-25",
-      claimAmount: "₦2,500,000",
-      estimatedLoss: 2500000,
-      status: "approved",
-      adjuster: "Mary Examiner",
-      lastUpdate: "2024-06-08",
-      documents: ["cyber_incident_report.pdf"],
-      settlementAmount: 2200000,
-      settlementDate: "2024-06-08"
-    },
-    {
-      id: "CLM-2024-003",
-      policyNumber: "POL-2024-001236",
-      client: "First Bank Plc",
-      type: "Motor Accident",
-      reportedDate: "2024-06-05",
-      claimAmount: "₦850,000",
-      estimatedLoss: 850000,
-      status: "settled",
-      adjuster: "David Inspector",
-      lastUpdate: "2024-06-12",
-      documents: ["police_report.pdf", "vehicle_photos.zip"],
-      settlementAmount: 800000,
-      settlementDate: "2024-06-12",
-      dischargeVoucherIssued: true
-    },
-  ];
-
-  const assignInvestigation = (claim: Claim) => {
-    console.log('Assigning investigation with compliance workflow:', {
-      claimId: claim.id,
-      estimatedLoss: claim.estimatedLoss,
-      requiresApproval: workflowManager.requiresApproval('claims', claim.estimatedLoss, 'Compliance'),
-      nextApprover: workflowManager.getNextApprover('claims', claim.estimatedLoss, 'Compliance')
-    });
-
-    // Generate investigation assignment notification
-    const notification = workflowManager.generateNotification('claim_update', {
-      claimNumber: claim.id,
-      clientEmail: 'client@example.com',
-      status: 'Under Investigation',
-      additionalInfo: 'Investigation has been assigned to ' + claim.adjuster
-    });
-
-    console.log('Investigation assignment notification:', notification);
-
-    // Log the assignment for compliance audit
-    adminService.logAction(
-      'CLAIM_INVESTIGATION_ASSIGNED',
-      'Claims Management',
-      `Investigation assigned for claim ${claim.id} to ${claim.adjuster}`,
-      'medium'
-    );
-
-    toast({
-      title: "Investigation Assigned",
-      description: `Investigation for claim ${claim.id} has been assigned to ${claim.adjuster}`,
-    });
+  const loadClaims = async () => {
+    try {
+      setLoading(true);
+      const claimsData = await ClaimService.getAll();
+      setClaims(claimsData);
+    } catch (error) {
+      console.error('Failed to load claims:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load claims data",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const processSettlement = (claim: Claim) => {
-    if (!claim.settlementAmount) {
-      toast({
-        title: "Settlement Required",
-        description: "Please complete settlement processing first",
-        variant: "destructive"
-      });
-      return;
-    }
+  useEffect(() => {
+    loadClaims();
+  }, []);
 
-    setSelectedClaim(claim);
-    setShowSettlementModal(true);
-  };
-
-  const issueDischargeVoucher = (claim: Claim) => {
-    if (claim.status !== 'settled' || !claim.settlementAmount) {
-      toast({
-        title: "Settlement Required",
-        description: "Claim must be settled before discharge voucher can be issued",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (claim.dischargeVoucherIssued) {
-      toast({
-        title: "Already Issued",
-        description: "Discharge voucher has already been issued for this claim",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Check approval requirements for discharge
-    const requiresApproval = workflowManager.requiresApproval('claims', claim.settlementAmount, 'Underwriter');
-    
-    if (requiresApproval) {
-      console.log('Discharge voucher requires approval:', {
-        claimId: claim.id,
-        settlementAmount: claim.settlementAmount,
-        nextApprover: workflowManager.getNextApprover('claims', claim.settlementAmount, 'Underwriter')
-      });
-      
-      toast({
-        title: "Approval Required",
-        description: "Discharge voucher requires senior approval due to settlement amount",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setSelectedClaim(claim);
-    setShowDischargeModal(true);
-  };
+  const filteredClaims = claims.filter(
+    claim =>
+      claim.claim_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      claim.client_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      claim.policy_number.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "settled":
-        return "bg-green-100 text-green-800";
-      case "approved":
-        return "bg-blue-100 text-blue-800";
-      case "investigating":
-        return "bg-yellow-100 text-yellow-800";
-      case "rejected":
-        return "bg-red-100 text-red-800";
-      case "reported":
-        return "bg-gray-100 text-gray-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
+    const colors = {
+      registered: "bg-blue-100 text-blue-800",
+      investigating: "bg-yellow-100 text-yellow-800",
+      assessed: "bg-purple-100 text-purple-800",
+      approved: "bg-green-100 text-green-800",
+      settled: "bg-gray-100 text-gray-800",
+      rejected: "bg-red-100 text-red-800",
+      closed: "bg-slate-100 text-slate-800"
+    };
+    return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800";
   };
 
+  const canCreateSettlement = (claim: Claim) => {
+    return claim.status === 'approved' && claim.investigation_complete && claim.documents_complete;
+  };
+
+  const canCreateDischarge = (claim: Claim) => {
+    return claim.status === 'settled' && claim.settlement_amount && claim.settlement_amount > 0;
+  };
+
+  const handleSettlementSuccess = () => {
+    loadClaims();
+    toast({
+      title: "Success",
+      description: "Settlement voucher processed successfully",
+    });
+  };
+
+  const handleDischargeSuccess = () => {
+    loadClaims();
+    toast({
+      title: "Success", 
+      description: "Discharge voucher created successfully",
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map(n => (
+              <div key={n} className="h-48 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Enhanced Claims Management</h1>
-        <Button onClick={() => setShowRegistrationModal(true)}>
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Claims Management</h1>
+        <Button>
+          <Plus className="h-4 w-4 mr-2" />
           Register New Claim
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">45</div>
-            <p className="text-xs text-muted-foreground">Active Claims</p>
-            <p className="text-xs text-gray-500 mt-1">₦8.35M total exposure</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">Under Investigation</p>
-            <p className="text-xs text-gray-500 mt-1">Avg: 15 days pending</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">₦3.0M</div>
-            <p className="text-xs text-muted-foreground">Settled This Month</p>
-            <p className="text-xs text-gray-500 mt-1">85% settlement rate</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">18</div>
-            <p className="text-xs text-muted-foreground">Discharge Vouchers</p>
-            <p className="text-xs text-gray-500 mt-1">Pending underwriter approval</p>
-          </CardContent>
-        </Card>
+      <div className="flex items-center space-x-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Search claims..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
-      <Tabs defaultValue="active-claims" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="active-claims">Active Claims</TabsTrigger>
-          <TabsTrigger value="settlements">Settlements & Discharge</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="active-claims">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Claims Register with Investigation Tracking</CardTitle>
-                <div className="flex space-x-2">
-                  <Input placeholder="Search claims..." className="w-64" />
-                  <Button variant="outline">Filter</Button>
-                  <Button variant="outline">Export Audit Report</Button>
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredClaims.map((claim) => (
+          <Card key={claim.id} className="hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex justify-between items-start">
+                <CardTitle className="text-lg">{claim.claim_number}</CardTitle>
+                <Badge className={getStatusColor(claim.status)}>
+                  {claim.status.charAt(0).toUpperCase() + claim.status.slice(1)}
+                </Badge>
               </div>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Claim ID</TableHead>
-                    <TableHead>Policy Number</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Estimated Loss</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Adjuster</TableHead>
-                    <TableHead>Documents</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {claims.map((claim) => (
-                    <TableRow key={claim.id}>
-                      <TableCell className="font-medium">{claim.id}</TableCell>
-                      <TableCell>{claim.policyNumber}</TableCell>
-                      <TableCell>{claim.client}</TableCell>
-                      <TableCell>{claim.type}</TableCell>
-                      <TableCell className="font-semibold">₦{claim.estimatedLoss.toLocaleString()}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(claim.status)}>{claim.status}</Badge>
-                      </TableCell>
-                      <TableCell>{claim.adjuster || 'Unassigned'}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{claim.documents.length} files</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <Button size="sm" variant="outline">View Details</Button>
-                          {claim.status === 'reported' && (
-                            <Button 
-                              size="sm"
-                              onClick={() => assignInvestigation(claim)}
-                            >
-                              Assign Investigation
-                            </Button>
-                          )}
-                          {claim.status === 'approved' && (
-                            <Button 
-                              size="sm"
-                              onClick={() => processSettlement(claim)}
-                            >
-                              Process Settlement
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <CardContent className="space-y-4">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Client:</span>
+                  <span className="font-medium">{claim.client_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Policy:</span>
+                  <span>{claim.policy_number}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Type:</span>
+                  <span>{claim.claim_type}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Estimated Loss:</span>
+                  <span className="font-medium">₦{claim.estimated_loss.toLocaleString()}</span>
+                </div>
+                {claim.settlement_amount && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Settlement:</span>
+                    <span className="font-medium text-green-600">₦{claim.settlement_amount.toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-xs">
+                <div className="flex items-center gap-1">
+                  {claim.investigation_complete ? (
+                    <CheckCircle className="h-3 w-3 text-green-500" />
+                  ) : (
+                    <AlertCircle className="h-3 w-3 text-yellow-500" />
+                  )}
+                  <span>Investigation</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {claim.documents_complete ? (
+                    <CheckCircle className="h-3 w-3 text-green-500" />
+                  ) : (
+                    <AlertCircle className="h-3 w-3 text-yellow-500" />
+                  )}
+                  <span>Documents</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {claim.underwriter_approval ? (
+                    <CheckCircle className="h-3 w-3 text-green-500" />
+                  ) : (
+                    <AlertCircle className="h-3 w-3 text-yellow-500" />
+                  )}
+                  <span>Approval</span>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                {canCreateSettlement(claim) && (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setSelectedClaim(claim);
+                      setShowSettlementModal(true);
+                    }}
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    Settlement
+                  </Button>
+                )}
+                
+                {canCreateDischarge(claim) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedClaim(claim);
+                      setShowDischargeModal(true);
+                    }}
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    Discharge
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        ))}
+      </div>
 
-        <TabsContent value="settlements">
-          <Card>
-            <CardHeader>
-              <CardTitle>Settlement Vouchers & Discharge Management</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Claim ID</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Settlement Amount</TableHead>
-                    <TableHead>Settlement Date</TableHead>
-                    <TableHead>Discharge Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {claims.filter(claim => claim.status === 'approved' || claim.status === 'settled').map((claim) => (
-                    <TableRow key={claim.id}>
-                      <TableCell className="font-medium">{claim.id}</TableCell>
-                      <TableCell>{claim.client}</TableCell>
-                      <TableCell className="font-semibold text-green-600">
-                        ₦{claim.settlementAmount?.toLocaleString() || 'Pending'}
-                      </TableCell>
-                      <TableCell>{claim.settlementDate || 'Pending'}</TableCell>
-                      <TableCell>
-                        <Badge className={claim.dischargeVoucherIssued ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}>
-                          {claim.dischargeVoucherIssued ? 'Issued' : 'Pending'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          {!claim.dischargeVoucherIssued && claim.status === 'settled' && (
-                            <Button 
-                              size="sm"
-                              onClick={() => issueDischargeVoucher(claim)}
-                            >
-                              Issue Discharge Voucher
-                            </Button>
-                          )}
-                          {claim.dischargeVoucherIssued && (
-                            <Button size="sm" variant="outline">
-                              View Voucher
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      <ClaimRegistrationModal
-        open={showRegistrationModal}
-        onOpenChange={setShowRegistrationModal}
-      />
+      {filteredClaims.length === 0 && !loading && (
+        <div className="text-center py-12">
+          <div className="text-gray-500 text-lg">No claims found</div>
+          <p className="text-gray-400 mt-2">
+            {searchTerm ? "Try adjusting your search criteria" : "Get started by registering a new claim"}
+          </p>
+        </div>
+      )}
 
       <SettlementVoucherModal
         open={showSettlementModal}
         onOpenChange={setShowSettlementModal}
         claim={selectedClaim}
+        onSuccess={handleSettlementSuccess}
       />
 
       <DischargeVoucherModal
         open={showDischargeModal}
         onOpenChange={setShowDischargeModal}
         claim={selectedClaim}
+        onSuccess={handleDischargeSuccess}
       />
     </div>
   );
