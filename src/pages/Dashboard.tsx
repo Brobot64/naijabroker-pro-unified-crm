@@ -194,23 +194,53 @@ export const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="policies">
-            <PolicyManagement />
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Policy Management</h2>
+                <FileText className="h-6 w-6 text-gray-600" />
+              </div>
+              <PolicyManagement />
+            </div>
           </TabsContent>
 
           <TabsContent value="quotes">
-            <QuoteManagement />
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Quote Management</h2>
+                <DollarSign className="h-6 w-6 text-gray-600" />
+              </div>
+              <QuoteManagement />
+            </div>
           </TabsContent>
 
           <TabsContent value="claims">
-            <ClaimsManagement />
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Claims Management</h2>
+                <AlertTriangle className="h-6 w-6 text-gray-600" />
+              </div>
+              <ClaimsManagement />
+            </div>
           </TabsContent>
 
           <TabsContent value="financial">
-            <FinancialManagement />
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Financial Management</h2>
+                <DollarSign className="h-6 w-6 text-gray-600" />
+              </div>
+              <FinancialManagement />
+            </div>
           </TabsContent>
 
           <TabsContent value="workflows">
-            <WorkflowManager />
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Workflow Management</h2>
+                <Activity className="h-6 w-6 text-gray-600" />
+              </div>
+              <WorkflowManager />
+            </div>
           </TabsContent>
 
           <TabsContent value="admin">
