@@ -1,15 +1,14 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { QuoteService } from "@/services/database/quoteService";
 import { AuditService } from "@/services/database/auditService";
 import { useAuth } from "@/contexts/AuthContext";
 import { Quote, QuoteInsert } from "@/services/database/types";
+import { QuoteBasicInfo } from "./forms/QuoteBasicInfo";
+import { QuoteClientInfo } from "./forms/QuoteClientInfo";
+import { QuoteDetails } from "./forms/QuoteDetails";
 
 interface QuoteFormProps {
   open: boolean;
@@ -165,154 +164,9 @@ export const QuoteForm = ({ open, onOpenChange, quote, onSuccess }: QuoteFormPro
         </DialogHeader>
 
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="quote_number">Quote Number *</Label>
-              <Input
-                id="quote_number"
-                value={formData.quote_number}
-                onChange={(e) => setFormData({...formData, quote_number: e.target.value})}
-                placeholder="QTE-XXXXXX"
-              />
-            </div>
-            <div>
-              <Label htmlFor="policy_type">Policy Type *</Label>
-              <select
-                id="policy_type"
-                value={formData.policy_type}
-                onChange={(e) => setFormData({...formData, policy_type: e.target.value})}
-                className="w-full p-2 border rounded"
-              >
-                <option value="">Select Type</option>
-                <option value="Motor">Motor Insurance</option>
-                <option value="Fire">Fire Insurance</option>
-                <option value="Marine">Marine Insurance</option>
-                <option value="General">General Insurance</option>
-                <option value="Life">Life Insurance</option>
-              </select>
-            </div>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Client Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="client_name">Client Name *</Label>
-                  <Input
-                    id="client_name"
-                    value={formData.client_name}
-                    onChange={(e) => setFormData({...formData, client_name: e.target.value})}
-                    placeholder="Client full name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="client_email">Email</Label>
-                  <Input
-                    id="client_email"
-                    type="email"
-                    value={formData.client_email}
-                    onChange={(e) => setFormData({...formData, client_email: e.target.value})}
-                    placeholder="client@email.com"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="client_phone">Phone</Label>
-                  <Input
-                    id="client_phone"
-                    value={formData.client_phone}
-                    onChange={(e) => setFormData({...formData, client_phone: e.target.value})}
-                    placeholder="+234XXXXXXXXXX"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Quote Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="sum_insured">Sum Insured (₦)</Label>
-                  <Input
-                    id="sum_insured"
-                    type="number"
-                    value={formData.sum_insured}
-                    onChange={(e) => setFormData({...formData, sum_insured: e.target.value})}
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="premium">Premium (₦)</Label>
-                  <Input
-                    id="premium"
-                    type="number"
-                    value={formData.premium}
-                    onChange={(e) => setFormData({...formData, premium: e.target.value})}
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="commission_rate">Commission Rate (%)</Label>
-                  <Input
-                    id="commission_rate"
-                    type="number"
-                    value={formData.commission_rate}
-                    onChange={(e) => setFormData({...formData, commission_rate: e.target.value})}
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="underwriter">Underwriter *</Label>
-                  <Input
-                    id="underwriter"
-                    value={formData.underwriter}
-                    onChange={(e) => setFormData({...formData, underwriter: e.target.value})}
-                    placeholder="Insurance company name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="valid_until">Valid Until</Label>
-                  <Input
-                    id="valid_until"
-                    type="date"
-                    value={formData.valid_until}
-                    onChange={(e) => setFormData({...formData, valid_until: e.target.value})}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="terms_conditions">Terms & Conditions</Label>
-              <Textarea
-                id="terms_conditions"
-                value={formData.terms_conditions}
-                onChange={(e) => setFormData({...formData, terms_conditions: e.target.value})}
-                rows={4}
-                placeholder="Quote terms and conditions"
-              />
-            </div>
-            <div>
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                rows={4}
-                placeholder="Additional notes"
-              />
-            </div>
-          </div>
+          <QuoteBasicInfo formData={formData} setFormData={setFormData} />
+          <QuoteClientInfo formData={formData} setFormData={setFormData} />
+          <QuoteDetails formData={formData} setFormData={setFormData} />
         </div>
 
         <div className="flex justify-end space-x-4 pt-4 border-t">
