@@ -118,7 +118,34 @@ export class WorkflowManager {
   static getWorkflowConfig(workflowType: keyof typeof workflowConfigs) {
     return workflowConfigs[workflowType];
   }
+
+  static generateNotification(type: string, metadata?: any) {
+    // Generate notification data structure
+    return {
+      id: `notif-${Date.now()}`,
+      type,
+      metadata,
+      timestamp: new Date().toISOString()
+    };
+  }
 }
+
+// Create the workflowManager instance that components are importing
+export const workflowManager = {
+  requiresApproval: (type: string, amount: number, role: string) => {
+    // Simple approval logic based on amount thresholds
+    const thresholds = {
+      'remittance': 500000,
+      'underwriting': 1000000,
+      'policy_renewal': 750000
+    };
+    
+    const threshold = thresholds[type as keyof typeof thresholds] || 100000;
+    return amount >= threshold;
+  },
+  
+  generateNotification: WorkflowManager.generateNotification
+};
 
 // Legacy exports for backward compatibility
 export const createApprovalWorkflow = WorkflowManager.createApprovalWorkflow;

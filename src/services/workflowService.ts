@@ -164,11 +164,13 @@ export const workflowService = {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      const status = action === 'approve' ? 'approved' : 'rejected';
+
       // Update the workflow step
       const { data: step, error: stepError } = await supabase
         .from('workflow_steps')
         .update({
-          status: action === 'approve' ? 'approved' : 'rejected',
+          status: status,
           approved_by: user.id,
           approved_at: new Date().toISOString(),
           comments: comments,
