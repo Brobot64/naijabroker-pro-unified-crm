@@ -142,7 +142,7 @@ export const QuoteAnalytics = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip formatter={(value) => [`₦${(value / 1000000).toFixed(1)}M`, 'Quote Value']} />
+                <Tooltip formatter={(value: number) => [`₦${(value / 1000000).toFixed(1)}M`, 'Quote Value']} />
                 <Line 
                   type="monotone" 
                   dataKey="value" 

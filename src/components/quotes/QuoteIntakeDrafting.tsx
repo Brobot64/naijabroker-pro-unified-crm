@@ -223,6 +223,18 @@ export const QuoteIntakeDrafting = ({ clientData, onQuoteSaved, onBack }: QuoteI
     onQuoteSaved(completeQuoteData);
   };
 
+  const handleVatFlagChange = (checked: boolean | "indeterminate") => {
+    if (typeof checked === "boolean") {
+      setQuoteData({...quoteData, vatFlag: checked});
+    }
+  };
+
+  const handleCommissionSplitChange = (checked: boolean | "indeterminate") => {
+    if (typeof checked === "boolean") {
+      setShowCommissionSplit(checked);
+    }
+  };
+
   const insurerValidation = validateInsurerSplits();
   const commissionValidation = validateCommissionSplits();
 
@@ -367,7 +379,7 @@ export const QuoteIntakeDrafting = ({ clientData, onQuoteSaved, onBack }: QuoteI
             <Checkbox
               id="vatFlag"
               checked={quoteData.vatFlag}
-              onCheckedChange={(checked) => setQuoteData({...quoteData, vatFlag: checked as boolean})}
+              onCheckedChange={handleVatFlagChange}
             />
             <Label htmlFor="vatFlag">Apply VAT (7.5%)</Label>
           </div>
@@ -465,7 +477,11 @@ export const QuoteIntakeDrafting = ({ clientData, onQuoteSaved, onBack }: QuoteI
               <div className="flex items-center space-x-2">
                 <Checkbox
                   checked={split.isLead}
-                  onCheckedChange={(checked) => updateInsurerSplit(split.id, 'isLead', checked)}
+                  onCheckedChange={(checked) => {
+                    if (typeof checked === "boolean") {
+                      updateInsurerSplit(split.id, 'isLead', checked);
+                    }
+                  }}
                 />
                 <Label>Lead Underwriter</Label>
               </div>
@@ -497,7 +513,7 @@ export const QuoteIntakeDrafting = ({ clientData, onQuoteSaved, onBack }: QuoteI
           <div className="flex items-center space-x-2">
             <Checkbox
               checked={showCommissionSplit}
-              onCheckedChange={setShowCommissionSplit}
+              onCheckedChange={handleCommissionSplitChange}
             />
             <Label>Enable commission splitting</Label>
           </div>
