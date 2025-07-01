@@ -6,8 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PolicyService } from "@/services/database/policyService";
 import { QuoteService } from "@/services/database/quoteService";
 import { ClaimService } from "@/services/database/claimService";
-import { Policy, Quote, Claim } from "@/types";
-import { FileText, Shield, AlertCircle, Clock } from "lucide-react";
+import { Policy, Quote, Claim } from "@/services/database/types";
+import { FileText, Shield, AlertCircle } from "lucide-react";
 
 interface ClientDashboardProps {
   clientEmail: string;
@@ -31,10 +31,10 @@ export const ClientDashboard = ({ clientEmail }: ClientDashboardProps) => {
           ClaimService.getAll()
         ]);
 
-        // Filter data for this specific client
-        setPolicies(allPolicies.filter(p => p.clientEmail === clientEmail));
-        setQuotes(allQuotes.filter(q => q.clientEmail === clientEmail));
-        setClaims(allClaims.filter(c => c.clientName.toLowerCase().includes(clientEmail.split('@')[0].toLowerCase())));
+        // Filter data for this specific client using correct property names
+        setPolicies(allPolicies.filter(p => p.client_email === clientEmail));
+        setQuotes(allQuotes.filter(q => q.client_email === clientEmail));
+        setClaims(allClaims.filter(c => c.client_name.toLowerCase().includes(clientEmail.split('@')[0].toLowerCase())));
         
       } catch (error) {
         console.error('Error fetching client data:', error);
@@ -137,7 +137,7 @@ export const ClientDashboard = ({ clientEmail }: ClientDashboardProps) => {
               <Card key={policy.id}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{policy.policyType}</CardTitle>
+                    <CardTitle className="text-lg">{policy.policy_type}</CardTitle>
                     <Badge className={getStatusColor(policy.status)}>{policy.status}</Badge>
                   </div>
                 </CardHeader>
@@ -145,7 +145,7 @@ export const ClientDashboard = ({ clientEmail }: ClientDashboardProps) => {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                       <p className="text-sm font-medium text-gray-500">Policy Number</p>
-                      <p className="text-sm">{policy.policyNumber}</p>
+                      <p className="text-sm">{policy.policy_number}</p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-500">Premium</p>
@@ -153,11 +153,11 @@ export const ClientDashboard = ({ clientEmail }: ClientDashboardProps) => {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-500">Sum Insured</p>
-                      <p className="text-sm">₦{policy.sumInsured.toLocaleString()}</p>
+                      <p className="text-sm">₦{policy.sum_insured.toLocaleString()}</p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-500">Expires</p>
-                      <p className="text-sm">{new Date(policy.endDate).toLocaleDateString()}</p>
+                      <p className="text-sm">{new Date(policy.end_date).toLocaleDateString()}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -178,7 +178,7 @@ export const ClientDashboard = ({ clientEmail }: ClientDashboardProps) => {
               <Card key={quote.id}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{quote.policyType}</CardTitle>
+                    <CardTitle className="text-lg">{quote.policy_type}</CardTitle>
                     <Badge className={getStatusColor(quote.status)}>{quote.status}</Badge>
                   </div>
                 </CardHeader>
@@ -186,7 +186,7 @@ export const ClientDashboard = ({ clientEmail }: ClientDashboardProps) => {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                       <p className="text-sm font-medium text-gray-500">Quote Number</p>
-                      <p className="text-sm">{quote.quoteNumber}</p>
+                      <p className="text-sm">{quote.quote_number}</p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-500">Premium</p>
@@ -194,11 +194,11 @@ export const ClientDashboard = ({ clientEmail }: ClientDashboardProps) => {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-500">Sum Insured</p>
-                      <p className="text-sm">₦{quote.sumInsured.toLocaleString()}</p>
+                      <p className="text-sm">₦{quote.sum_insured.toLocaleString()}</p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-500">Valid Until</p>
-                      <p className="text-sm">{new Date(quote.validUntil).toLocaleDateString()}</p>
+                      <p className="text-sm">{new Date(quote.valid_until).toLocaleDateString()}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -219,7 +219,7 @@ export const ClientDashboard = ({ clientEmail }: ClientDashboardProps) => {
               <Card key={claim.id}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{claim.claimType}</CardTitle>
+                    <CardTitle className="text-lg">{claim.claim_type}</CardTitle>
                     <Badge className={getStatusColor(claim.status)}>{claim.status}</Badge>
                   </div>
                 </CardHeader>
@@ -227,19 +227,19 @@ export const ClientDashboard = ({ clientEmail }: ClientDashboardProps) => {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                       <p className="text-sm font-medium text-gray-500">Claim Number</p>
-                      <p className="text-sm">{claim.claimNumber}</p>
+                      <p className="text-sm">{claim.claim_number}</p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-500">Policy Number</p>
-                      <p className="text-sm">{claim.policyNumber}</p>
+                      <p className="text-sm">{claim.policy_number}</p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-500">Incident Date</p>
-                      <p className="text-sm">{new Date(claim.incidentDate).toLocaleDateString()}</p>
+                      <p className="text-sm">{new Date(claim.incident_date).toLocaleDateString()}</p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-500">Estimated Loss</p>
-                      <p className="text-sm">₦{claim.estimatedLoss.toLocaleString()}</p>
+                      <p className="text-sm">₦{claim.estimated_loss.toLocaleString()}</p>
                     </div>
                   </div>
                   {claim.description && (

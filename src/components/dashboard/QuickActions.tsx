@@ -1,7 +1,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
 import { ClientPortalLinkGenerator } from "@/components/client/ClientPortalLinkGenerator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -9,11 +8,17 @@ interface QuickActionsProps {
   userRole: string;
 }
 
+interface ActionItem {
+  label: string;
+  variant: "default" | "outline";
+  action?: string;
+}
+
 export const QuickActions = ({ userRole }: QuickActionsProps) => {
-  const getActionsForRole = (role: string) => {
-    const commonActions = [
-      { label: "Generate Quote", variant: "default" as const },
-      { label: "View Dashboard", variant: "outline" as const },
+  const getActionsForRole = (role: string): ActionItem[] => {
+    const commonActions: ActionItem[] = [
+      { label: "Generate Quote", variant: "default" },
+      { label: "View Dashboard", variant: "outline" },
     ];
 
     switch (role) {
@@ -21,22 +26,22 @@ export const QuickActions = ({ userRole }: QuickActionsProps) => {
       case "BrokerAdmin":
         return [
           ...commonActions,
-          { label: "Add New User", variant: "outline" as const },
-          { label: "View Reports", variant: "outline" as const },
-          { label: "Client Portal Link", variant: "outline" as const, action: "client-portal" },
+          { label: "Add New User", variant: "outline" },
+          { label: "View Reports", variant: "outline" },
+          { label: "Client Portal Link", variant: "outline", action: "client-portal" },
         ];
       case "Agent":
         return [
           ...commonActions,
-          { label: "Add Lead", variant: "outline" as const },
-          { label: "Follow Up", variant: "outline" as const },
-          { label: "Client Portal Link", variant: "outline" as const, action: "client-portal" },
+          { label: "Add Lead", variant: "outline" },
+          { label: "Follow Up", variant: "outline" },
+          { label: "Client Portal Link", variant: "outline", action: "client-portal" },
         ];
       case "Underwriter":
         return [
           ...commonActions,
-          { label: "Review Submission", variant: "outline" as const },
-          { label: "Issue Policy", variant: "outline" as const },
+          { label: "Review Submission", variant: "outline" },
+          { label: "Issue Policy", variant: "outline" },
         ];
       default:
         return commonActions;
