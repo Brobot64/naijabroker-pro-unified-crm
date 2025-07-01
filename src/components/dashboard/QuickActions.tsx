@@ -1,6 +1,9 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { ClientPortalLinkGenerator } from "@/components/client/ClientPortalLinkGenerator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface QuickActionsProps {
   userRole: string;
@@ -20,12 +23,14 @@ export const QuickActions = ({ userRole }: QuickActionsProps) => {
           ...commonActions,
           { label: "Add New User", variant: "outline" as const },
           { label: "View Reports", variant: "outline" as const },
+          { label: "Client Portal Link", variant: "outline" as const, action: "client-portal" },
         ];
       case "Agent":
         return [
           ...commonActions,
           { label: "Add Lead", variant: "outline" as const },
           { label: "Follow Up", variant: "outline" as const },
+          { label: "Client Portal Link", variant: "outline" as const, action: "client-portal" },
         ];
       case "Underwriter":
         return [
@@ -48,13 +53,32 @@ export const QuickActions = ({ userRole }: QuickActionsProps) => {
       <CardContent>
         <div className="space-y-3">
           {actions.map((action, index) => (
-            <Button
-              key={index}
-              variant={action.variant}
-              className="w-full justify-start"
-            >
-              {action.label}
-            </Button>
+            action.action === "client-portal" ? (
+              <Dialog key={index}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant={action.variant}
+                    className="w-full justify-start"
+                  >
+                    {action.label}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Client Portal Access</DialogTitle>
+                  </DialogHeader>
+                  <ClientPortalLinkGenerator />
+                </DialogContent>
+              </Dialog>
+            ) : (
+              <Button
+                key={index}
+                variant={action.variant}
+                className="w-full justify-start"
+              >
+                {action.label}
+              </Button>
+            )
           ))}
         </div>
       </CardContent>
