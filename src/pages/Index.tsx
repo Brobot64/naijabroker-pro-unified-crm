@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 
 const Index = () => {
-  const { user, loading, organizationId } = useAuth();
+  const { user, loading, organizationId, userRole } = useAuth();
 
   if (loading) {
     return (
@@ -26,7 +26,7 @@ const Index = () => {
     return <Navigate to="/onboarding" replace />;
   }
 
-  return <Dashboard />;
+  return <Dashboard userRole={userRole || 'User'} />;
 };
 
 export default Index;
