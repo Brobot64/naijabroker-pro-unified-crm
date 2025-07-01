@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { workflowService, Workflow } from '@/services/workflowService';
+import { workflowService, Workflow, CreateWorkflowData } from '@/services/workflowService';
 import { useToast } from '@/hooks/use-toast';
 
 export const useWorkflow = () => {
@@ -36,13 +36,7 @@ export const useWorkflow = () => {
     }
   };
 
-  const createWorkflow = async (workflowData: {
-    workflow_type: string;
-    reference_type: string;
-    reference_id: string;
-    amount?: number;
-    metadata?: any;
-  }) => {
+  const createWorkflow = async (workflowData: CreateWorkflowData) => {
     try {
       const { data, error } = await workflowService.createWorkflow(workflowData);
       if (error) throw error;

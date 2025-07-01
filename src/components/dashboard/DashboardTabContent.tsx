@@ -6,14 +6,14 @@ import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { DashboardStats } from "./DashboardStats";
 import { RecentActivityCard } from "./RecentActivityCard";
 
-// Lazy load heavy components
-const PolicyManagement = React.lazy(() => import("@/components/policies/PolicyManagement"));
-const QuoteManagement = React.lazy(() => import("@/components/quotes/QuoteManagement"));
-const ClaimsManagement = React.lazy(() => import("@/components/claims/ClaimsManagement"));
-const FinancialManagement = React.lazy(() => import("@/components/financial/FinancialManagement"));
-const WorkflowManager = React.lazy(() => import("@/components/workflow/WorkflowManager"));
-const SocialMediaDashboard = React.lazy(() => import("@/components/social/SocialMediaDashboard"));
-const UserManagement = React.lazy(() => import("@/components/admin/UserManagement"));
+// Import components directly since they're named exports, not default exports
+import { PolicyManagement } from "@/components/policies/PolicyManagement";
+import { QuoteManagement } from "@/components/quotes/QuoteManagement";
+import { ClaimsManagement } from "@/components/claims/ClaimsManagement";
+import { FinancialManagement } from "@/components/financial/FinancialManagement";
+import { WorkflowManager } from "@/components/workflow/WorkflowManager";
+import { SocialMediaDashboard } from "@/components/social/SocialMediaDashboard";
+import { UserManagement } from "@/components/admin/UserManagement";
 
 const ComponentWrapper = ({ children }: { children: React.ReactNode }) => (
   <ErrorBoundary>
