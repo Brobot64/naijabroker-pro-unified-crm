@@ -14,7 +14,9 @@ import {
   TrendingUp,
   Activity,
   Settings,
-  BarChart3
+  BarChart3,
+  MessageSquare,
+  Share2
 } from "lucide-react";
 import { PolicyManagement } from "@/components/policies/PolicyManagement";
 import { QuoteManagement } from "@/components/quotes/QuoteManagement";
@@ -24,6 +26,7 @@ import { WorkflowManager } from "@/components/workflow/WorkflowManager";
 import { RenewalReminders } from "@/components/policies/RenewalReminders";
 import { UserManagement } from "@/components/admin/UserManagement";
 import { ComplianceReports } from "@/components/compliance/ComplianceReports";
+import { SocialMediaDashboard } from "@/components/social/SocialMediaDashboard";
 
 export const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -127,13 +130,14 @@ export const Dashboard = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="policies">Policies</TabsTrigger>
             <TabsTrigger value="quotes">Quotes</TabsTrigger>
             <TabsTrigger value="claims">Claims</TabsTrigger>
             <TabsTrigger value="financial">Financial</TabsTrigger>
             <TabsTrigger value="workflows">Workflows</TabsTrigger>
+            <TabsTrigger value="social">Social Media</TabsTrigger>
             <TabsTrigger value="admin">Admin</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
@@ -241,6 +245,10 @@ export const Dashboard = () => {
               </div>
               <WorkflowManager />
             </div>
+          </TabsContent>
+
+          <TabsContent value="social">
+            <SocialMediaDashboard />
           </TabsContent>
 
           <TabsContent value="admin">
