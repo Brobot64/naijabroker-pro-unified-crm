@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuthMethods } from './auth/authMethods';
 
 interface AuthContextType {
   user: User | null;
@@ -9,6 +10,8 @@ interface AuthContextType {
   loading: boolean;
   organizationId: string | null;
   userRole: string | null;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, metadata?: any) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -18,6 +21,8 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   organizationId: null,
   userRole: null,
+  signIn: async () => ({ error: null }),
+  signUp: async () => ({ error: null }),
   signOut: async () => {},
 });
 
@@ -35,6 +40,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+
+  const { signIn, signUp, signOut: authSignOut } = useAuthMethods();
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -98,12 +105,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error signing out:', error);
-      throw error;
-    }
+  const handleSignOut = async () => {
+    await authSignOut();
     // State will be cleared by the auth state change listener
   };
 
@@ -113,7 +116,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     organizationId,
     userRole,
-    signOut,
+    signIn,
+    signUp,
+    signOut: handleSignOut,
   };
 
   return (

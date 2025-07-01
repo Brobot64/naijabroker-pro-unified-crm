@@ -26,7 +26,13 @@ const Index = () => {
     return <Navigate to="/onboarding" replace />;
   }
 
-  return <Dashboard userRole={userRole || 'User'} />;
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto p-6">
+        <Dashboard userRole={userRole || 'User'} />
+      </div>
+    </div>
+  );
 };
 
 export default Index;

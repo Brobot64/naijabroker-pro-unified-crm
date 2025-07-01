@@ -1,5 +1,5 @@
 
-import Navigation from "../components/landing/Navigation";
+import { Navigation } from "../components/landing/Navigation";
 import HeroSection from "../components/landing/HeroSection";
 import FeaturesSection from "../components/landing/FeaturesSection";
 import InteractiveDemoSection from "../components/landing/InteractiveDemoSection";
