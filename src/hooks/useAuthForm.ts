@@ -32,11 +32,12 @@ export const useAuthForm = () => {
     }
   }, [toast]);
 
-  // Handle redirect after authentication
+  // Handle redirect after successful authentication
   useEffect(() => {
     if (!loading && user && !isLoading) {
       console.log('Auth form redirect check:', { user: user.id, organizationId, loading, isLoading });
       
+      // Check for custom redirect
       const redirectTo = localStorage.getItem('redirect_after_signin');
       if (redirectTo) {
         localStorage.removeItem('redirect_after_signin');
@@ -44,6 +45,7 @@ export const useAuthForm = () => {
         return;
       }
       
+      // Default redirect logic
       if (organizationId) {
         navigate('/app');
       } else {
@@ -74,6 +76,7 @@ export const useAuthForm = () => {
             variant: "destructive",
           });
         }
+        // Success redirect will be handled by useEffect above
       } else {
         if (formData.password !== formData.confirmPassword) {
           toast({
@@ -98,7 +101,6 @@ export const useAuthForm = () => {
           });
         } else {
           setSignUpSuccess(true);
-          // Clear form
           setFormData({
             email: '',
             password: '',

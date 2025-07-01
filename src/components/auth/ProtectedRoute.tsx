@@ -19,6 +19,7 @@ export const ProtectedRoute = ({ children, requireRole }: ProtectedRouteProps) =
     pathname: location.pathname 
   });
 
+  // Show loading spinner while authentication is being determined
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -30,18 +31,25 @@ export const ProtectedRoute = ({ children, requireRole }: ProtectedRouteProps) =
     );
   }
 
+  // Redirect to auth page if user is not authenticated
   if (!user) {
-    console.log('ProtectedRoute: No user, redirecting to landing');
-    return <Navigate to="/landing" state={{ from: location }} replace />;
+    console.log('ProtectedRoute: No user, redirecting to auth');
+    return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  // Special handling for onboarding route - allow access even without organization
+  if (location.pathname === '/onboarding') {
+    console.log('ProtectedRoute: Allowing access to onboarding');
+    return <>{children}</>;
   }
 
   // If user is authenticated but has no organization, redirect to onboarding
-  // This check is specifically for protected routes that require organization setup
-  if (user && !organizationId && location.pathname !== '/onboarding') {
+  if (user && !organizationId) {
     console.log('ProtectedRoute: No organization, redirecting to onboarding');
     return <Navigate to="/onboarding" replace />;
   }
 
+  // Check role requirements
   if (requireRole && userRole && !requireRole.includes(userRole)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">

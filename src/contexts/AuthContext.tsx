@@ -47,7 +47,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching user data for:', userId);
       
-      // Fetch profile data
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('organization_id')
@@ -63,7 +62,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('Setting organization ID:', profile.organization_id);
         setOrganizationId(profile.organization_id);
         
-        // Fetch user role
         const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
           .select('role')
@@ -87,32 +85,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const clearUserData = () => {
+    setUser(null);
+    setSession(null);
+    setOrganizationId(null);
+    setUserRole(null);
+  };
+
   useEffect(() => {
     console.log('Setting up auth state listener');
     
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.id);
         
-        setSession(session);
-        setUser(session?.user ?? null);
+        if (event === 'SIGNED_OUT' || !session) {
+          clearUserData();
+          setLoading(false);
+          return;
+        }
         
-        if (session?.user) {
-          // Use setTimeout to prevent potential deadlocks
+        setSession(session);
+        setUser(session.user);
+        
+        if (session.user && event === 'SIGNED_IN') {
           setTimeout(() => {
             fetchUserData(session.user.id);
           }, 0);
-        } else {
-          setOrganizationId(null);
-          setUserRole(null);
         }
         
         setLoading(false);
       }
     );
 
-    // Get initial session
     const getInitialSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -124,11 +129,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         console.log('Initial session:', session?.user?.id);
-        setSession(session);
-        setUser(session?.user ?? null);
         
-        if (session?.user) {
+        if (session) {
+          setSession(session);
+          setUser(session.user);
           await fetchUserData(session.user.id);
+        } else {
+          clearUserData();
         }
         
         setLoading(false);
@@ -148,10 +155,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleSignOut = async () => {
     try {
+      console.log('Signing out user');
+      setLoading(true);
       await authSignOut();
-      // State will be cleared by the auth state change listener
+      clearUserData();
+      // Redirect will be handled by auth state change
     } catch (error) {
       console.error('Sign out error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -165,6 +177,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     signOut: handleSignOut,
   };
+
+  console.log('AuthProvider state:', { 
+    user: user?.id, 
+    loading, 
+    organizationId, 
+    userRole 
+  });
 
   return (
     <AuthContext.Provider value={value}>
