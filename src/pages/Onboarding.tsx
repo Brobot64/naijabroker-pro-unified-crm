@@ -41,7 +41,6 @@ const Onboarding = () => {
       });
 
       // Force a sign out and back in to refresh the auth context with new organization data
-      // This ensures the auth context picks up the updated profile with organization_id
       console.log('Onboarding completed, refreshing auth state...');
       
       // Sign out and immediately redirect to auth with a flag to auto-sign back in

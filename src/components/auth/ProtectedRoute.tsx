@@ -23,7 +23,8 @@ export const ProtectedRoute = ({ children, requireRole }: ProtectedRouteProps) =
   }
 
   if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+    // Redirect to landing page for unauthenticated users
+    return <Navigate to="/landing" state={{ from: location }} replace />;
   }
 
   if (requireRole && userRole && !requireRole.includes(userRole)) {

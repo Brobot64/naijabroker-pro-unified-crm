@@ -37,6 +37,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setSession(null);
     setUserRole(null);
     setOrganizationId(null);
+    window.location.href = '/landing';
   };
 
   useEffect(() => {
