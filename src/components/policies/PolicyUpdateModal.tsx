@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle, AlertTriangle, Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { financialCalculator } from "@/utils/financialCalculations";
+import { validateSplits } from "@/utils/financialCalculations";
 
 interface Policy {
   id: string;
@@ -77,20 +77,31 @@ export const PolicyUpdateModal = ({ open, onOpenChange, policy }: PolicyUpdateMo
     );
   };
 
-  const validateSplits = () => {
-    return financialCalculator.validateCoInsurerSplits(coInsurerSplits.map(split => ({
-      insurerId: split.insurerId,
-      insurerName: split.insurerName,
-      percentage: split.percentage,
-      isLead: split.isLead,
-      premium: 0 // Will be calculated
-    })));
+  const validateCoInsurerSplits = () => {
+    const isValid = validateSplits(coInsurerSplits, 100);
+    const totalPercentage = coInsurerSplits.reduce((sum, split) => sum + split.percentage, 0);
+    const hasLead = coInsurerSplits.some(split => split.isLead);
+    const errors: string[] = [];
+
+    if (!isValid) {
+      errors.push('Total percentage must equal 100%');
+    }
+    if (!hasLead) {
+      errors.push('One co-insurer must be designated as lead');
+    }
+
+    return {
+      isValid: isValid && hasLead,
+      totalPercentage,
+      hasLead,
+      errors
+    };
   };
 
   const handlePolicyUpdate = () => {
     if (!policy) return;
 
-    const splitValidation = validateSplits();
+    const splitValidation = validateCoInsurerSplits();
     if (!splitValidation.isValid) {
       toast({
         title: "Validation Error",
@@ -133,7 +144,7 @@ export const PolicyUpdateModal = ({ open, onOpenChange, policy }: PolicyUpdateMo
     onOpenChange(false);
   };
 
-  const splitValidation = validateSplits();
+  const splitValidation = validateCoInsurerSplits();
 
   if (!policy) return null;
 

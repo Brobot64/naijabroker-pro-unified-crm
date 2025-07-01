@@ -97,10 +97,10 @@ export const QuoteManagementWorkflow = () => {
       case 'client-onboarding':
         return (
           <ClientOnboarding
-            onClientCreated={(clientId, clientData) => 
-              handleStepComplete('client-onboarding', { id: clientId, ...clientData })
+            onClientSelected={(client) => 
+              handleStepComplete('client-onboarding', client)
             }
-            onCancel={() => {/* Handle cancel */}}
+            onBack={() => {/* Handle cancel */}}
           />
         );
       
