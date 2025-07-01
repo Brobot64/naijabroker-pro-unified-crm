@@ -1,25 +1,42 @@
 
+import React from 'react';
 import { Button } from "@/components/ui/button";
-import { Shield } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from 'react-router-dom';
 
-const Navigation = () => {
+export const Navigation = () => {
   return (
-    <nav className="border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 relative z-10">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+    <nav className="bg-white shadow-sm border-b">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center py-4">
           <div className="flex items-center">
-            <Shield className="h-8 w-8 text-blue-600" />
-            <span className="ml-2 text-xl font-bold text-gray-900">NaijaBroker Pro</span>
+            <h1 className="text-2xl font-bold text-blue-600">NaijaBroker Pro</h1>
           </div>
+          
+          <div className="hidden md:flex items-center space-x-8">
+            <a href="#features" className="text-gray-700 hover:text-blue-600 transition-colors">
+              Features
+            </a>
+            <a href="#pricing" className="text-gray-700 hover:text-blue-600 transition-colors">
+              Pricing
+            </a>
+            <a href="#about" className="text-gray-700 hover:text-blue-600 transition-colors">
+              About
+            </a>
+            <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors">
+              Contact
+            </a>
+          </div>
+
           <div className="flex items-center space-x-4">
-            <a href="#features" className="text-gray-700 hover:text-blue-600">Features</a>
-            <a href="#pricing" className="text-gray-700 hover:text-blue-600">Pricing</a>
             <Link to="/auth">
-              <Button variant="outline">Sign In</Button>
+              <Button variant="outline" className="hidden sm:inline-flex">
+                Sign In
+              </Button>
             </Link>
             <Link to="/auth">
-              <Button>Get Started</Button>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                Get Started
+              </Button>
             </Link>
           </div>
         </div>
@@ -27,5 +44,3 @@ const Navigation = () => {
     </nav>
   );
 };
-
-export default Navigation;

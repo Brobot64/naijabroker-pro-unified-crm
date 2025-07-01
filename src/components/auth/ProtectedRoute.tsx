@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ children, requireRole }: ProtectedRouteProps) => {
-  const { user, loading, userRole } = useAuth();
+  const { user, loading, userRole, organizationId } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -23,8 +23,13 @@ export const ProtectedRoute = ({ children, requireRole }: ProtectedRouteProps) =
   }
 
   if (!user) {
-    // Redirect to landing page for unauthenticated users
     return <Navigate to="/landing" state={{ from: location }} replace />;
+  }
+
+  // If user is authenticated but has no organization, redirect to onboarding
+  // This check is specifically for protected routes that require organization setup
+  if (user && !organizationId && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
   }
 
   if (requireRole && userRole && !requireRole.includes(userRole)) {

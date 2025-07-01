@@ -1,5 +1,5 @@
 
-import { Dashboard } from "./Dashboard";
+import { Dashboard } from "../components/dashboard/Dashboard";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 
