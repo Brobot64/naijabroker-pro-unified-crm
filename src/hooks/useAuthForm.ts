@@ -14,9 +14,8 @@ export const useAuthForm = () => {
     confirmPassword: ''
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [shouldRedirect, setShouldRedirect] = useState(false);
   const [signUpSuccess, setSignUpSuccess] = useState(false);
-  const { signIn, signUp, user, organizationId } = useAuth();
+  const { signIn, signUp, user, organizationId, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -33,9 +32,11 @@ export const useAuthForm = () => {
     }
   }, [toast]);
 
-  // Only redirect after successful authentication action
+  // Handle redirect after authentication
   useEffect(() => {
-    if (user && shouldRedirect) {
+    if (!loading && user && !isLoading) {
+      console.log('Auth form redirect check:', { user: user.id, organizationId, loading, isLoading });
+      
       const redirectTo = localStorage.getItem('redirect_after_signin');
       if (redirectTo) {
         localStorage.removeItem('redirect_after_signin');
@@ -48,20 +49,30 @@ export const useAuthForm = () => {
       } else {
         navigate('/onboarding');
       }
-      setShouldRedirect(false);
     }
-  }, [user, organizationId, navigate, shouldRedirect]);
+  }, [user, organizationId, navigate, loading, isLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isLoading) {
+      console.log('Form submission blocked - already loading');
+      return;
+    }
+    
     setIsLoading(true);
+    console.log('Form submission started:', isLogin ? 'login' : 'signup');
 
     try {
       if (isLogin) {
         const { error } = await signIn(formData.email, formData.password);
-        if (!error) {
-          setShouldRedirect(true);
-          return;
+        if (error) {
+          console.error('Sign in error:', error);
+          toast({
+            title: "Sign in failed",
+            description: error.message,
+            variant: "destructive",
+          });
         }
       } else {
         if (formData.password !== formData.confirmPassword) {
@@ -78,7 +89,14 @@ export const useAuthForm = () => {
           last_name: formData.lastName
         });
 
-        if (!error) {
+        if (error) {
+          console.error('Sign up error:', error);
+          toast({
+            title: "Sign up failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        } else {
           setSignUpSuccess(true);
           // Clear form
           setFormData({
@@ -88,9 +106,15 @@ export const useAuthForm = () => {
             lastName: '',
             confirmPassword: ''
           });
-          return;
         }
       }
+    } catch (error) {
+      console.error('Auth form error:', error);
+      toast({
+        title: "An error occurred",
+        description: "Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }

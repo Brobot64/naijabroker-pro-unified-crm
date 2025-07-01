@@ -45,27 +45,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserData = async (userId: string) => {
     try {
+      console.log('Fetching user data for:', userId);
+      
       // Fetch profile data
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('organization_id')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        return;
+      }
 
       if (profile?.organization_id) {
+        console.log('Setting organization ID:', profile.organization_id);
         setOrganizationId(profile.organization_id);
         
         // Fetch user role
-        const { data: roleData } = await supabase
+        const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', userId)
           .eq('organization_id', profile.organization_id)
-          .single();
+          .maybeSingle();
 
-        if (roleData?.role) {
+        if (roleError) {
+          console.error('Role fetch error:', roleError);
+        } else if (roleData?.role) {
+          console.log('Setting user role:', roleData.role);
           setUserRole(roleData.role);
         }
+      } else {
+        console.log('No organization found for user');
+        setOrganizationId(null);
+        setUserRole(null);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -73,14 +88,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    console.log('Setting up auth state listener');
+    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
+        
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await fetchUserData(session.user.id);
+          // Use setTimeout to prevent potential deadlocks
+          setTimeout(() => {
+            fetchUserData(session.user.id);
+          }, 0);
         } else {
           setOrganizationId(null);
           setUserRole(null);
@@ -91,23 +113,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserData(session.user.id).then(() => setLoading(false));
-      } else {
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          setLoading(false);
+          return;
+        }
+
+        console.log('Initial session:', session?.user?.id);
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await fetchUserData(session.user.id);
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error in getInitialSession:', error);
         setLoading(false);
       }
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    getInitialSession();
+
+    return () => {
+      console.log('Cleaning up auth subscription');
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleSignOut = async () => {
-    await authSignOut();
-    // State will be cleared by the auth state change listener
+    try {
+      await authSignOut();
+      // State will be cleared by the auth state change listener
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
   };
 
   const value = {

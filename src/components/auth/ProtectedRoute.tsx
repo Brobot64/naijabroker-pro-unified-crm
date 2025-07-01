@@ -11,6 +11,14 @@ export const ProtectedRoute = ({ children, requireRole }: ProtectedRouteProps) =
   const { user, loading, userRole, organizationId } = useAuth();
   const location = useLocation();
 
+  console.log('ProtectedRoute - Auth state:', { 
+    user: user?.id, 
+    loading, 
+    userRole, 
+    organizationId,
+    pathname: location.pathname 
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -23,12 +31,14 @@ export const ProtectedRoute = ({ children, requireRole }: ProtectedRouteProps) =
   }
 
   if (!user) {
+    console.log('ProtectedRoute: No user, redirecting to landing');
     return <Navigate to="/landing" state={{ from: location }} replace />;
   }
 
   // If user is authenticated but has no organization, redirect to onboarding
   // This check is specifically for protected routes that require organization setup
   if (user && !organizationId && location.pathname !== '/onboarding') {
+    console.log('ProtectedRoute: No organization, redirecting to onboarding');
     return <Navigate to="/onboarding" replace />;
   }
 
