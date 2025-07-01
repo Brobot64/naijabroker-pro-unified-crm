@@ -8,6 +8,8 @@ import { InsightsCards } from "./InsightsCards";
 import { TopClientsTable } from "./TopClientsTable";
 import { CriticalAlertsTable } from "./CriticalAlertsTable";
 import { ChartsSection } from "./ChartsSection";
+import { QuickActions } from "./QuickActions";
+import { ComplianceAlerts } from "./ComplianceAlerts";
 
 // Lazy load components for better performance
 const PolicyManagement = React.lazy(() => import("@/components/policies/PolicyManagement").then(module => ({ default: module.PolicyManagement })));
@@ -26,7 +28,11 @@ const ComponentWrapper = ({ children }: { children: React.ReactNode }) => (
   </ErrorBoundary>
 );
 
-export const DashboardTabContent = () => {
+interface DashboardTabContentProps {
+  userRole: string;
+}
+
+export const DashboardTabContent = ({ userRole }: DashboardTabContentProps) => {
   return (
     <>
       <TabsContent value="overview" className="space-y-6">
@@ -42,12 +48,25 @@ export const DashboardTabContent = () => {
           <ChartsSection />
         </ErrorBoundary>
 
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <ErrorBoundary>
+              <RecentActivityCard />
+            </ErrorBoundary>
+          </div>
+          <div>
+            <ErrorBoundary>
+              <QuickActions userRole={userRole} />
+            </ErrorBoundary>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ErrorBoundary>
-            <RecentActivityCard />
+            <TopClientsTable />
           </ErrorBoundary>
           <ErrorBoundary>
-            <TopClientsTable />
+            <ComplianceAlerts />
           </ErrorBoundary>
         </div>
 
