@@ -86,10 +86,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const clearUserData = () => {
+    console.log('Clearing user data');
     setUser(null);
     setSession(null);
     setOrganizationId(null);
     setUserRole(null);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      console.log('Signing out user');
+      await authSignOut();
+      clearUserData();
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
   };
 
   useEffect(() => {
@@ -108,7 +119,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         setUser(session.user);
         
-        if (session.user && event === 'SIGNED_IN') {
+        if (session.user) {
+          // Use setTimeout to prevent potential deadlocks
           setTimeout(() => {
             fetchUserData(session.user.id);
           }, 0);
@@ -118,6 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
+    // Get initial session
     const getInitialSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -133,7 +146,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session) {
           setSession(session);
           setUser(session.user);
-          await fetchUserData(session.user.id);
+          setTimeout(() => {
+            fetchUserData(session.user.id);
+          }, 0);
         } else {
           clearUserData();
         }
@@ -152,20 +167,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       subscription.unsubscribe();
     };
   }, []);
-
-  const handleSignOut = async () => {
-    try {
-      console.log('Signing out user');
-      setLoading(true);
-      await authSignOut();
-      clearUserData();
-      // Redirect will be handled by auth state change
-    } catch (error) {
-      console.error('Sign out error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const value = {
     user,

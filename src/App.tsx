@@ -33,7 +33,7 @@ function App() {
                   <Index />
                 </ProtectedRoute>
               } />
-              <Route path="/" element={<Navigate to="/app" replace />} />
+              <Route path="/" element={<Navigate to="/landing" replace />} />
             </Routes>
           </BrowserRouter>
         </AuthProvider>

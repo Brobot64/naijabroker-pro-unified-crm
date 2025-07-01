@@ -17,10 +17,11 @@ export const Header = () => {
 
   const handleSignOut = async () => {
     try {
+      console.log('Header: Initiating sign out');
       await signOut();
       navigate('/auth');
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error('Header: Sign out error:', error);
     }
   };
 
