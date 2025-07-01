@@ -1,19 +1,22 @@
-
 import React, { Suspense } from 'react';
 import { TabsContent } from "@/components/ui/tabs";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { DashboardStats } from "./DashboardStats";
 import { RecentActivityCard } from "./RecentActivityCard";
+import { InsightsCards } from "./InsightsCards";
+import { TopClientsTable } from "./TopClientsTable";
+import { CriticalAlertsTable } from "./CriticalAlertsTable";
+import { ChartsSection } from "./ChartsSection";
 
-// Import components directly since they're named exports, not default exports
-import { PolicyManagement } from "@/components/policies/PolicyManagement";
-import { QuoteManagement } from "@/components/quotes/QuoteManagement";
-import { ClaimsManagement } from "@/components/claims/ClaimsManagement";
-import { FinancialManagement } from "@/components/financial/FinancialManagement";
-import { WorkflowManager } from "@/components/workflow/WorkflowManager";
-import { SocialMediaDashboard } from "@/components/social/SocialMediaDashboard";
-import { UserManagement } from "@/components/admin/UserManagement";
+// Lazy load components for better performance
+const PolicyManagement = React.lazy(() => import("@/components/policies/PolicyManagement").then(module => ({ default: module.PolicyManagement })));
+const QuoteManagement = React.lazy(() => import("@/components/quotes/QuoteManagement").then(module => ({ default: module.QuoteManagement })));
+const ClaimsManagement = React.lazy(() => import("@/components/claims/ClaimsManagement").then(module => ({ default: module.ClaimsManagement })));
+const FinancialManagement = React.lazy(() => import("@/components/financial/FinancialManagement").then(module => ({ default: module.FinancialManagement })));
+const WorkflowManager = React.lazy(() => import("@/components/workflow/WorkflowManager").then(module => ({ default: module.WorkflowManager })));
+const SocialMediaDashboard = React.lazy(() => import("@/components/social/SocialMediaDashboard").then(module => ({ default: module.SocialMediaDashboard })));
+const UserManagement = React.lazy(() => import("@/components/admin/UserManagement").then(module => ({ default: module.UserManagement })));
 
 const ComponentWrapper = ({ children }: { children: React.ReactNode }) => (
   <ErrorBoundary>
@@ -28,13 +31,29 @@ export const DashboardTabContent = () => {
     <>
       <TabsContent value="overview" className="space-y-6">
         <ErrorBoundary>
+          <InsightsCards />
+        </ErrorBoundary>
+        
+        <ErrorBoundary>
           <DashboardStats />
         </ErrorBoundary>
+
+        <ErrorBoundary>
+          <ChartsSection />
+        </ErrorBoundary>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ErrorBoundary>
             <RecentActivityCard />
           </ErrorBoundary>
+          <ErrorBoundary>
+            <TopClientsTable />
+          </ErrorBoundary>
         </div>
+
+        <ErrorBoundary>
+          <CriticalAlertsTable />
+        </ErrorBoundary>
       </TabsContent>
 
       <TabsContent value="policies">
