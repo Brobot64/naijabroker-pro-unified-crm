@@ -173,6 +173,144 @@ export type Database = {
           },
         ]
       }
+      client_portal_sessions: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          is_used: boolean | null
+          organization_id: string
+          quote_id: string
+          session_token: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          is_used?: boolean | null
+          organization_id: string
+          quote_id: string
+          session_token: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          is_used?: boolean | null
+          organization_id?: string
+          quote_id?: string
+          session_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_client_portal_sessions_client"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_client_portal_sessions_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_client_portal_sessions_quote"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          account_officer: string | null
+          address: string | null
+          anniversary: string | null
+          birthday: string | null
+          chairman: string | null
+          classification: string | null
+          client_code: string
+          contact_address: string | null
+          contact_name: string | null
+          created_at: string | null
+          created_by: string | null
+          email: string | null
+          head_of_finance: string | null
+          id: string
+          industry: string | null
+          md: string | null
+          name: string
+          organization_id: string
+          phone: string | null
+          remark: string | null
+          source: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_officer?: string | null
+          address?: string | null
+          anniversary?: string | null
+          birthday?: string | null
+          chairman?: string | null
+          classification?: string | null
+          client_code: string
+          contact_address?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          email?: string | null
+          head_of_finance?: string | null
+          id?: string
+          industry?: string | null
+          md?: string | null
+          name: string
+          organization_id: string
+          phone?: string | null
+          remark?: string | null
+          source?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_officer?: string | null
+          address?: string | null
+          anniversary?: string | null
+          birthday?: string | null
+          chairman?: string | null
+          classification?: string | null
+          client_code?: string
+          contact_address?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          email?: string | null
+          head_of_finance?: string | null
+          id?: string
+          industry?: string | null
+          md?: string | null
+          name?: string
+          organization_id?: string
+          phone?: string | null
+          remark?: string | null
+          source?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_clients_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discharge_vouchers: {
         Row: {
           approved_at: string | null
@@ -384,6 +522,125 @@ export type Database = {
             columns: ["policy_id"]
             isOneToOne: false
             referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      insurer_responses: {
+        Row: {
+          coverage_limits: Json | null
+          created_at: string | null
+          document_url: string | null
+          exclusions: string[] | null
+          id: string
+          insurer_name: string
+          is_selected: boolean | null
+          organization_id: string
+          premium_quoted: number
+          quote_id: string
+          rating_score: number | null
+          remarks: string | null
+          response_date: string | null
+          terms_conditions: string | null
+        }
+        Insert: {
+          coverage_limits?: Json | null
+          created_at?: string | null
+          document_url?: string | null
+          exclusions?: string[] | null
+          id?: string
+          insurer_name: string
+          is_selected?: boolean | null
+          organization_id: string
+          premium_quoted?: number
+          quote_id: string
+          rating_score?: number | null
+          remarks?: string | null
+          response_date?: string | null
+          terms_conditions?: string | null
+        }
+        Update: {
+          coverage_limits?: Json | null
+          created_at?: string | null
+          document_url?: string | null
+          exclusions?: string[] | null
+          id?: string
+          insurer_name?: string
+          is_selected?: boolean | null
+          organization_id?: string
+          premium_quoted?: number
+          quote_id?: string
+          rating_score?: number | null
+          remarks?: string | null
+          response_date?: string | null
+          terms_conditions?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_insurer_responses_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_insurer_responses_quote"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      insurers: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          organization_id: string
+          performance_score: number | null
+          phone: string | null
+          rating: number | null
+          specialties: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          organization_id: string
+          performance_score?: number | null
+          phone?: string | null
+          rating?: number | null
+          specialties?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          organization_id?: string
+          performance_score?: number | null
+          phone?: string | null
+          rating?: number | null
+          specialties?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_insurers_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -625,71 +882,219 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_audit_trail: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          ip_address: unknown | null
+          organization_id: string
+          quote_id: string
+          stage: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          organization_id: string
+          quote_id: string
+          stage: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          organization_id?: string
+          quote_id?: string
+          stage?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_quote_audit_trail_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_quote_audit_trail_quote"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_documents: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          document_name: string
+          document_type: string
+          document_url: string
+          file_size: number | null
+          id: string
+          is_locked: boolean | null
+          mime_type: string | null
+          organization_id: string
+          quote_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          document_name: string
+          document_type: string
+          document_url: string
+          file_size?: number | null
+          id?: string
+          is_locked?: boolean | null
+          mime_type?: string | null
+          organization_id: string
+          quote_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          document_name?: string
+          document_type?: string
+          document_url?: string
+          file_size?: number | null
+          id?: string
+          is_locked?: boolean | null
+          mime_type?: string | null
+          organization_id?: string
+          quote_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_quote_documents_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_quote_documents_quote"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotes: {
         Row: {
+          calculations: Json | null
           client_email: string | null
+          client_id: string | null
           client_name: string
           client_phone: string | null
           commission_rate: number
+          commission_splits: Json | null
           converted_to_policy: string | null
           created_at: string | null
           created_by: string | null
+          final_contract_url: string | null
           id: string
+          insurer_splits: Json | null
+          interim_contract_url: string | null
           notes: string | null
           organization_id: string
+          payment_reference: string | null
+          payment_status: string | null
           policy_type: string
           premium: number
           quote_number: string
+          rfq_document_url: string | null
           status: Database["public"]["Enums"]["quote_status"]
           sum_insured: number
           terms_conditions: string | null
           underwriter: string
           updated_at: string | null
           valid_until: string
+          workflow_stage: string | null
         }
         Insert: {
+          calculations?: Json | null
           client_email?: string | null
+          client_id?: string | null
           client_name: string
           client_phone?: string | null
           commission_rate?: number
+          commission_splits?: Json | null
           converted_to_policy?: string | null
           created_at?: string | null
           created_by?: string | null
+          final_contract_url?: string | null
           id?: string
+          insurer_splits?: Json | null
+          interim_contract_url?: string | null
           notes?: string | null
           organization_id: string
+          payment_reference?: string | null
+          payment_status?: string | null
           policy_type: string
           premium?: number
           quote_number: string
+          rfq_document_url?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           sum_insured?: number
           terms_conditions?: string | null
           underwriter: string
           updated_at?: string | null
           valid_until: string
+          workflow_stage?: string | null
         }
         Update: {
+          calculations?: Json | null
           client_email?: string | null
+          client_id?: string | null
           client_name?: string
           client_phone?: string | null
           commission_rate?: number
+          commission_splits?: Json | null
           converted_to_policy?: string | null
           created_at?: string | null
           created_by?: string | null
+          final_contract_url?: string | null
           id?: string
+          insurer_splits?: Json | null
+          interim_contract_url?: string | null
           notes?: string | null
           organization_id?: string
+          payment_reference?: string | null
+          payment_status?: string | null
           policy_type?: string
           premium?: number
           quote_number?: string
+          rfq_document_url?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           sum_insured?: number
           terms_conditions?: string | null
           underwriter?: string
           updated_at?: string | null
           valid_until?: string
+          workflow_stage?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_quotes_client"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_quotes_converted_policy"
             columns: ["converted_to_policy"]
@@ -1000,6 +1405,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_client_code: {
+        Args: { org_id: string }
+        Returns: string
+      }
       get_user_organization: {
         Args: { _user_id: string }
         Returns: string

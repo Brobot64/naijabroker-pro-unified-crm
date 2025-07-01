@@ -4,76 +4,124 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar } from "lucide-react";
+import { ClientService } from "@/services/database/clientService";
+import { useAuth } from "@/contexts/AuthContext";
+import { Search, Plus } from "lucide-react";
 
 interface ClientOnboardingProps {
-  onClientCreated: (clientId: string, clientData: any) => void;
-  onCancel: () => void;
+  onClientSelected: (client: any) => void;
+  onBack: () => void;
 }
 
-export const ClientOnboarding = ({ onClientCreated, onCancel }: ClientOnboardingProps) => {
-  const [clientData, setClientData] = useState({
-    // Basic Details
-    clientCode: `CLI-${Date.now().toString().slice(-6)}`,
+export const ClientOnboarding = ({ onClientSelected, onBack }: ClientOnboardingProps) => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [existingClients, setExistingClients] = useState<any[]>([]);
+  const [showNewClientForm, setShowNewClientForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const { user, organizationId } = useAuth();
+
+  const [newClient, setNewClient] = useState({
     name: "",
-    address: "",
-    phone: "",
     email: "",
-    source: "",
+    phone: "",
+    address: "",
     industry: "",
     classification: "",
-    remark: "",
-    accountOfficer: "",
-    
-    // Additional Info
+    source: "",
     chairman: "",
     md: "",
     headOfFinance: "",
-    
-    // Contact Details
     contactName: "",
     contactAddress: "",
-    birthday: "",
-    anniversary: ""
+    accountOfficer: "",
+    remark: ""
   });
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
 
-  const handleSubmit = async () => {
-    if (!clientData.name || !clientData.email || !clientData.phone) {
+  const handleSearch = async () => {
+    if (!searchTerm.trim()) return;
+    
+    setLoading(true);
+    try {
+      const clients = await ClientService.searchByName(searchTerm);
+      setExistingClients(clients);
+      
+      if (clients.length === 0) {
+        toast({
+          title: "No clients found",
+          description: `No clients found matching "${searchTerm}". You can create a new client.`
+        });
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      toast({
+        title: "Search Error",
+        description: "Failed to search for clients. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateClient = async () => {
+    if (!newClient.name.trim()) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields (Name, Email, Phone)",
+        description: "Client name is required",
         variant: "destructive"
       });
       return;
     }
 
-    setIsSubmitting(true);
-
-    try {
-      // Here you would typically save to a clients table
-      // For now, we'll simulate creating a client
-      const clientId = `client-${Date.now()}`;
-      
-      toast({
-        title: "Client Created",
-        description: `Client ${clientData.name} has been successfully onboarded`,
-      });
-
-      onClientCreated(clientId, clientData);
-    } catch (error) {
+    if (!organizationId || !user) {
       toast({
         title: "Error",
+        description: "User authentication error",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const client = await ClientService.create({
+        organization_id: organizationId,
+        name: newClient.name,
+        email: newClient.email || undefined,
+        phone: newClient.phone || undefined,
+        address: newClient.address || undefined,
+        industry: newClient.industry || undefined,
+        classification: newClient.classification || undefined,
+        source: newClient.source || undefined,
+        chairman: newClient.chairman || undefined,
+        md: newClient.md || undefined,
+        head_of_finance: newClient.headOfFinance || undefined,
+        contact_name: newClient.contactName || undefined,
+        contact_address: newClient.contactAddress || undefined,
+        account_officer: newClient.accountOfficer || undefined,
+        remark: newClient.remark || undefined,
+        created_by: user.id
+      });
+
+      toast({
+        title: "Client Created",
+        description: `Client "${client.name}" (${client.client_code}) has been created successfully`
+      });
+
+      onClientSelected(client);
+    } catch (error) {
+      console.error('Client creation error:', error);
+      toast({
+        title: "Creation Error",
         description: "Failed to create client. Please try again.",
         variant: "destructive"
       });
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
@@ -81,240 +129,236 @@ export const ClientOnboarding = ({ onClientCreated, onCancel }: ClientOnboarding
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Client Onboarding</h2>
-        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button variant="outline" onClick={onBack}>Back</Button>
       </div>
 
-      {/* Basic Details */}
+      {/* Search Existing Clients */}
       <Card>
         <CardHeader>
-          <CardTitle>Basic Client Details</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            Search Existing Clients
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="clientCode">Client Code *</Label>
-              <Input
-                id="clientCode"
-                value={clientData.clientCode}
-                onChange={(e) => setClientData({...clientData, clientCode: e.target.value})}
-                disabled
-              />
-            </div>
-            <div>
-              <Label htmlFor="accountOfficer">Account Officer</Label>
-              <Input
-                id="accountOfficer"
-                value={clientData.accountOfficer}
-                onChange={(e) => setClientData({...clientData, accountOfficer: e.target.value})}
-                placeholder="Account officer name"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="name">Client Name *</Label>
-              <Input
-                id="name"
-                value={clientData.name}
-                onChange={(e) => setClientData({...clientData, name: e.target.value})}
-                placeholder="Full company/individual name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="email">Email *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={clientData.email}
-                onChange={(e) => setClientData({...clientData, email: e.target.value})}
-                placeholder="contact@company.com"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="phone">Phone *</Label>
-              <Input
-                id="phone"
-                value={clientData.phone}
-                onChange={(e) => setClientData({...clientData, phone: e.target.value})}
-                placeholder="+234XXXXXXXXXX"
-              />
-            </div>
-            <div>
-              <Label htmlFor="source">Source</Label>
-              <Select value={clientData.source} onValueChange={(value) => setClientData({...clientData, source: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="How did they find us?" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="referral">Referral</SelectItem>
-                  <SelectItem value="website">Website</SelectItem>
-                  <SelectItem value="advertisement">Advertisement</SelectItem>
-                  <SelectItem value="social_media">Social Media</SelectItem>
-                  <SelectItem value="cold_call">Cold Call</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="industry">Industry</Label>
-              <Select value={clientData.industry} onValueChange={(value) => setClientData({...clientData, industry: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select industry" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="manufacturing">Manufacturing</SelectItem>
-                  <SelectItem value="retail">Retail</SelectItem>
-                  <SelectItem value="healthcare">Healthcare</SelectItem>
-                  <SelectItem value="education">Education</SelectItem>
-                  <SelectItem value="construction">Construction</SelectItem>
-                  <SelectItem value="technology">Technology</SelectItem>
-                  <SelectItem value="agriculture">Agriculture</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="classification">Classification</Label>
-              <Select value={clientData.classification} onValueChange={(value) => setClientData({...clientData, classification: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Client classification" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="vip">VIP</SelectItem>
-                  <SelectItem value="corporate">Corporate</SelectItem>
-                  <SelectItem value="sme">SME</SelectItem>
-                  <SelectItem value="individual">Individual</SelectItem>
-                  <SelectItem value="government">Government</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="address">Address</Label>
-            <Textarea
-              id="address"
-              value={clientData.address}
-              onChange={(e) => setClientData({...clientData, address: e.target.value})}
-              placeholder="Full business address"
-              rows={3}
+          <div className="flex gap-2">
+            <Input
+              placeholder="Search by client name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             />
+            <Button onClick={handleSearch} disabled={loading}>
+              Search
+            </Button>
           </div>
 
-          <div>
-            <Label htmlFor="remark">Remarks</Label>
-            <Textarea
-              id="remark"
-              value={clientData.remark}
-              onChange={(e) => setClientData({...clientData, remark: e.target.value})}
-              placeholder="Additional notes about the client"
-              rows={2}
-            />
-          </div>
+          {existingClients.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="font-medium">Search Results:</h4>
+              {existingClients.map((client) => (
+                <div key={client.id} className="p-3 border rounded-lg flex justify-between items-center">
+                  <div>
+                    <p className="font-medium">{client.name}</p>
+                    <p className="text-sm text-gray-600">Code: {client.client_code}</p>
+                    {client.email && <p className="text-sm text-gray-600">{client.email}</p>}
+                  </div>
+                  <Button onClick={() => onClientSelected(client)}>
+                    Select
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Additional Information */}
+      {/* Create New Client */}
       <Card>
         <CardHeader>
-          <CardTitle>Key Personnel</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5" />
+            Create New Client
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="chairman">Chairman</Label>
-              <Input
-                id="chairman"
-                value={clientData.chairman}
-                onChange={(e) => setClientData({...clientData, chairman: e.target.value})}
-                placeholder="Chairman name"
-              />
+          {!showNewClientForm ? (
+            <Button onClick={() => setShowNewClientForm(true)} variant="outline">
+              Add New Client
+            </Button>
+          ) : (
+            <div className="space-y-4">
+              {/* Basic Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">Client Name *</Label>
+                  <Input
+                    id="name"
+                    value={newClient.name}
+                    onChange={(e) => setNewClient({...newClient, name: e.target.value})}
+                    placeholder="Company or individual name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="classification">Classification</Label>
+                  <Select value={newClient.classification} onValueChange={(value) => setNewClient({...newClient, classification: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select classification" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="corporate">Corporate</SelectItem>
+                      <SelectItem value="individual">Individual</SelectItem>
+                      <SelectItem value="sme">SME</SelectItem>
+                      <SelectItem value="government">Government</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newClient.email}
+                    onChange={(e) => setNewClient({...newClient, email: e.target.value})}
+                    placeholder="client@company.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={newClient.phone}
+                    onChange={(e) => setNewClient({...newClient, phone: e.target.value})}
+                    placeholder="+234..."
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="address">Address</Label>
+                <Textarea
+                  id="address"
+                  value={newClient.address}
+                  onChange={(e) => setNewClient({...newClient, address: e.target.value})}
+                  placeholder="Full business address"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="industry">Industry</Label>
+                  <Input
+                    id="industry"
+                    value={newClient.industry}
+                    onChange={(e) => setNewClient({...newClient, industry: e.target.value})}
+                    placeholder="e.g., Manufacturing, Oil & Gas"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="source">Source</Label>
+                  <Select value={newClient.source} onValueChange={(value) => setNewClient({...newClient, source: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="How did you find us?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="referral">Referral</SelectItem>
+                      <SelectItem value="website">Website</SelectItem>
+                      <SelectItem value="cold_call">Cold Call</SelectItem>
+                      <SelectItem value="existing_client">Existing Client</SelectItem>
+                      <SelectItem value="marketing">Marketing Campaign</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Key Personnel */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-4">Key Personnel</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="chairman">Chairman</Label>
+                    <Input
+                      id="chairman"
+                      value={newClient.chairman}
+                      onChange={(e) => setNewClient({...newClient, chairman: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="md">Managing Director</Label>
+                    <Input
+                      id="md"
+                      value={newClient.md}
+                      onChange={(e) => setNewClient({...newClient, md: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <Label htmlFor="headOfFinance">Head of Finance</Label>
+                    <Input
+                      id="headOfFinance"
+                      value={newClient.headOfFinance}
+                      onChange={(e) => setNewClient({...newClient, headOfFinance: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="accountOfficer">Account Officer</Label>
+                    <Input
+                      id="accountOfficer"
+                      value={newClient.accountOfficer}
+                      onChange={(e) => setNewClient({...newClient, accountOfficer: e.target.value})}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Information */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-4">Additional Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="contactName">Primary Contact Name</Label>
+                    <Input
+                      id="contactName"
+                      value={newClient.contactName}
+                      onChange={(e) => setNewClient({...newClient, contactName: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="contactAddress">Contact Address</Label>
+                    <Input
+                      id="contactAddress"
+                      value={newClient.contactAddress}
+                      onChange={(e) => setNewClient({...newClient, contactAddress: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Label htmlFor="remark">Remarks</Label>
+                  <Textarea
+                    id="remark"
+                    value={newClient.remark}
+                    onChange={(e) => setNewClient({...newClient, remark: e.target.value})}
+                    placeholder="Any additional notes about this client"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button onClick={handleCreateClient} disabled={loading}>
+                  {loading ? "Creating..." : "Create Client"}
+                </Button>
+                <Button variant="outline" onClick={() => setShowNewClientForm(false)}>
+                  Cancel
+                </Button>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="md">Managing Director</Label>
-              <Input
-                id="md"
-                value={clientData.md}
-                onChange={(e) => setClientData({...clientData, md: e.target.value})}
-                placeholder="MD name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="headOfFinance">Head of Finance</Label>
-              <Input
-                id="headOfFinance"
-                value={clientData.headOfFinance}
-                onChange={(e) => setClientData({...clientData, headOfFinance: e.target.value})}
-                placeholder="Finance head name"
-              />
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* Contact Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Primary Contact Details</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="contactName">Contact Person</Label>
-              <Input
-                id="contactName"
-                value={clientData.contactName}
-                onChange={(e) => setClientData({...clientData, contactName: e.target.value})}
-                placeholder="Primary contact name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="contactAddress">Contact Address</Label>
-              <Input
-                id="contactAddress"
-                value={clientData.contactAddress}
-                onChange={(e) => setClientData({...clientData, contactAddress: e.target.value})}
-                placeholder="Contact person address"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="birthday">Birthday</Label>
-              <Input
-                id="birthday"
-                type="date"
-                value={clientData.birthday}
-                onChange={(e) => setClientData({...clientData, birthday: e.target.value})}
-              />
-            </div>
-            <div>
-              <Label htmlFor="anniversary">Anniversary</Label>
-              <Input
-                id="anniversary"
-                type="date"
-                value={clientData.anniversary}
-                onChange={(e) => setClientData({...clientData, anniversary: e.target.value})}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex justify-end space-x-4">
-        <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={handleSubmit} disabled={isSubmitting}>
-          {isSubmitting ? "Creating Client..." : "Create Client & Continue to Quote"}
-        </Button>
-      </div>
     </div>
   );
 };
