@@ -1,15 +1,20 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { Policy, PolicyInsert, PolicyUpdate } from './types';
+import { BaseService, ServiceResponse } from './baseService';
 
-export class PolicyService {
+export class PolicyService extends BaseService {
   static async getAll(): Promise<Policy[]> {
     const { data, error } = await supabase
       .from('policies')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching policies:', error);
+      throw new Error('Failed to fetch policies');
+    }
+    
     return data || [];
   }
 
@@ -20,7 +25,11 @@ export class PolicyService {
       .eq('id', id)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching policy:', error);
+      throw new Error('Failed to fetch policy');
+    }
+    
     return data;
   }
 
@@ -31,7 +40,11 @@ export class PolicyService {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error creating policy:', error);
+      throw new Error('Failed to create policy');
+    }
+    
     return data;
   }
 
@@ -43,7 +56,11 @@ export class PolicyService {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error updating policy:', error);
+      throw new Error('Failed to update policy');
+    }
+    
     return data;
   }
 
@@ -53,7 +70,10 @@ export class PolicyService {
       .delete()
       .eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error deleting policy:', error);
+      throw new Error('Failed to delete policy');
+    }
   }
 
   static async getExpiringPolicies(daysAhead = 30): Promise<Policy[]> {
@@ -67,7 +87,11 @@ export class PolicyService {
       .eq('status', 'active')
       .order('end_date', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching expiring policies:', error);
+      throw new Error('Failed to fetch expiring policies');
+    }
+    
     return data || [];
   }
 }

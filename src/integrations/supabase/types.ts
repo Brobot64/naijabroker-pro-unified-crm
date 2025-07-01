@@ -63,6 +63,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_audit_logs_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       claims: {
@@ -150,6 +157,20 @@ export type Database = {
             referencedRelation: "policies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_claims_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_claims_policy"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
         ]
       }
       discharge_vouchers: {
@@ -215,6 +236,27 @@ export type Database = {
           },
           {
             foreignKeyName: "discharge_vouchers_settlement_voucher_id_fkey"
+            columns: ["settlement_voucher_id"]
+            isOneToOne: false
+            referencedRelation: "settlement_vouchers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_discharge_vouchers_claim"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_discharge_vouchers_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_discharge_vouchers_settlement"
             columns: ["settlement_voucher_id"]
             isOneToOne: false
             referencedRelation: "settlement_vouchers"
@@ -323,6 +365,27 @@ export type Database = {
             referencedRelation: "policies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_financial_transactions_claim"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_financial_transactions_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_financial_transactions_policy"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
         ]
       }
       notifications: {
@@ -366,6 +429,13 @@ export type Database = {
           subject?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_notifications_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "notifications_organization_id_fkey"
             columns: ["organization_id"]
@@ -510,6 +580,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_policies_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "policies_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
@@ -614,6 +691,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_quotes_converted_policy"
+            columns: ["converted_to_policy"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_quotes_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "quotes_converted_to_policy_fkey"
             columns: ["converted_to_policy"]
             isOneToOne: false
@@ -685,6 +776,20 @@ export type Database = {
           voucher_number?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_settlement_vouchers_claim"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_settlement_vouchers_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "settlement_vouchers_claim_id_fkey"
             columns: ["claim_id"]
@@ -806,6 +911,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_workflow_steps_workflow"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "workflow_steps_workflow_id_fkey"
             columns: ["workflow_id"]
             isOneToOne: false
@@ -867,6 +979,13 @@ export type Database = {
           workflow_type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_workflows_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "workflows_organization_id_fkey"
             columns: ["organization_id"]

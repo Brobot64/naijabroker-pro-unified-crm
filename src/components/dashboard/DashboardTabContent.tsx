@@ -1,106 +1,88 @@
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { TabsContent } from "@/components/ui/tabs";
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { DashboardStats } from "./DashboardStats";
-import { RenewalReminders } from "@/components/policies/RenewalReminders";
 import { RecentActivityCard } from "./RecentActivityCard";
-import { PolicyManagement } from "@/components/policies/PolicyManagement";
-import { QuoteManagement } from "@/components/quotes/QuoteManagement";
-import { ClaimsManagement } from "@/components/claims/ClaimsManagement";
-import { FinancialManagement } from "@/components/financial/FinancialManagement";
-import { WorkflowManager } from "@/components/workflow/WorkflowManager";
-import { SocialMediaDashboard } from "@/components/social/SocialMediaDashboard";
-import { UserManagement } from "@/components/admin/UserManagement";
-import { ComplianceReports } from "@/components/compliance/ComplianceReports";
-import { 
-  FileText, 
-  DollarSign, 
-  AlertTriangle,
-  Activity,
-  Settings,
-  BarChart3
-} from "lucide-react";
+
+// Lazy load heavy components
+const PolicyManagement = React.lazy(() => import("@/components/policies/PolicyManagement"));
+const QuoteManagement = React.lazy(() => import("@/components/quotes/QuoteManagement"));
+const ClaimsManagement = React.lazy(() => import("@/components/claims/ClaimsManagement"));
+const FinancialManagement = React.lazy(() => import("@/components/financial/FinancialManagement"));
+const WorkflowManager = React.lazy(() => import("@/components/workflow/WorkflowManager"));
+const SocialMediaDashboard = React.lazy(() => import("@/components/social/SocialMediaDashboard"));
+const UserManagement = React.lazy(() => import("@/components/admin/UserManagement"));
+
+const ComponentWrapper = ({ children }: { children: React.ReactNode }) => (
+  <ErrorBoundary>
+    <Suspense fallback={<LoadingSpinner size="lg" text="Loading..." className="py-12" />}>
+      {children}
+    </Suspense>
+  </ErrorBoundary>
+);
 
 export const DashboardTabContent = () => {
   return (
     <>
       <TabsContent value="overview" className="space-y-6">
-        <DashboardStats />
-        <RenewalReminders />
-        <RecentActivityCard />
+        <ErrorBoundary>
+          <DashboardStats />
+        </ErrorBoundary>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ErrorBoundary>
+            <RecentActivityCard />
+          </ErrorBoundary>
+        </div>
       </TabsContent>
 
       <TabsContent value="policies">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">Policy Management</h2>
-            <FileText className="h-6 w-6 text-gray-600" />
-          </div>
+        <ComponentWrapper>
           <PolicyManagement />
-        </div>
+        </ComponentWrapper>
       </TabsContent>
 
       <TabsContent value="quotes">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">Quote Management</h2>
-            <DollarSign className="h-6 w-6 text-gray-600" />
-          </div>
+        <ComponentWrapper>
           <QuoteManagement />
-        </div>
+        </ComponentWrapper>
       </TabsContent>
 
       <TabsContent value="claims">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">Claims Management</h2>
-            <AlertTriangle className="h-6 w-6 text-gray-600" />
-          </div>
+        <ComponentWrapper>
           <ClaimsManagement />
-        </div>
+        </ComponentWrapper>
       </TabsContent>
 
       <TabsContent value="financial">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">Financial Management</h2>
-            <DollarSign className="h-6 w-6 text-gray-600" />
-          </div>
+        <ComponentWrapper>
           <FinancialManagement />
-        </div>
+        </ComponentWrapper>
       </TabsContent>
 
       <TabsContent value="workflows">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">Workflow Management</h2>
-            <Activity className="h-6 w-6 text-gray-600" />
-          </div>
+        <ComponentWrapper>
           <WorkflowManager />
-        </div>
+        </ComponentWrapper>
       </TabsContent>
 
       <TabsContent value="social">
-        <SocialMediaDashboard />
+        <ComponentWrapper>
+          <SocialMediaDashboard />
+        </ComponentWrapper>
       </TabsContent>
 
       <TabsContent value="admin">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">Administration</h2>
-            <Settings className="h-6 w-6 text-gray-600" />
-          </div>
+        <ComponentWrapper>
           <UserManagement />
-        </div>
+        </ComponentWrapper>
       </TabsContent>
 
       <TabsContent value="reports">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">Reports & Compliance</h2>
-            <BarChart3 className="h-6 w-6 text-gray-600" />
-          </div>
-          <ComplianceReports />
+        <div className="text-center py-12">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Reports Dashboard</h3>
+          <p className="text-gray-600">Advanced reporting features coming soon...</p>
         </div>
       </TabsContent>
     </>
