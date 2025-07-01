@@ -20,7 +20,7 @@ export const RecentActivityCard = () => {
       description: 'New policy POL-2024-001234 created for Dangote Industries Ltd',
       timestamp: '2 hours ago',
       status: 'completed',
-      user: 'John Doe'
+      user: 'Adebayo Ogundimu'
     },
     {
       id: '2',
@@ -28,7 +28,7 @@ export const RecentActivityCard = () => {
       description: 'Claim CL-2024-005678 registered for GTBank Motor Policy',
       timestamp: '4 hours ago',
       status: 'pending',
-      user: 'Sarah Johnson'
+      user: 'Chioma Nwankwo'
     },
     {
       id: '3',
@@ -36,7 +36,7 @@ export const RecentActivityCard = () => {
       description: 'Quote QT-2024-003456 generated for Lagos State Government',
       timestamp: '6 hours ago',
       status: 'sent',
-      user: 'Mike Williams'
+      user: 'Yakubu Mohammed'
     },
     {
       id: '4',

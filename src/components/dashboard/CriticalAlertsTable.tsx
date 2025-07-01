@@ -12,7 +12,7 @@ export const CriticalAlertsTable = () => {
       client: "Dangote Cement",
       message: "Claims ratio exceeds 80% threshold",
       status: "unresolved",
-      assignedTo: "Amina Ibrahim"
+      assignedTo: "Folake Adeyemi"
     },
     {
       priority: "high",
@@ -20,7 +20,7 @@ export const CriticalAlertsTable = () => {
       client: "FBN Holdings",
       message: "Major account renewal due in 45 days",
       status: "pending",
-      assignedTo: "Daniel Okafor"
+      assignedTo: "Emeka Okoro"
     },
     {
       priority: "high",
@@ -28,7 +28,7 @@ export const CriticalAlertsTable = () => {
       client: "System",
       message: "Significant Naira depreciation affecting reinsurance",
       status: "pending",
-      assignedTo: "Victoria Adekunle"
+      assignedTo: "Kemi Oluwaseun"
     },
     {
       priority: "medium",
@@ -36,7 +36,7 @@ export const CriticalAlertsTable = () => {
       client: "MTN Nigeria",
       message: "Cross-sell gap identified at 42%",
       status: "pending",
-      assignedTo: "Tunde Adebayo"
+      assignedTo: "Ibrahim Suleiman"
     },
     {
       priority: "medium",
@@ -44,7 +44,7 @@ export const CriticalAlertsTable = () => {
       client: "System",
       message: "Market share dropped in Oil & Gas sector",
       status: "monitoring",
-      assignedTo: "Emmanuel Obi"
+      assignedTo: "Grace Nnenna"
     },
   ];
 
