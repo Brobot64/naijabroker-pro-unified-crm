@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,7 +37,24 @@ type WorkflowStep =
   | 'payment-processing'
   | 'contract-generation';
 
-export const QuoteManagementWorkflow = () => {
+interface Quote {
+  id: string;
+  quote_number: string;
+  client_name: string;
+  policy_type: string;
+  premium: number;
+  status: string;
+  workflow_stage: string;
+  created_at: string;
+  valid_until: string;
+}
+
+interface QuoteManagementWorkflowProps {
+  editingQuote?: Quote | null;
+  onWorkflowComplete?: () => void;
+}
+
+export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete }: QuoteManagementWorkflowProps) => {
   const { state, dispatch } = useWorkflowContext();
   const [currentStep, setCurrentStep] = useState<WorkflowStep>(state.currentStep as WorkflowStep || 'client-onboarding');
 
@@ -65,6 +81,9 @@ export const QuoteManagementWorkflow = () => {
       const nextStep = steps[currentIndex + 1].id as WorkflowStep;
       setCurrentStep(nextStep);
       dispatch({ type: 'SET_STEP', payload: nextStep });
+    } else if (onWorkflowComplete) {
+      // Call completion callback when workflow is done
+      onWorkflowComplete();
     }
   };
 
@@ -104,6 +123,7 @@ export const QuoteManagementWorkflow = () => {
         return (
           <QuoteIntakeDraftingEnhanced
             clientData={state.workflowData.client}
+            editingQuote={editingQuote}
             onQuoteSaved={(quoteData) => 
               handleStepComplete('quote-drafting', quoteData)
             }
@@ -201,7 +221,9 @@ export const QuoteManagementWorkflow = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Quote Management Workflow</h1>
+        <h1 className="text-3xl font-bold text-gray-900">
+          {editingQuote ? `Edit Quote ${editingQuote.quote_number}` : 'Quote Management Workflow'}
+        </h1>
         <div className="flex gap-2">
           <Badge variant="outline">
             Step {getCurrentStepIndex() + 1} of {steps.length}
