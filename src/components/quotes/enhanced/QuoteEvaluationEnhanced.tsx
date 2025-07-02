@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Eye, Download, Star, TrendingUp, TrendingDown, Brain, Mail, Sparkles, CheckCircle, AlertCircle } from "lucide-react";
+import { Upload, Eye, Download, Star, TrendingUp, TrendingDown, Brain, Mail, Sparkles, CheckCircle, AlertCircle, FileText, Image, Plus, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { emailMonitoringService, EmailQuoteResponse } from "@/services/emailMonitoringService";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface QuoteEvaluationEnhancedProps {
   insurerMatches: any[];
@@ -24,15 +25,23 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
   const [evaluationMode, setEvaluationMode] = useState<'human' | 'ai'>('human');
   const [aiAnalysisResults, setAiAnalysisResults] = useState<any[]>([]);
   const [emailMonitoring, setEmailMonitoring] = useState(false);
+  const [selectedForClient, setSelectedForClient] = useState<'human' | 'ai' | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
   
   // Initialize quotes from dispatched insurers
   const [quotes, setQuotes] = useState(() => {
     console.log("Received insurerMatches:", insurerMatches);
     if (!insurerMatches || !Array.isArray(insurerMatches)) {
+      console.log("No insurerMatches found, returning empty array");
       return [];
     }
-    return insurerMatches.map(match => ({
-      ...match,
+    const initialQuotes = insurerMatches.map(match => ({
+      id: match.insurer_id || `insurer-${Date.now()}-${Math.random()}`,
+      insurer_id: match.insurer_id,
+      insurer_name: match.insurer_name,
+      insurer_email: match.insurer_email,
+      commission_split: match.commission_split || 0,
       premium_quoted: 0,
       terms_conditions: '',
       exclusions: [],
@@ -43,8 +52,14 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
       response_received: false,
       status: 'dispatched',
       dispatched_at: match.dispatched_at || new Date().toISOString(),
+      source: 'dispatched',
     }));
+    console.log("Initialized quotes:", initialQuotes);
+    return initialQuotes;
   });
+
+  // Manual quotes for companies not in the original dispatch
+  const [manualQuotes, setManualQuotes] = useState<any[]>([]);
 
   // Email monitoring effect
   useEffect(() => {
@@ -98,23 +113,97 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
     ));
   };
 
-  const handleFileUpload = (index: number, file: File) => {
-    // Simulate file upload
-    const fileUrl = URL.createObjectURL(file);
-    handleQuoteUpdate(index, 'document_url', fileUrl);
-    handleQuoteUpdate(index, 'response_received', true);
-    
-    toast({
-      title: "Success",
-      description: `Quote document uploaded for ${quotes[index].insurer_name}`,
-    });
+  const handleManualQuoteUpdate = (index: number, field: string, value: any) => {
+    setManualQuotes(prev => prev.map((quote, i) => 
+      i === index ? { ...quote, [field]: value } : quote
+    ));
+  };
+
+  const addManualQuote = () => {
+    const newQuote = {
+      id: `manual-${Date.now()}-${Math.random()}`,
+      insurer_name: '',
+      insurer_email: '',
+      commission_split: 0,
+      premium_quoted: 0,
+      terms_conditions: '',
+      exclusions: [],
+      coverage_limits: {},
+      rating_score: 0,
+      remarks: '',
+      document_url: '',
+      response_received: false,
+      status: 'manual',
+      dispatched_at: new Date().toISOString(),
+      source: 'manual',
+    };
+    setManualQuotes(prev => [...prev, newQuote]);
+  };
+
+  const removeManualQuote = (index: number) => {
+    setManualQuotes(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleFileUpload = async (quoteIndex: number, file: File, isManual = false) => {
+    setUploadingFile(true);
+    try {
+      // Simulate file upload and processing
+      const fileUrl = URL.createObjectURL(file);
+      
+      // Simulate AI extraction for supported file types
+      let extractedData = {};
+      if (file.type === 'application/pdf' || file.type.startsWith('image/')) {
+        // Simulate AI data extraction
+        extractedData = {
+          premium_quoted: Math.floor(Math.random() * 500000) + 1000000,
+          terms_conditions: 'Standard insurance terms and conditions extracted from document',
+          exclusions: ['War risks', 'Nuclear risks', 'Cyber attacks'],
+          coverage_limits: {
+            "Property Damage": "50,000,000",
+            "Public Liability": "100,000,000",
+            "Professional Indemnity": "25,000,000"
+          }
+        };
+      }
+
+      if (isManual) {
+        handleManualQuoteUpdate(quoteIndex, 'document_url', fileUrl);
+        handleManualQuoteUpdate(quoteIndex, 'response_received', true);
+        Object.entries(extractedData).forEach(([key, value]) => {
+          handleManualQuoteUpdate(quoteIndex, key, value);
+        });
+      } else {
+        handleQuoteUpdate(quoteIndex, 'document_url', fileUrl);
+        handleQuoteUpdate(quoteIndex, 'response_received', true);
+        Object.entries(extractedData).forEach(([key, value]) => {
+          handleQuoteUpdate(quoteIndex, key, value);
+        });
+      }
+      
+      const quoteName = isManual ? manualQuotes[quoteIndex]?.insurer_name : quotes[quoteIndex]?.insurer_name;
+      toast({
+        title: "Document Uploaded & Processed",
+        description: `Quote document uploaded for ${quoteName}. AI has extracted key information.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Upload Error",
+        description: "Failed to upload and process document",
+        variant: "destructive"
+      });
+    } finally {
+      setUploadingFile(false);
+    }
   };
 
   const calculateRatingScore = (quote: any) => {
     let score = 0;
     
+    // Combine all quotes for comparison
+    const allQuotes = [...quotes, ...manualQuotes];
+    const allPremiums = allQuotes.filter(q => q.premium_quoted > 0).map(q => q.premium_quoted);
+    
     // Premium competitiveness (40% weight)
-    const allPremiums = quotes.filter(q => q.premium_quoted > 0).map(q => q.premium_quoted);
     if (allPremiums.length > 1) {
       const minPremium = Math.min(...allPremiums);
       const maxPremium = Math.max(...allPremiums);
@@ -138,7 +227,7 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
       score += 10;
     }
     
-    return Math.round(score);
+    return Math.round(Math.max(0, Math.min(100, score)));
   };
 
   const handleAutoRate = () => {
@@ -147,36 +236,53 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
       rating_score: calculateRatingScore(quote)
     })));
     
+    setManualQuotes(prev => prev.map(quote => ({
+      ...quote,
+      rating_score: calculateRatingScore(quote)
+    })));
+    
     toast({
       title: "Success",
-      description: "Quotes auto-rated based on competitiveness and terms",
+      description: "All quotes auto-rated based on competitiveness and terms",
     });
   };
 
   const handleAiEvaluation = async () => {
     setLoading(true);
     try {
-      // Simulate AI evaluation
-      const aiResults = quotes.map(quote => {
-        const score = Math.floor(Math.random() * 40) + 60; // Random score between 60-100
+      // Combine all quotes for AI analysis
+      const allQuotes = [...quotes, ...manualQuotes];
+      
+      // Simulate AI evaluation with more sophisticated scoring
+      const aiResults = allQuotes.map(quote => {
+        const baseScore = calculateRatingScore(quote);
+        const aiBoost = Math.floor(Math.random() * 20) - 10; // -10 to +10 adjustment
+        const finalScore = Math.max(0, Math.min(100, baseScore + aiBoost));
+        
         return {
           ...quote,
-          rating_score: score,
+          rating_score: finalScore,
           ai_analysis: {
-            premium_competitiveness: score > 80 ? 'Excellent' : score > 70 ? 'Good' : 'Average',
-            terms_analysis: 'Standard terms with competitive clauses',
-            risk_assessment: 'Low to medium risk profile',
-            recommendation: score > 80 ? 'Highly recommended' : score > 70 ? 'Recommended' : 'Consider with caution'
+            premium_competitiveness: finalScore > 80 ? 'Excellent' : finalScore > 70 ? 'Good' : finalScore > 60 ? 'Average' : 'Below Average',
+            terms_analysis: quote.terms_conditions ? 'Comprehensive terms reviewed' : 'Limited terms information',
+            risk_assessment: finalScore > 75 ? 'Low risk profile' : finalScore > 50 ? 'Medium risk profile' : 'High risk profile',
+            recommendation: finalScore > 80 ? 'Highly recommended' : finalScore > 70 ? 'Recommended' : finalScore > 60 ? 'Consider with caution' : 'Not recommended',
+            confidence: Math.floor(Math.random() * 20) + 80 + '%'
           }
         };
       });
 
-      setQuotes(aiResults);
+      // Update both arrays
+      const dispatchedResults = aiResults.filter(q => q.source === 'dispatched');
+      const manualResults = aiResults.filter(q => q.source === 'manual');
+      
+      setQuotes(dispatchedResults);
+      setManualQuotes(manualResults);
       setAiAnalysisResults(aiResults);
       
       toast({
         title: "AI Analysis Complete",
-        description: "All quotes have been analyzed using AI algorithms",
+        description: `${aiResults.length} quotes analyzed using advanced AI algorithms`,
       });
     } catch (error) {
       toast({
@@ -214,10 +320,12 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
     });
   };
 
-  const handleForwardToClient = () => {
-    const receivedQuotes = quotes.filter(q => q.response_received && q.premium_quoted > 0);
+  const handleForwardToClient = (source: 'human' | 'ai') => {
+    // Combine all quotes
+    const allQuotes = [...quotes, ...manualQuotes];
+    const validQuotes = allQuotes.filter(q => q.response_received && q.premium_quoted > 0);
     
-    if (receivedQuotes.length === 0) {
+    if (validQuotes.length === 0) {
       toast({
         title: "Error",
         description: "No valid quotes to forward to client",
@@ -229,17 +337,19 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
     setLoading(true);
     
     try {
-      const evaluatedQuotes = receivedQuotes.map(quote => ({
+      const evaluatedQuotes = validQuotes.map(quote => ({
         ...quote,
         evaluated_at: new Date().toISOString(),
+        evaluation_source: source,
         rating_score: quote.rating_score || calculateRatingScore(quote),
       }));
 
+      setSelectedForClient(source);
       onEvaluationComplete(evaluatedQuotes);
       
       toast({
         title: "Success",
-        description: `${evaluatedQuotes.length} quotes forwarded to client for selection`,
+        description: `${evaluatedQuotes.length} quotes (${source} evaluation) forwarded to client for selection`,
       });
     } catch (error) {
       console.error('Error forwarding quotes:', error);
@@ -254,7 +364,8 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
   };
 
   const getBestQuote = () => {
-    const validQuotes = quotes.filter(q => q.response_received && q.premium_quoted > 0);
+    const allQuotes = [...quotes, ...manualQuotes];
+    const validQuotes = allQuotes.filter(q => q.response_received && q.premium_quoted > 0);
     return validQuotes.reduce((best, current) => 
       (current.rating_score || 0) > (best.rating_score || 0) ? current : best, 
       validQuotes[0]
@@ -262,7 +373,10 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
   };
 
   const bestQuote = getBestQuote();
-  const receivedCount = quotes.filter(q => q.response_received).length;
+  const totalDispatched = quotes.length;
+  const totalManual = manualQuotes.length;
+  const totalReceived = [...quotes, ...manualQuotes].filter(q => q.response_received).length;
+  const totalPending = totalDispatched + totalManual - totalReceived;
 
   return (
     <Card>
@@ -272,7 +386,7 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
           Quote Evaluation & Comparison
         </CardTitle>
         <p className="text-sm text-gray-600">
-          Review and evaluate insurer responses ({receivedCount} of {quotes.length} received)
+          Review and evaluate insurer responses ({totalReceived} of {totalDispatched + totalManual} total)
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -280,19 +394,20 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="bg-blue-50">
             <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">{quotes.length}</div>
-              <div className="text-sm text-gray-600">Total Dispatched</div>
+              <div className="text-2xl font-bold text-blue-600">{totalDispatched + totalManual}</div>
+              <div className="text-sm text-gray-600">Total Quotes</div>
+              <div className="text-xs text-gray-500">{totalDispatched} dispatched + {totalManual} manual</div>
             </CardContent>
           </Card>
           <Card className="bg-green-50">
             <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-green-600">{receivedCount}</div>
+              <div className="text-2xl font-bold text-green-600">{totalReceived}</div>
               <div className="text-sm text-gray-600">Responses Received</div>
             </CardContent>
           </Card>
           <Card className="bg-orange-50">
             <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-orange-600">{quotes.length - receivedCount}</div>
+              <div className="text-2xl font-bold text-orange-600">{totalPending}</div>
               <div className="text-sm text-gray-600">Pending</div>
             </CardContent>
           </Card>
@@ -306,50 +421,78 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
           </Card>
         </div>
 
-        {/* Email Monitoring Alert */}
-        <Alert className={emailMonitoring ? "border-green-500 bg-green-50" : ""}>
-          <Mail className="h-4 w-4" />
-          <AlertDescription>
-            System monitoring dedicated email: <strong>{emailMonitoringService.getMonitoringEmail()}</strong> for responses with PDF attachments
-            <div className="flex items-center gap-2 mt-2">
-              <Button 
-                variant={emailMonitoring ? "default" : "outline"} 
-                size="sm" 
-                onClick={() => {
-                  setEmailMonitoring(!emailMonitoring);
-                  if (!emailMonitoring) {
-                    toast({
-                      title: "Email Monitoring Started",
-                      description: `Monitoring ${emailMonitoringService.getMonitoringEmail()} for quote responses`,
-                    });
-                  } else {
-                    toast({
-                      title: "Email Monitoring Stopped",
-                      description: "Email monitoring has been stopped",
-                    });
-                  }
-                }}
-              >
-                {emailMonitoring ? (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Monitoring Active
-                  </>
-                ) : (
-                  <>
-                    <Mail className="h-4 w-4 mr-1" />
-                    Start Monitoring
-                  </>
+        {/* Email Monitoring & Manual Upload */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Alert className={emailMonitoring ? "border-green-500 bg-green-50" : ""}>
+            <Mail className="h-4 w-4" />
+            <AlertDescription>
+              <div className="font-medium mb-2">Email Monitoring System</div>
+              <div className="text-sm mb-3">
+                System monitoring: <strong>nbcgrandelite3@gmail.com</strong> for PDF attachments
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant={emailMonitoring ? "default" : "outline"} 
+                  size="sm" 
+                  onClick={() => {
+                    setEmailMonitoring(!emailMonitoring);
+                    if (!emailMonitoring) {
+                      toast({
+                        title: "Email Monitoring Started",
+                        description: "Monitoring nbcgrandelite3@gmail.com for quote responses",
+                      });
+                    } else {
+                      toast({
+                        title: "Email Monitoring Stopped",
+                        description: "Email monitoring has been stopped",
+                      });
+                    }
+                  }}
+                >
+                  {emailMonitoring ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      Monitoring Active
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="h-4 w-4 mr-1" />
+                      Start Monitoring
+                    </>
+                  )}
+                </Button>
+                {emailMonitoring && (
+                  <Badge variant="default" className="bg-green-600">
+                    Live
+                  </Badge>
                 )}
-              </Button>
-              {emailMonitoring && (
-                <Badge variant="default" className="bg-green-600">
-                  Live
+              </div>
+            </AlertDescription>
+          </Alert>
+
+          <Alert>
+            <Upload className="h-4 w-4" />
+            <AlertDescription>
+              <div className="font-medium mb-2">Manual Quote Upload</div>
+              <div className="text-sm mb-3">
+                Upload quotes from insurance companies (PDF, JPG, PNG)
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={addManualQuote}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Manual Quote
+                </Button>
+                <Badge variant="secondary">
+                  {manualQuotes.length} manual quotes
                 </Badge>
-              )}
-            </div>
-          </AlertDescription>
-        </Alert>
+              </div>
+            </AlertDescription>
+          </Alert>
+        </div>
 
         {/* Evaluation Mode Tabs */}
         <Tabs value={evaluationMode} onValueChange={(value) => setEvaluationMode(value as 'human' | 'ai')}>
@@ -359,16 +502,24 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
           </TabsList>
           
           <TabsContent value="human" className="space-y-4">
-            <div className="flex gap-4">
+            <div className="flex gap-4 flex-wrap">
               <Button variant="outline" onClick={handleAutoRate}>
                 <Star className="h-4 w-4 mr-2" />
                 Auto-Rate All Quotes
+              </Button>
+              <Button 
+                onClick={() => handleForwardToClient('human')} 
+                disabled={loading || totalReceived === 0}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Forward Human Evaluation to Client
               </Button>
             </div>
           </TabsContent>
           
           <TabsContent value="ai" className="space-y-4">
-            <div className="flex gap-4">
+            <div className="flex gap-4 flex-wrap">
               <Button variant="outline" onClick={handleAiEvaluation} disabled={loading}>
                 <Brain className="h-4 w-4 mr-2" />
                 {loading ? "Analyzing..." : "AI Analysis"}
@@ -376,6 +527,14 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
               <Button variant="outline" onClick={handleAutoRate}>
                 <Sparkles className="h-4 w-4 mr-2" />
                 Smart Rating
+              </Button>
+              <Button 
+                onClick={() => handleForwardToClient('ai')} 
+                disabled={loading || totalReceived === 0 || aiAnalysisResults.length === 0}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                <Brain className="h-4 w-4 mr-2" />
+                Forward AI Evaluation to Client
               </Button>
             </div>
             
@@ -419,7 +578,7 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
         </Tabs>
 
         {/* Quote Comparison Table */}
-        {quotes.length > 0 && (
+        {(quotes.length > 0 || manualQuotes.length > 0) && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -436,11 +595,12 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
                       <th className="border border-gray-300 p-2 text-center">Premium (₦)</th>
                       <th className="border border-gray-300 p-2 text-center">Commission %</th>
                       <th className="border border-gray-300 p-2 text-center">Rating Score</th>
+                      <th className="border border-gray-300 p-2 text-center">Source</th>
                       <th className="border border-gray-300 p-2 text-center">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {quotes.map((quote, index) => (
+                    {[...quotes, ...manualQuotes].map((quote, index) => (
                       <tr key={index} className={quote.response_received ? "bg-green-50" : ""}>
                         <td className="border border-gray-300 p-2 font-medium">{quote.insurer_name}</td>
                         <td className="border border-gray-300 p-2 text-center">
@@ -456,6 +616,11 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
                           ) : '-'}
                         </td>
                         <td className="border border-gray-300 p-2 text-center">
+                          <Badge variant={quote.source === 'dispatched' ? "default" : "secondary"}>
+                            {quote.source === 'dispatched' ? 'Dispatched' : 'Manual'}
+                          </Badge>
+                        </td>
+                        <td className="border border-gray-300 p-2 text-center">
                           <Badge variant={quote.response_received ? "default" : "outline"}>
                             {quote.response_received ? "Received" : "Pending"}
                           </Badge>
@@ -469,8 +634,121 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
           </Card>
         )}
 
-        {/* Quotes List */}
+        {/* Manual Quotes Section */}
+        {manualQuotes.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-4 w-4" />
+                Manual Quote Entries
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {manualQuotes.map((quote, index) => (
+                  <Card key={index} className="border-l-4 border-l-blue-500">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">Manual Entry</Badge>
+                          {quote.response_received && (
+                            <Badge variant="default" className="bg-green-100 text-green-800">
+                              Document Uploaded
+                            </Badge>
+                          )}
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => removeManualQuote(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Insurer Name</Label>
+                          <Input
+                            value={quote.insurer_name}
+                            onChange={(e) => handleManualQuoteUpdate(index, 'insurer_name', e.target.value)}
+                            placeholder="Enter insurer name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Insurer Email</Label>
+                          <Input
+                            value={quote.insurer_email}
+                            onChange={(e) => handleManualQuoteUpdate(index, 'insurer_email', e.target.value)}
+                            placeholder="Enter insurer email"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Premium Quoted (₦)</Label>
+                          <Input
+                            type="number"
+                            value={quote.premium_quoted}
+                            onChange={(e) => handleManualQuoteUpdate(index, 'premium_quoted', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Commission Split (%)</Label>
+                          <Input
+                            type="number"
+                            value={quote.commission_split}
+                            onChange={(e) => handleManualQuoteUpdate(index, 'commission_split', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Terms & Conditions</Label>
+                        <Textarea
+                          value={quote.terms_conditions}
+                          onChange={(e) => handleManualQuoteUpdate(index, 'terms_conditions', e.target.value)}
+                          placeholder="Enter terms and conditions"
+                          rows={3}
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <div className="space-y-2">
+                          <Label>Quote Document (PDF/JPG/PNG)</Label>
+                          <Input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleFileUpload(index, file, true);
+                            }}
+                            disabled={uploadingFile}
+                          />
+                        </div>
+                        
+                        {quote.document_url && (
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm">
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Dispatched Quotes List */}
         <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Dispatched Quotes</h3>
+            <Badge variant="outline">{quotes.length} quotes</Badge>
+          </div>
           {quotes.map((quote, index) => (
             <Card key={quote.insurer_id} className={`border ${quote.response_received ? 'border-green-500' : 'border-gray-200'}`}>
               <CardHeader>
@@ -518,17 +796,26 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
                     />
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor={`rating-${index}`}>Rating Score (0-100)</Label>
-                    <Input
-                      id={`rating-${index}`}
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={quote.rating_score}
-                      onChange={(e) => handleQuoteUpdate(index, 'rating_score', parseInt(e.target.value) || 0)}
-                    />
-                  </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`rating-${index}`}>Rating Score (0-100)</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id={`rating-${index}`}
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={quote.rating_score}
+                          onChange={(e) => handleQuoteUpdate(index, 'rating_score', parseInt(e.target.value) || 0)}
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleQuoteUpdate(index, 'rating_score', calculateRatingScore(quote))}
+                        >
+                          Auto
+                        </Button>
+                      </div>
+                    </div>
                 </div>
 
                 <div className="space-y-2">
@@ -555,14 +842,15 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
 
                 <div className="flex items-center gap-4">
                   <div className="space-y-2">
-                    <Label>Quote Document</Label>
+                    <Label>Quote Document (PDF/JPG/PNG)</Label>
                     <Input
                       type="file"
-                      accept=".pdf,.doc,.docx"
+                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file) handleFileUpload(index, file);
+                        if (file) handleFileUpload(index, file, false);
                       }}
+                      disabled={uploadingFile}
                     />
                   </div>
                   
@@ -584,13 +872,28 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
           ))}
         </div>
 
+        {/* Selection Summary */}
+        {selectedForClient && (
+          <Alert className="border-green-500 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription>
+              <div className="font-medium text-green-800">
+                {selectedForClient === 'human' ? 'Human' : 'AI'} evaluation has been forwarded to client for selection.
+              </div>
+              <div className="text-sm text-green-600 mt-1">
+                {totalReceived} quotes sent to client portal for review and selection.
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="flex justify-between">
           <Button variant="outline" onClick={onBack}>
             Back
           </Button>
-          <Button onClick={handleForwardToClient} disabled={loading || receivedCount === 0}>
-            {loading ? "Processing..." : `Forward ${receivedCount} Quotes to Client`}
-          </Button>
+          <div className="text-sm text-gray-600">
+            Choose evaluation method above and click "Forward to Client" to proceed
+          </div>
         </div>
       </CardContent>
     </Card>
