@@ -93,10 +93,10 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {evaluatedQuotes.map((quote) => (
-              <div key={quote.id} className="border rounded-lg p-4">
+            {evaluatedQuotes?.map((quote, index) => (
+              <div key={quote.insurer_id || index} className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-lg">{quote.insurerName}</h4>
+                  <h4 className="font-semibold text-lg">{quote.insurer_name}</h4>
                   <Button 
                     variant="outline" 
                     size="sm"
@@ -109,21 +109,30 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600">Annual Premium:</span>
-                    <p className="font-semibold text-lg">₦{quote.premium.toLocaleString()}</p>
+                    <p className="font-semibold text-lg">₦{(quote.premium_quoted || 0).toLocaleString()}</p>
                   </div>
                   <div>
-                    <span className="text-gray-600">Sum Insured:</span>
-                    <p className="font-semibold">₦{quote.sumInsured.toLocaleString()}</p>
+                    <span className="text-gray-600">Commission Split:</span>
+                    <p className="font-semibold">{quote.commission_split}%</p>
                   </div>
                   <div>
-                    <span className="text-gray-600">Rate:</span>
-                    <p className="font-semibold">{quote.rate}%</p>
+                    <span className="text-gray-600">Rating Score:</span>
+                    <Badge variant="secondary">{quote.rating_score || 0}/100</Badge>
                   </div>
                   <div>
-                    <span className="text-gray-600">Score:</span>
-                    <Badge variant="secondary">{quote.score}/100</Badge>
+                    <span className="text-gray-600">Response:</span>
+                    <Badge variant={quote.response_received ? "secondary" : "outline"}>
+                      {quote.response_received ? "Received" : "Pending"}
+                    </Badge>
                   </div>
                 </div>
+                
+                {quote.terms_conditions && (
+                  <div className="mt-3 pt-3 border-t">
+                    <span className="text-gray-600 text-sm">Terms & Conditions:</span>
+                    <p className="text-sm mt-1">{quote.terms_conditions}</p>
+                  </div>
+                )}
                 
                 {quote.exclusions && quote.exclusions.length > 0 && (
                   <div className="mt-3 pt-3 border-t">
@@ -155,16 +164,16 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
           <CardContent>
             <div className="bg-green-50 p-4 rounded-lg">
               <h4 className="font-semibold text-green-800 mb-2">
-                Selected: {clientSelection.insurerName}
+                Selected: {clientSelection.insurer_name}
               </h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-green-600">Premium:</span>
-                  <p className="font-semibold">₦{clientSelection.premium.toLocaleString()}</p>
+                  <p className="font-semibold">₦{(clientSelection.premium_quoted || 0).toLocaleString()}</p>
                 </div>
                 <div>
-                  <span className="text-green-600">Rate:</span>
-                  <p className="font-semibold">{clientSelection.rate}%</p>
+                  <span className="text-green-600">Commission Split:</span>
+                  <p className="font-semibold">{clientSelection.commission_split}%</p>
                 </div>
               </div>
               <p className="text-sm text-green-600 mt-2">

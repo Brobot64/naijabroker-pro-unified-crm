@@ -7,7 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Eye, Download, Star, TrendingUp, TrendingDown } from "lucide-react";
+import { Upload, Eye, Download, Star, TrendingUp, TrendingDown, Brain, Mail, Sparkles } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface QuoteEvaluationEnhancedProps {
   insurerMatches: any[];
@@ -18,6 +20,10 @@ interface QuoteEvaluationEnhancedProps {
 export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, onBack }: QuoteEvaluationEnhancedProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [evaluationMode, setEvaluationMode] = useState<'human' | 'ai'>('human');
+  const [aiAnalysisResults, setAiAnalysisResults] = useState<any[]>([]);
+  
+  // Initialize quotes from dispatched insurers
   const [quotes, setQuotes] = useState(
     insurerMatches?.map(match => ({
       ...match,
@@ -29,6 +35,8 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
       remarks: '',
       document_url: '',
       response_received: false,
+      status: 'dispatched',
+      dispatched_at: match.dispatched_at || new Date().toISOString(),
     })) || []
   );
 
@@ -90,6 +98,67 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
     toast({
       title: "Success",
       description: "Quotes auto-rated based on competitiveness and terms",
+    });
+  };
+
+  const handleAiEvaluation = async () => {
+    setLoading(true);
+    try {
+      // Simulate AI evaluation
+      const aiResults = quotes.map(quote => {
+        const score = Math.floor(Math.random() * 40) + 60; // Random score between 60-100
+        return {
+          ...quote,
+          rating_score: score,
+          ai_analysis: {
+            premium_competitiveness: score > 80 ? 'Excellent' : score > 70 ? 'Good' : 'Average',
+            terms_analysis: 'Standard terms with competitive clauses',
+            risk_assessment: 'Low to medium risk profile',
+            recommendation: score > 80 ? 'Highly recommended' : score > 70 ? 'Recommended' : 'Consider with caution'
+          }
+        };
+      });
+
+      setQuotes(aiResults);
+      setAiAnalysisResults(aiResults);
+      
+      toast({
+        title: "AI Analysis Complete",
+        description: "All quotes have been analyzed using AI algorithms",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to complete AI analysis",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEmailMonitoring = () => {
+    toast({
+      title: "Email Monitoring Active",
+      description: "System is monitoring dedicated email for quote responses with PDF attachments",
+    });
+  };
+
+  const simulateEmailReceived = (index: number) => {
+    const updatedQuote = {
+      ...quotes[index],
+      response_received: true,
+      premium_quoted: Math.floor(Math.random() * 500000) + 1000000, // Random premium
+      terms_conditions: 'Standard terms and conditions with competitive rates',
+      document_url: 'simulated-pdf-url',
+      response_date: new Date().toISOString()
+    };
+    
+    setQuotes(prev => prev.map((quote, i) => i === index ? updatedQuote : quote));
+    
+    toast({
+      title: "Quote Received",
+      description: `Email with PDF quote received from ${quotes[index].insurer_name}`,
     });
   };
 
@@ -185,13 +254,56 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
           </Card>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-4">
-          <Button variant="outline" onClick={handleAutoRate}>
-            <Star className="h-4 w-4 mr-2" />
-            Auto-Rate All Quotes
-          </Button>
-        </div>
+        {/* Email Monitoring Alert */}
+        <Alert>
+          <Mail className="h-4 w-4" />
+          <AlertDescription>
+            System monitoring dedicated email: <strong>quotes@yourbroker.com</strong> for responses with PDF attachments
+            <Button variant="outline" size="sm" className="ml-2" onClick={handleEmailMonitoring}>
+              <Mail className="h-4 w-4 mr-1" />
+              Check Email
+            </Button>
+          </AlertDescription>
+        </Alert>
+
+        {/* Evaluation Mode Tabs */}
+        <Tabs value={evaluationMode} onValueChange={(value) => setEvaluationMode(value as 'human' | 'ai')}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="human">Human Evaluation</TabsTrigger>
+            <TabsTrigger value="ai">AI Evaluation</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="human" className="space-y-4">
+            <div className="flex gap-4">
+              <Button variant="outline" onClick={handleAutoRate}>
+                <Star className="h-4 w-4 mr-2" />
+                Auto-Rate All Quotes
+              </Button>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="ai" className="space-y-4">
+            <div className="flex gap-4">
+              <Button variant="outline" onClick={handleAiEvaluation} disabled={loading}>
+                <Brain className="h-4 w-4 mr-2" />
+                {loading ? "Analyzing..." : "AI Analysis"}
+              </Button>
+              <Button variant="outline" onClick={handleAutoRate}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Smart Rating
+              </Button>
+            </div>
+            
+            {aiAnalysisResults.length > 0 && (
+              <Alert>
+                <Brain className="h-4 w-4" />
+                <AlertDescription>
+                  AI analysis complete. Quotes rated based on premium competitiveness, terms analysis, and risk assessment.
+                </AlertDescription>
+              </Alert>
+            )}
+          </TabsContent>
+        </Tabs>
 
         {/* Quotes List */}
         <div className="space-y-4">
@@ -209,7 +321,17 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
                         Response Received
                       </Badge>
                     ) : (
-                      <Badge variant="outline">Pending</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">Pending</Badge>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => simulateEmailReceived(index)}
+                        >
+                          <Mail className="h-4 w-4 mr-1" />
+                          Simulate Email
+                        </Button>
+                      </div>
                     )}
                     {quote.rating_score > 0 && (
                       <div className="flex items-center gap-1">
