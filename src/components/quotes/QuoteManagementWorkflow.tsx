@@ -8,7 +8,7 @@ import { QuoteIntakeDraftingEnhanced } from './enhanced/QuoteIntakeDraftingEnhan
 import { RFQGenerationEnhanced } from './enhanced/RFQGenerationEnhanced';
 import { InsurerMatchingEnhanced } from './enhanced/InsurerMatchingEnhanced';
 import { QuoteEvaluationEnhanced } from './enhanced/QuoteEvaluationEnhanced';
-import { ClauseRecommendation } from "./ClauseRecommendation";
+import { ClauseRecommendationEnhanced } from "./ClauseRecommendation";
 import { ClientSelection } from "./ClientSelection";
 import { PaymentProcessing } from "./PaymentProcessing";
 import { ContractGeneration } from "./ContractGeneration";
@@ -133,7 +133,7 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete }: Qu
       
       case 'clause-recommendation':
         return (
-          <ClauseRecommendation
+          <ClauseRecommendationEnhanced
             quoteData={state.workflowData.quote}
             onClausesSelected={(clauses) => 
               handleStepComplete('clause-recommendation', clauses)

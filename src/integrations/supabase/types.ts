@@ -9,6 +9,60 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      add_ons: {
+        Row: {
+          category: string
+          coverage_details: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_recommended: boolean | null
+          name: string
+          organization_id: string
+          policy_types: string[] | null
+          premium_impact_type: string | null
+          premium_impact_value: number | null
+          sum_insured_impact: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          coverage_details?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_recommended?: boolean | null
+          name: string
+          organization_id: string
+          policy_types?: string[] | null
+          premium_impact_type?: string | null
+          premium_impact_value?: number | null
+          sum_insured_impact?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          coverage_details?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_recommended?: boolean | null
+          name?: string
+          organization_id?: string
+          policy_types?: string[] | null
+          premium_impact_type?: string | null
+          premium_impact_value?: number | null
+          sum_insured_impact?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -172,6 +226,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      clauses: {
+        Row: {
+          category: string
+          clause_text: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_recommended: boolean | null
+          name: string
+          organization_id: string
+          policy_types: string[] | null
+          premium_impact_type: string | null
+          premium_impact_value: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          clause_text: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_recommended?: boolean | null
+          name: string
+          organization_id: string
+          policy_types?: string[] | null
+          premium_impact_type?: string | null
+          premium_impact_value?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          clause_text?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_recommended?: boolean | null
+          name?: string
+          organization_id?: string
+          policy_types?: string[] | null
+          premium_impact_type?: string | null
+          premium_impact_value?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       client_portal_sessions: {
         Row: {
@@ -882,6 +987,66 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_add_ons: {
+        Row: {
+          add_on_id: string | null
+          created_at: string | null
+          custom_coverage_details: string | null
+          custom_description: string | null
+          custom_name: string | null
+          id: string
+          is_custom: boolean | null
+          organization_id: string
+          premium_impact_type: string | null
+          premium_impact_value: number | null
+          quote_id: string
+          sum_insured_impact: number | null
+        }
+        Insert: {
+          add_on_id?: string | null
+          created_at?: string | null
+          custom_coverage_details?: string | null
+          custom_description?: string | null
+          custom_name?: string | null
+          id?: string
+          is_custom?: boolean | null
+          organization_id: string
+          premium_impact_type?: string | null
+          premium_impact_value?: number | null
+          quote_id: string
+          sum_insured_impact?: number | null
+        }
+        Update: {
+          add_on_id?: string | null
+          created_at?: string | null
+          custom_coverage_details?: string | null
+          custom_description?: string | null
+          custom_name?: string | null
+          id?: string
+          is_custom?: boolean | null
+          organization_id?: string
+          premium_impact_type?: string | null
+          premium_impact_value?: number | null
+          quote_id?: string
+          sum_insured_impact?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_quote_add_ons_add_on"
+            columns: ["add_on_id"]
+            isOneToOne: false
+            referencedRelation: "add_ons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_quote_add_ons_quote"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quote_audit_trail: {
         Row: {
           action: string
@@ -929,6 +1094,66 @@ export type Database = {
           },
           {
             foreignKeyName: "fk_quote_audit_trail_quote"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_clauses: {
+        Row: {
+          category: string
+          clause_id: string | null
+          created_at: string | null
+          custom_clause_text: string | null
+          custom_description: string | null
+          custom_name: string | null
+          id: string
+          is_custom: boolean | null
+          organization_id: string
+          premium_impact_type: string | null
+          premium_impact_value: number | null
+          quote_id: string
+        }
+        Insert: {
+          category: string
+          clause_id?: string | null
+          created_at?: string | null
+          custom_clause_text?: string | null
+          custom_description?: string | null
+          custom_name?: string | null
+          id?: string
+          is_custom?: boolean | null
+          organization_id: string
+          premium_impact_type?: string | null
+          premium_impact_value?: number | null
+          quote_id: string
+        }
+        Update: {
+          category?: string
+          clause_id?: string | null
+          created_at?: string | null
+          custom_clause_text?: string | null
+          custom_description?: string | null
+          custom_name?: string | null
+          id?: string
+          is_custom?: boolean | null
+          organization_id?: string
+          premium_impact_type?: string | null
+          premium_impact_value?: number | null
+          quote_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_quote_clauses_clause"
+            columns: ["clause_id"]
+            isOneToOne: false
+            referencedRelation: "clauses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_quote_clauses_quote"
             columns: ["quote_id"]
             isOneToOne: false
             referencedRelation: "quotes"

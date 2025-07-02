@@ -156,19 +156,25 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteS
   };
 
   const handleSubmit = async () => {
-    if (!formData.policy_type || !formData.underwriter || !formData.sum_insured) {
+    console.log('Starting quote save process...');
+    console.log('Form data:', formData);
+    console.log('Client data:', clientData);
+    console.log('Organization ID:', organizationId);
+    
+    // Enhanced validation
+    const validationErrors = [];
+    
+    if (!formData.policy_type) validationErrors.push('Policy type is required');
+    if (!formData.underwriter) validationErrors.push('Underwriter is required');
+    if (!formData.sum_insured || formData.sum_insured <= 0) validationErrors.push('Sum insured must be greater than 0');
+    if (!clientData?.name) validationErrors.push('Client data is missing');
+    if (!organizationId) validationErrors.push('Organization not found');
+
+    if (validationErrors.length > 0) {
+      console.error('Validation errors:', validationErrors);
       toast({
         title: "Validation Error",
-        description: "Policy type, underwriter, and sum insured are required",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!organizationId) {
-      toast({
-        title: "Error",
-        description: "Organization not found",
+        description: validationErrors.join(', '),
         variant: "destructive"
       });
       return;
@@ -178,27 +184,46 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteS
     dispatch({ type: 'SET_LOADING', payload: true });
 
     try {
+      console.log('Creating quote data object...');
+      
       const quoteData = {
         quote_number: editingQuote ? editingQuote.quote_number : generateQuoteNumber(),
         client_name: clientData.name,
-        client_email: clientData.email,
-        client_phone: clientData.phone,
-        client_id: clientData.id,
+        client_email: clientData.email || null,
+        client_phone: clientData.phone || null,
+        client_id: clientData.id || null,
         organization_id: organizationId,
-        ...formData,
+        policy_type: formData.policy_type,
+        underwriter: formData.underwriter,
+        sum_insured: Number(formData.sum_insured),
+        premium: Number(formData.premium) || 0,
+        commission_rate: Number(formData.commission_rate),
+        valid_until: formData.valid_until,
+        terms_conditions: formData.terms_conditions || null,
+        notes: formData.notes || null,
+        insured_item: formData.insured_item || null,
+        insured_description: formData.insured_description || null,
+        location: formData.location || null,
+        risk_details: formData.risk_details || null,
+        coverage_requirements: formData.coverage_requirements || null,
         calculations: calculations,
         status: 'draft' as const,
         workflow_stage: 'quote-drafting',
+        created_by: null // Will be set by RLS
       };
+
+      console.log('Quote data to save:', quoteData);
 
       let savedQuote;
       if (editingQuote) {
-        // Update existing quote
+        console.log('Updating existing quote:', editingQuote.id);
         savedQuote = await QuoteService.update(editingQuote.id, quoteData);
       } else {
-        // Create new quote
+        console.log('Creating new quote...');
         savedQuote = await QuoteService.create(quoteData);
       }
+
+      console.log('Quote saved successfully:', savedQuote);
 
       // Save to workflow state
       dispatch({ type: 'SET_DATA', payload: { key: 'quote', data: savedQuote } });
@@ -212,9 +237,18 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteS
       onQuoteSaved(savedQuote);
     } catch (error) {
       console.error('Error saving quote:', error);
+      
+      // More detailed error handling
+      let errorMessage = "Failed to save quote";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        errorMessage = JSON.stringify(error);
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to save quote",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
