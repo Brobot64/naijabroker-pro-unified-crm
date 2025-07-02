@@ -12,8 +12,31 @@ import { QuoteService } from '@/services/database/quoteService';
 import { calculateFinancials } from '@/utils/financialCalculations';
 import { useAuth } from '@/contexts/AuthContext';
 
+interface Quote {
+  id: string;
+  quote_number: string;
+  client_name: string;
+  policy_type: string;
+  premium: number;
+  status: string;
+  workflow_stage: string;
+  created_at: string;
+  valid_until: string;
+  underwriter?: string;
+  sum_insured?: number;
+  commission_rate?: number;
+  terms_conditions?: string;
+  notes?: string;
+  insured_item?: string;
+  insured_description?: string;
+  location?: string;
+  risk_details?: string;
+  coverage_requirements?: string;
+}
+
 interface QuoteIntakeDraftingEnhancedProps {
   clientData: any;
+  editingQuote?: Quote | null;
   onQuoteSaved: (quoteData: any) => void;
   onBack: () => void;
 }
@@ -41,7 +64,7 @@ const UNDERWRITERS = [
   { value: 'consolidated-hallmark', label: 'Consolidated Hallmark' },
 ];
 
-export const QuoteIntakeDraftingEnhanced = ({ clientData, onQuoteSaved, onBack }: QuoteIntakeDraftingEnhancedProps) => {
+export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteSaved, onBack }: QuoteIntakeDraftingEnhancedProps) => {
   const { state, dispatch } = useWorkflowContext();
   const { organizationId } = useAuth();
   const { toast } = useToast();
@@ -72,21 +95,40 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, onQuoteSaved, onBack }
   });
 
   useEffect(() => {
-    // Load saved data if available
-    if (state.workflowData.quote) {
-      setFormData(state.workflowData.quote);
+    // Load data from editing quote if available
+    if (editingQuote) {
+      setFormData({
+        policy_type: editingQuote.policy_type || '',
+        underwriter: editingQuote.underwriter || '',
+        sum_insured: editingQuote.sum_insured || 0,
+        premium: editingQuote.premium || 0,
+        commission_rate: editingQuote.commission_rate || 12.5,
+        valid_until: editingQuote.valid_until || '',
+        terms_conditions: editingQuote.terms_conditions || '',
+        notes: editingQuote.notes || '',
+        insured_item: editingQuote.insured_item || '',
+        insured_description: editingQuote.insured_description || '',
+        location: editingQuote.location || '',
+        risk_details: editingQuote.risk_details || '',
+        coverage_requirements: editingQuote.coverage_requirements || '',
+      });
+    } else {
+      // Load saved data from workflow state if available
+      if (state.workflowData.quote) {
+        setFormData(state.workflowData.quote);
+      }
+      
+      // Set default validity date (30 days from today)
+      const defaultDate = new Date();
+      defaultDate.setDate(defaultDate.getDate() + 30);
+      if (!formData.valid_until) {
+        setFormData(prev => ({
+          ...prev,
+          valid_until: defaultDate.toISOString().split('T')[0]
+        }));
+      }
     }
-    
-    // Set default validity date (30 days from today)
-    const defaultDate = new Date();
-    defaultDate.setDate(defaultDate.getDate() + 30);
-    if (!formData.valid_until) {
-      setFormData(prev => ({
-        ...prev,
-        valid_until: defaultDate.toISOString().split('T')[0]
-      }));
-    }
-  }, []);
+  }, [editingQuote, state.workflowData.quote]);
 
   useEffect(() => {
     // Recalculate financials when relevant fields change
@@ -137,7 +179,7 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, onQuoteSaved, onBack }
 
     try {
       const quoteData = {
-        quote_number: generateQuoteNumber(),
+        quote_number: editingQuote ? editingQuote.quote_number : generateQuoteNumber(),
         client_name: clientData.name,
         client_email: clientData.email,
         client_phone: clientData.phone,
@@ -149,7 +191,14 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, onQuoteSaved, onBack }
         workflow_stage: 'quote-drafting',
       };
 
-      const savedQuote = await QuoteService.create(quoteData);
+      let savedQuote;
+      if (editingQuote) {
+        // Update existing quote
+        savedQuote = await QuoteService.update(editingQuote.id, quoteData);
+      } else {
+        // Create new quote
+        savedQuote = await QuoteService.create(quoteData);
+      }
 
       // Save to workflow state
       dispatch({ type: 'SET_DATA', payload: { key: 'quote', data: savedQuote } });
@@ -157,7 +206,7 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, onQuoteSaved, onBack }
 
       toast({
         title: "Success",
-        description: "Quote saved successfully",
+        description: editingQuote ? "Quote updated successfully" : "Quote saved successfully",
       });
 
       onQuoteSaved(savedQuote);
@@ -177,7 +226,9 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, onQuoteSaved, onBack }
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Quote Intake & Drafting</CardTitle>
+        <CardTitle>
+          {editingQuote ? `Edit Quote ${editingQuote.quote_number}` : 'Quote Intake & Drafting'}
+        </CardTitle>
         <p className="text-sm text-gray-600">
           Client: {clientData?.name} ({clientData?.email})
         </p>
@@ -358,7 +409,7 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, onQuoteSaved, onBack }
             Back
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Saving..." : "Save & Continue"}
+            {loading ? "Saving..." : editingQuote ? "Update & Continue" : "Save & Continue"}
           </Button>
         </div>
       </CardContent>
