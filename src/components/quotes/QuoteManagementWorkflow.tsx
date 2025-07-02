@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { QuoteIntakeDraftingEnhanced } from './enhanced/QuoteIntakeDraftingEnhan
 import { RFQGenerationEnhanced } from './enhanced/RFQGenerationEnhanced';
 import { InsurerMatchingEnhanced } from './enhanced/InsurerMatchingEnhanced';
 import { QuoteEvaluationEnhanced } from './enhanced/QuoteEvaluationEnhanced';
-import { ClauseRecommendationEnhanced } from "./ClauseRecommendation";
+import { ClauseRecommendationEnhanced } from "./enhanced/ClauseRecommendationEnhanced";
 import { ClientSelection } from "./ClientSelection";
 import { PaymentProcessing } from "./PaymentProcessing";
 import { ContractGeneration } from "./ContractGeneration";

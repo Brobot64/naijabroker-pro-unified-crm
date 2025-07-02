@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Clause {
@@ -43,7 +42,11 @@ export class ClauseService {
       .order('name');
 
     if (error) throw error;
-    return data || [];
+    return (data || []).map(item => ({
+      ...item,
+      category: item.category as 'extension' | 'exclusion' | 'warranty' | 'deductible' | 'condition',
+      premium_impact_type: item.premium_impact_type as 'percentage' | 'fixed' | 'none'
+    }));
   }
 
   static async getByPolicyType(organizationId: string, policyType: string): Promise<Clause[]> {
@@ -56,7 +59,11 @@ export class ClauseService {
       .order('is_recommended', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return (data || []).map(item => ({
+      ...item,
+      category: item.category as 'extension' | 'exclusion' | 'warranty' | 'deductible' | 'condition',
+      premium_impact_type: item.premium_impact_type as 'percentage' | 'fixed' | 'none'
+    }));
   }
 
   static async create(clause: Omit<Clause, 'id' | 'created_at' | 'updated_at'>): Promise<Clause> {
@@ -67,7 +74,11 @@ export class ClauseService {
       .single();
 
     if (error) throw error;
-    return data;
+    return {
+      ...data,
+      category: data.category as 'extension' | 'exclusion' | 'warranty' | 'deductible' | 'condition',
+      premium_impact_type: data.premium_impact_type as 'percentage' | 'fixed' | 'none'
+    };
   }
 
   static async update(id: string, updates: Partial<Clause>): Promise<Clause> {
@@ -79,7 +90,11 @@ export class ClauseService {
       .single();
 
     if (error) throw error;
-    return data;
+    return {
+      ...data,
+      category: data.category as 'extension' | 'exclusion' | 'warranty' | 'deductible' | 'condition',
+      premium_impact_type: data.premium_impact_type as 'percentage' | 'fixed' | 'none'
+    };
   }
 
   static async delete(id: string): Promise<void> {
