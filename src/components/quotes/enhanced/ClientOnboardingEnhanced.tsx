@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useWorkflowContext } from '../QuoteWorkflowProvider';
 import { useToast } from "@/hooks/use-toast";
 import { ClientService } from '@/services/database/clientService';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ClientOnboardingEnhancedProps {
   onClientSelected: (client: any) => void;
@@ -54,6 +55,7 @@ const ACCOUNT_OFFICERS = [
 
 export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnboardingEnhancedProps) => {
   const { state, dispatch } = useWorkflowContext();
+  const { organizationId } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
@@ -149,6 +151,15 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
       return;
     }
 
+    if (!organizationId) {
+      toast({
+        title: "Error",
+        description: "Organization not found",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     dispatch({ type: 'SET_LOADING', payload: true });
 
@@ -156,7 +167,11 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
       let clientData;
       
       if (isNewClient) {
-        clientData = await ClientService.create(formData);
+        const clientWithOrgId = {
+          ...formData,
+          organization_id: organizationId
+        };
+        clientData = await ClientService.create(clientWithOrgId);
         toast({
           title: "Success",
           description: "New client created successfully",

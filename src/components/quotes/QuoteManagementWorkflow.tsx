@@ -6,10 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { useWorkflowContext } from './QuoteWorkflowProvider';
 import { ClientOnboardingEnhanced } from './enhanced/ClientOnboardingEnhanced';
 import { QuoteIntakeDraftingEnhanced } from './enhanced/QuoteIntakeDraftingEnhanced';
+import { RFQGenerationEnhanced } from './enhanced/RFQGenerationEnhanced';
+import { InsurerMatchingEnhanced } from './enhanced/InsurerMatchingEnhanced';
+import { QuoteEvaluationEnhanced } from './enhanced/QuoteEvaluationEnhanced';
 import { ClauseRecommendation } from "./ClauseRecommendation";
-import { RFQGeneration } from "./RFQGeneration";
-import { InsurerMatching } from "./InsurerMatching";
-import { QuoteEvaluation } from "./QuoteEvaluation";
 import { ClientSelection } from "./ClientSelection";
 import { PaymentProcessing } from "./PaymentProcessing";
 import { ContractGeneration } from "./ContractGeneration";
@@ -124,7 +124,7 @@ export const QuoteManagementWorkflow = () => {
       
       case 'rfq-generation':
         return (
-          <RFQGeneration
+          <RFQGenerationEnhanced
             quoteData={state.workflowData.quote}
             clauses={state.workflowData.clauses}
             onRFQGenerated={(rfqData) => 
@@ -136,7 +136,7 @@ export const QuoteManagementWorkflow = () => {
       
       case 'insurer-matching':
         return (
-          <InsurerMatching
+          <InsurerMatchingEnhanced
             rfqData={state.workflowData.rfq}
             onMatchingComplete={(matches) => 
               handleStepComplete('insurer-matching', matches)
@@ -147,7 +147,7 @@ export const QuoteManagementWorkflow = () => {
       
       case 'quote-evaluation':
         return (
-          <QuoteEvaluation
+          <QuoteEvaluationEnhanced
             insurerMatches={state.workflowData.insurerMatches}
             onEvaluationComplete={(evaluatedQuotes) => 
               handleStepComplete('quote-evaluation', evaluatedQuotes)

@@ -10,6 +10,7 @@ import { useWorkflowContext } from '../QuoteWorkflowProvider';
 import { useToast } from "@/hooks/use-toast";
 import { QuoteService } from '@/services/database/quoteService';
 import { calculateFinancials } from '@/utils/financialCalculations';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface QuoteIntakeDraftingEnhancedProps {
   clientData: any;
@@ -42,6 +43,7 @@ const UNDERWRITERS = [
 
 export const QuoteIntakeDraftingEnhanced = ({ clientData, onQuoteSaved, onBack }: QuoteIntakeDraftingEnhancedProps) => {
   const { state, dispatch } = useWorkflowContext();
+  const { organizationId } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
@@ -90,7 +92,12 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, onQuoteSaved, onBack }
     // Recalculate financials when relevant fields change
     if (formData.premium && formData.commission_rate) {
       const calcs = calculateFinancials(formData.premium, formData.commission_rate / 100);
-      setCalculations(calcs);
+      setCalculations({
+        commission_amount: calcs.commission_amount,
+        net_premium: calcs.net_premium,
+        vat_amount: calcs.vat_amount,
+        total_amount: calcs.total_amount,
+      });
     }
   }, [formData.premium, formData.commission_rate]);
 
@@ -116,6 +123,15 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, onQuoteSaved, onBack }
       return;
     }
 
+    if (!organizationId) {
+      toast({
+        title: "Error",
+        description: "Organization not found",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     dispatch({ type: 'SET_LOADING', payload: true });
 
@@ -126,6 +142,7 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, onQuoteSaved, onBack }
         client_email: clientData.email,
         client_phone: clientData.phone,
         client_id: clientData.id,
+        organization_id: organizationId,
         ...formData,
         calculations: calculations,
         status: 'draft' as const,
