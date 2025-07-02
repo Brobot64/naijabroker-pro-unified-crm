@@ -3,9 +3,9 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ClientOnboarding } from "./ClientOnboarding";
-import { QuoteIntakeDrafting } from "./QuoteIntakeDrafting";
+import { useWorkflowContext } from './QuoteWorkflowProvider';
+import { ClientOnboardingEnhanced } from './enhanced/ClientOnboardingEnhanced';
+import { QuoteIntakeDraftingEnhanced } from './enhanced/QuoteIntakeDraftingEnhanced';
 import { ClauseRecommendation } from "./ClauseRecommendation";
 import { RFQGeneration } from "./RFQGeneration";
 import { InsurerMatching } from "./InsurerMatching";
@@ -24,7 +24,7 @@ import {
   CreditCard, 
   FileCheck,
   ArrowRight,
-  ArrowLeft
+  RefreshCw
 } from "lucide-react";
 
 type WorkflowStep = 
@@ -38,22 +38,9 @@ type WorkflowStep =
   | 'payment-processing'
   | 'contract-generation';
 
-interface WorkflowData {
-  client?: any;
-  quote?: any;
-  clauses?: any[];
-  rfq?: any;
-  insurerMatches?: any[];
-  quotes?: any[];
-  clientSelection?: any;
-  payment?: any;
-  contracts?: any;
-}
-
 export const QuoteManagementWorkflow = () => {
-  const [currentStep, setCurrentStep] = useState<WorkflowStep>('client-onboarding');
-  const [workflowData, setWorkflowData] = useState<WorkflowData>({});
-  const [completedSteps, setCompletedSteps] = useState<Set<WorkflowStep>>(new Set());
+  const { state, dispatch } = useWorkflowContext();
+  const [currentStep, setCurrentStep] = useState<WorkflowStep>(state.currentStep as WorkflowStep || 'client-onboarding');
 
   const steps = [
     { id: 'client-onboarding', name: 'Client Onboarding', icon: Users, description: 'Register new client or select existing' },
@@ -68,18 +55,22 @@ export const QuoteManagementWorkflow = () => {
   ] as const;
 
   const handleStepComplete = (stepId: WorkflowStep, data: any) => {
-    setWorkflowData(prev => ({ ...prev, [stepId.replace('-', '')]: data }));
-    setCompletedSteps(prev => new Set([...prev, stepId]));
+    dispatch({ type: 'SET_DATA', payload: { key: stepId.replace('-', ''), data } });
+    dispatch({ type: 'COMPLETE_STEP', payload: stepId });
+    dispatch({ type: 'SET_STEP', payload: stepId });
     
     // Auto-advance to next step
     const currentIndex = steps.findIndex(step => step.id === stepId);
     if (currentIndex < steps.length - 1) {
-      setCurrentStep(steps[currentIndex + 1].id as WorkflowStep);
+      const nextStep = steps[currentIndex + 1].id as WorkflowStep;
+      setCurrentStep(nextStep);
+      dispatch({ type: 'SET_STEP', payload: nextStep });
     }
   };
 
   const navigateToStep = (stepId: WorkflowStep) => {
     setCurrentStep(stepId);
+    dispatch({ type: 'SET_STEP', payload: stepId });
   };
 
   const getCurrentStepIndex = () => steps.findIndex(step => step.id === currentStep);
@@ -89,14 +80,19 @@ export const QuoteManagementWorkflow = () => {
     const currentIndex = getCurrentStepIndex();
     
     // Can navigate to current step, previous steps, or next immediate step
-    return stepIndex <= currentIndex + 1 || completedSteps.has(stepId);
+    return stepIndex <= currentIndex + 1 || state.completedSteps.has(stepId);
+  };
+
+  const handleResetWorkflow = () => {
+    dispatch({ type: 'RESET_WORKFLOW' });
+    setCurrentStep('client-onboarding');
   };
 
   const renderStepContent = () => {
     switch (currentStep) {
       case 'client-onboarding':
         return (
-          <ClientOnboarding
+          <ClientOnboardingEnhanced
             onClientSelected={(client) => 
               handleStepComplete('client-onboarding', client)
             }
@@ -106,8 +102,8 @@ export const QuoteManagementWorkflow = () => {
       
       case 'quote-drafting':
         return (
-          <QuoteIntakeDrafting
-            clientData={workflowData.client}
+          <QuoteIntakeDraftingEnhanced
+            clientData={state.workflowData.client}
             onQuoteSaved={(quoteData) => 
               handleStepComplete('quote-drafting', quoteData)
             }
@@ -118,7 +114,7 @@ export const QuoteManagementWorkflow = () => {
       case 'clause-recommendation':
         return (
           <ClauseRecommendation
-            quoteData={workflowData.quote}
+            quoteData={state.workflowData.quote}
             onClausesSelected={(clauses) => 
               handleStepComplete('clause-recommendation', clauses)
             }
@@ -129,8 +125,8 @@ export const QuoteManagementWorkflow = () => {
       case 'rfq-generation':
         return (
           <RFQGeneration
-            quoteData={workflowData.quote}
-            clauses={workflowData.clauses}
+            quoteData={state.workflowData.quote}
+            clauses={state.workflowData.clauses}
             onRFQGenerated={(rfqData) => 
               handleStepComplete('rfq-generation', rfqData)
             }
@@ -141,7 +137,7 @@ export const QuoteManagementWorkflow = () => {
       case 'insurer-matching':
         return (
           <InsurerMatching
-            rfqData={workflowData.rfq}
+            rfqData={state.workflowData.rfq}
             onMatchingComplete={(matches) => 
               handleStepComplete('insurer-matching', matches)
             }
@@ -152,7 +148,7 @@ export const QuoteManagementWorkflow = () => {
       case 'quote-evaluation':
         return (
           <QuoteEvaluation
-            insurerMatches={workflowData.insurerMatches}
+            insurerMatches={state.workflowData.insurerMatches}
             onEvaluationComplete={(evaluatedQuotes) => 
               handleStepComplete('quote-evaluation', evaluatedQuotes)
             }
@@ -163,8 +159,8 @@ export const QuoteManagementWorkflow = () => {
       case 'client-selection':
         return (
           <ClientSelection
-            evaluatedQuotes={workflowData.quotes}
-            clientData={workflowData.client}
+            evaluatedQuotes={state.workflowData.quotes}
+            clientData={state.workflowData.client}
             onSelectionComplete={(selection) => 
               handleStepComplete('client-selection', selection)
             }
@@ -175,8 +171,8 @@ export const QuoteManagementWorkflow = () => {
       case 'payment-processing':
         return (
           <PaymentProcessing
-            selectedQuote={workflowData.clientSelection}
-            clientData={workflowData.client}
+            selectedQuote={state.workflowData.clientSelection}
+            clientData={state.workflowData.client}
             onPaymentComplete={(paymentData) => 
               handleStepComplete('payment-processing', paymentData)
             }
@@ -187,9 +183,9 @@ export const QuoteManagementWorkflow = () => {
       case 'contract-generation':
         return (
           <ContractGeneration
-            paymentData={workflowData.payment}
-            selectedQuote={workflowData.clientSelection}
-            clientData={workflowData.client}
+            paymentData={state.workflowData.payment}
+            selectedQuote={state.workflowData.clientSelection}
+            clientData={state.workflowData.client}
             onContractsGenerated={(contracts) => 
               handleStepComplete('contract-generation', contracts)
             }
@@ -206,9 +202,15 @@ export const QuoteManagementWorkflow = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Quote Management Workflow</h1>
-        <Badge variant="outline">
-          Step {getCurrentStepIndex() + 1} of {steps.length}
-        </Badge>
+        <div className="flex gap-2">
+          <Badge variant="outline">
+            Step {getCurrentStepIndex() + 1} of {steps.length}
+          </Badge>
+          <Button variant="outline" size="sm" onClick={handleResetWorkflow}>
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Reset
+          </Button>
+        </div>
       </div>
 
       {/* Progress Steps */}
@@ -217,22 +219,22 @@ export const QuoteManagementWorkflow = () => {
           <CardTitle>Workflow Progress</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between overflow-x-auto pb-2">
             {steps.map((step, index) => {
               const isActive = step.id === currentStep;
-              const isCompleted = completedSteps.has(step.id as WorkflowStep);
+              const isCompleted = state.completedSteps.has(step.id as WorkflowStep);
               const canNavigate = canNavigateToStep(step.id as WorkflowStep);
               const Icon = step.icon;
 
               return (
-                <div key={step.id} className="flex items-center">
+                <div key={step.id} className="flex items-center flex-shrink-0">
                   <div className="flex flex-col items-center">
                     <Button
                       variant={isActive ? "default" : isCompleted ? "secondary" : "outline"}
                       size="sm"
                       className={`w-12 h-12 rounded-full p-0 ${!canNavigate ? 'opacity-50 cursor-not-allowed' : ''}`}
                       onClick={() => canNavigate && navigateToStep(step.id as WorkflowStep)}
-                      disabled={!canNavigate}
+                      disabled={!canNavigate || state.loading}
                     >
                       <Icon className="h-5 w-5" />
                     </Button>
@@ -246,7 +248,7 @@ export const QuoteManagementWorkflow = () => {
                     )}
                   </div>
                   {index < steps.length - 1 && (
-                    <ArrowRight className="h-4 w-4 mx-2 text-gray-400" />
+                    <ArrowRight className="h-4 w-4 mx-2 text-gray-400 flex-shrink-0" />
                   )}
                 </div>
               );
@@ -257,18 +259,36 @@ export const QuoteManagementWorkflow = () => {
 
       {/* Current Step Content */}
       <div className="min-h-[600px]">
-        {renderStepContent()}
+        {state.loading ? (
+          <Card>
+            <CardContent className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mr-4"></div>
+              <span>Processing...</span>
+            </CardContent>
+          </Card>
+        ) : state.error ? (
+          <Card>
+            <CardContent className="text-center py-12">
+              <div className="text-red-600 mb-4">Error: {state.error}</div>
+              <Button onClick={() => dispatch({ type: 'SET_ERROR', payload: null })}>
+                Try Again
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          renderStepContent()
+        )}
       </div>
 
       {/* Workflow Data Summary (for development) */}
-      {Object.keys(workflowData).length > 0 && (
+      {process.env.NODE_ENV === 'development' && Object.keys(state.workflowData).length > 0 && (
         <Card className="mt-8">
           <CardHeader>
-            <CardTitle>Workflow Data Summary</CardTitle>
+            <CardTitle>Workflow Data Summary (Development)</CardTitle>
           </CardHeader>
           <CardContent>
             <pre className="text-xs bg-gray-50 p-4 rounded overflow-auto max-h-40">
-              {JSON.stringify(workflowData, null, 2)}
+              {JSON.stringify(state.workflowData, null, 2)}
             </pre>
           </CardContent>
         </Card>
