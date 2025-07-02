@@ -278,6 +278,64 @@ export type Database = {
         }
         Relationships: []
       }
+      client_portal_links: {
+        Row: {
+          client_id: string
+          created_at: string
+          evaluated_quotes_data: Json
+          expires_at: string
+          id: string
+          is_used: boolean | null
+          organization_id: string
+          quote_id: string
+          token: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          evaluated_quotes_data: Json
+          expires_at: string
+          id?: string
+          is_used?: boolean | null
+          organization_id: string
+          quote_id: string
+          token: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          evaluated_quotes_data?: Json
+          expires_at?: string
+          id?: string
+          is_used?: boolean | null
+          organization_id?: string
+          quote_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_client_portal_links_client"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_client_portal_links_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_client_portal_links_quote"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_portal_sessions: {
         Row: {
           client_id: string
@@ -503,6 +561,146 @@ export type Database = {
             columns: ["settlement_voucher_id"]
             isOneToOne: false
             referencedRelation: "settlement_vouchers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          metadata: Json | null
+          notification_type: string
+          organization_id: string
+          recipient_email: string
+          sent_at: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          notification_type: string
+          organization_id: string
+          recipient_email: string
+          sent_at?: string | null
+          status?: string
+          subject: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          notification_type?: string
+          organization_id?: string
+          recipient_email?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_email_notifications_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evaluated_quotes: {
+        Row: {
+          ai_analysis: Json | null
+          commission_split: number
+          coverage_limits: Json | null
+          created_at: string
+          dispatched_at: string | null
+          document_url: string | null
+          evaluated_at: string | null
+          evaluation_source: string | null
+          exclusions: string[] | null
+          id: string
+          insurer_email: string | null
+          insurer_id: string | null
+          insurer_name: string
+          organization_id: string
+          premium_quoted: number
+          quote_id: string
+          rating_score: number | null
+          remarks: string | null
+          response_received: boolean | null
+          source: string
+          status: string
+          terms_conditions: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          commission_split?: number
+          coverage_limits?: Json | null
+          created_at?: string
+          dispatched_at?: string | null
+          document_url?: string | null
+          evaluated_at?: string | null
+          evaluation_source?: string | null
+          exclusions?: string[] | null
+          id?: string
+          insurer_email?: string | null
+          insurer_id?: string | null
+          insurer_name: string
+          organization_id: string
+          premium_quoted?: number
+          quote_id: string
+          rating_score?: number | null
+          remarks?: string | null
+          response_received?: boolean | null
+          source?: string
+          status?: string
+          terms_conditions?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_analysis?: Json | null
+          commission_split?: number
+          coverage_limits?: Json | null
+          created_at?: string
+          dispatched_at?: string | null
+          document_url?: string | null
+          evaluated_at?: string | null
+          evaluation_source?: string | null
+          exclusions?: string[] | null
+          id?: string
+          insurer_email?: string | null
+          insurer_id?: string | null
+          insurer_name?: string
+          organization_id?: string
+          premium_quoted?: number
+          quote_id?: string
+          rating_score?: number | null
+          remarks?: string | null
+          response_received?: boolean | null
+          source?: string
+          status?: string
+          terms_conditions?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_evaluated_quotes_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_evaluated_quotes_quote"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
             referencedColumns: ["id"]
           },
         ]
@@ -869,6 +1067,79 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      payment_transactions: {
+        Row: {
+          amount: number
+          client_id: string
+          created_at: string
+          currency: string
+          id: string
+          metadata: Json | null
+          organization_id: string
+          paid_at: string | null
+          payment_method: string
+          payment_provider: string | null
+          provider_reference: string | null
+          quote_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          client_id: string
+          created_at?: string
+          currency?: string
+          id?: string
+          metadata?: Json | null
+          organization_id: string
+          paid_at?: string | null
+          payment_method: string
+          payment_provider?: string | null
+          provider_reference?: string | null
+          quote_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          client_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          metadata?: Json | null
+          organization_id?: string
+          paid_at?: string | null
+          payment_method?: string
+          payment_provider?: string | null
+          provider_reference?: string | null
+          quote_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_payment_transactions_client"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_payment_transactions_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_payment_transactions_quote"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       policies: {
         Row: {

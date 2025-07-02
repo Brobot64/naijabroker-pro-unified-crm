@@ -24,7 +24,7 @@ export const PaymentProcessing = ({ selectedQuote, clientData, onPaymentComplete
       setPaymentStatus('completed');
       const paymentData = {
         id: `PAY-${Date.now()}`,
-        amount: selectedQuote.premium,
+                amount: selectedQuote.premium_quoted || selectedQuote.premium,
         method: paymentMethod,
         status: 'completed',
         transactionId: `TXN-${Date.now()}`,
@@ -88,7 +88,7 @@ export const PaymentProcessing = ({ selectedQuote, clientData, onPaymentComplete
             <div className="border-t pt-4">
               <div className="flex justify-between items-center text-lg">
                 <span>Total Premium:</span>
-                <span className="font-bold">₦{selectedQuote.premium.toLocaleString()}</span>
+                <span className="font-bold">₦{(selectedQuote.premium_quoted || selectedQuote.premium || 0).toLocaleString()}</span>
               </div>
             </div>
           </div>

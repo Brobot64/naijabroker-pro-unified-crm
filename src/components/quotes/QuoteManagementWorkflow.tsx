@@ -180,7 +180,7 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete }: Qu
       case 'client-selection':
         return (
           <ClientSelection
-            evaluatedQuotes={state.workflowData.quotes}
+            evaluatedQuotes={(state.workflowData as any).quoteevaluation || state.workflowData.quotes || []}
             clientData={state.workflowData.client}
             onSelectionComplete={(selection) => 
               handleStepComplete('client-selection', selection)

@@ -1,9 +1,11 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ExternalLink, CheckCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft, ExternalLink, CheckCircle, Mail, Copy } from "lucide-react";
+import { evaluatedQuotesService } from "@/services/evaluatedQuotesService";
 
 interface ClientSelectionProps {
   evaluatedQuotes: any[];
@@ -13,19 +15,84 @@ interface ClientSelectionProps {
 }
 
 export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComplete, onBack }: ClientSelectionProps) => {
+  const { toast } = useToast();
   const [portalLinkGenerated, setPortalLinkGenerated] = useState(false);
   const [clientSelection, setClientSelection] = useState<any>(null);
+  const [portalLink, setPortalLink] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [validQuotes, setValidQuotes] = useState<any[]>([]);
 
   console.log("ClientSelection received evaluatedQuotes:", evaluatedQuotes);
   console.log("ClientSelection received clientData:", clientData);
 
-  const generatePortalLink = () => {
-    const baseUrl = window.location.origin;
-    const link = `${baseUrl}/client-portal?email=${encodeURIComponent(clientData?.email || 'client@example.com')}&quote=selection`;
-    setPortalLinkGenerated(true);
-    
-    // In a real implementation, you would send this link to the client
-    console.log("Generated portal link:", link);
+  // Filter and set valid quotes on mount or when evaluatedQuotes change
+  useEffect(() => {
+    if (evaluatedQuotes && Array.isArray(evaluatedQuotes)) {
+      const valid = evaluatedQuotes.filter(quote => 
+        quote && 
+        quote.insurer_name && 
+        quote.premium_quoted > 0 && 
+        quote.response_received
+      );
+      setValidQuotes(valid);
+      console.log("Valid quotes for client selection:", valid);
+    }
+  }, [evaluatedQuotes]);
+
+  const generatePortalLink = async () => {
+    if (!clientData || !validQuotes.length) {
+      toast({
+        title: "Error",
+        description: "No client data or valid quotes available",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Generate secure client portal link with token
+      const { data, error } = await evaluatedQuotesService.generateClientPortalLink(
+        'temp-quote-id', // In real implementation, use actual quote ID
+        clientData.id || 'temp-client-id',
+        validQuotes
+      );
+
+      if (error) {
+        throw new Error(error.message || 'Failed to generate portal link');
+      }
+
+      setPortalLink(data.portalUrl);
+      setPortalLinkGenerated(true);
+      
+      toast({
+        title: "Portal Link Generated",
+        description: `Secure link generated and sent to ${clientData.email || clientData.name}`,
+      });
+
+      // Send email notification
+      await evaluatedQuotesService.sendEmailNotification(
+        'client_portal_access',
+        clientData.email || 'client@example.com',
+        'Review Your Insurance Quotes',
+        `Hello ${clientData.name || 'Valued Client'},\n\nYour insurance quotes are ready for review. Please click the link below to view and select your preferred option:\n\n${data.portalUrl}\n\nThis link will expire in 72 hours.\n\nBest regards,\nYour Insurance Broker`,
+        {
+          clientId: clientData.id,
+          quoteCount: validQuotes.length,
+          portalLinkId: data.portalLinkId
+        }
+      );
+
+    } catch (error) {
+      console.error('Error generating portal link:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate portal link",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const simulateClientSelection = (quote: any) => {
@@ -33,8 +100,18 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
     onSelectionComplete(quote);
   };
 
+  const copyPortalLink = () => {
+    if (portalLink) {
+      navigator.clipboard.writeText(portalLink);
+      toast({
+        title: "Link Copied",
+        description: "Portal link copied to clipboard",
+      });
+    }
+  };
+
   // Handle case where evaluatedQuotes might be empty
-  if (!evaluatedQuotes || evaluatedQuotes.length === 0) {
+  if (!validQuotes || validQuotes.length === 0) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -47,9 +124,15 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
         </div>
         <Card>
           <CardContent className="p-6 text-center">
-            <p className="text-gray-600">No evaluated quotes available for client selection.</p>
+            <p className="text-gray-600">
+              No evaluated quotes available for client selection. 
+              {evaluatedQuotes && evaluatedQuotes.length > 0 
+                ? " Please ensure quotes have been properly evaluated with valid premium amounts."
+                : " Please complete the quote evaluation process first."
+              }
+            </p>
             <Button variant="outline" onClick={onBack} className="mt-4">
-              Go Back
+              Go Back to Quote Evaluation
             </Button>
           </CardContent>
         </Card>
@@ -82,21 +165,34 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
           <div className="bg-blue-50 p-4 rounded-lg">
             <h4 className="font-semibold text-blue-800 mb-2">Share Quotes with Client</h4>
             <p className="text-sm text-blue-600 mb-3">
-              Generate a secure portal link for {clientData?.name || 'the client'} to review and select from the available quotes.
+              Generate a secure portal link for {clientData?.name || 'the client'} to review and select from {validQuotes.length} available quotes.
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-3">
               <Button 
                 variant="outline" 
                 onClick={generatePortalLink}
-                disabled={portalLinkGenerated}
+                disabled={portalLinkGenerated || loading}
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
-                {portalLinkGenerated ? "Portal Link Generated" : "Generate Portal Link"}
+                {loading ? "Generating..." : portalLinkGenerated ? "Portal Link Generated" : "Generate Portal Link"}
               </Button>
               {portalLinkGenerated && (
-                <Badge variant="secondary">Link sent to {clientData?.email || 'client@example.com'}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">
+                    <Mail className="h-3 w-3 mr-1" />
+                    Sent to {clientData?.email || clientData?.name}
+                  </Badge>
+                  <Button variant="ghost" size="sm" onClick={copyPortalLink}>
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
               )}
             </div>
+            {portalLink && (
+              <div className="text-xs text-blue-700 bg-blue-100 p-2 rounded mt-2 break-all">
+                {portalLink}
+              </div>
+            )}
           </div>
 
           {portalLinkGenerated && (
@@ -116,11 +212,11 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
       {/* Quote Comparison for Client */}
       <Card>
         <CardHeader>
-          <CardTitle>Available Quotes for Client Review</CardTitle>
+          <CardTitle>Available Quotes for Client Review ({validQuotes.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {evaluatedQuotes?.map((quote, index) => (
+            {validQuotes?.map((quote, index) => (
               <div key={quote.insurer_id || index} className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-semibold text-lg">{quote.insurer_name}</h4>

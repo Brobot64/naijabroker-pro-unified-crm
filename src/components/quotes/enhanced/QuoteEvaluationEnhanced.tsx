@@ -11,6 +11,7 @@ import { Upload, Eye, Download, Star, TrendingUp, TrendingDown, Brain, Mail, Spa
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { emailMonitoringService, EmailQuoteResponse } from "@/services/emailMonitoringService";
+import { evaluatedQuotesService } from "@/services/evaluatedQuotesService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface QuoteEvaluationEnhancedProps {
@@ -320,7 +321,7 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
     });
   };
 
-  const handleForwardToClient = (source: 'human' | 'ai') => {
+  const handleForwardToClient = async (source: 'human' | 'ai') => {
     // Combine all quotes
     const allQuotes = [...quotes, ...manualQuotes];
     const validQuotes = allQuotes.filter(q => q.response_received && q.premium_quoted > 0);
@@ -343,6 +344,12 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
         evaluation_source: source,
         rating_score: quote.rating_score || calculateRatingScore(quote),
       }));
+
+      // Save to database for persistence
+      await evaluatedQuotesService.saveEvaluatedQuotes(
+        insurerMatches[0]?.quote_id || 'temp-quote-id', 
+        evaluatedQuotes
+      );
 
       setSelectedForClient(source);
       onEvaluationComplete(evaluatedQuotes);
