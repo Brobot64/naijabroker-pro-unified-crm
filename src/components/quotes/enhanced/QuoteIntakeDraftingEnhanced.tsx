@@ -65,10 +65,10 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, onQuoteSaved, onBack }
   });
 
   const [calculations, setCalculations] = useState({
-    commission_amount: 0,
-    net_premium: 0,
-    vat_amount: 0,
-    total_amount: 0,
+    commission: 0,
+    netPremium: 0,
+    vat: 0,
+    grossPremium: 0,
   });
 
   useEffect(() => {
@@ -91,12 +91,12 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, onQuoteSaved, onBack }
   useEffect(() => {
     // Recalculate financials when relevant fields change
     if (formData.premium && formData.commission_rate) {
-      const calcs = calculateFinancials(formData.premium, formData.commission_rate / 100);
+      const calcs = calculateFinancials(formData.premium, formData.commission_rate);
       setCalculations({
-        commission_amount: calcs.commission_amount,
-        net_premium: calcs.net_premium,
-        vat_amount: calcs.vat_amount,
-        total_amount: calcs.total_amount,
+        commission: calcs.commission,
+        netPremium: calcs.netPremium,
+        vat: calcs.vat,
+        grossPremium: calcs.grossPremium,
       });
     }
   }, [formData.premium, formData.commission_rate]);
@@ -334,10 +334,10 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, onQuoteSaved, onBack }
               <CardTitle className="text-sm">Financial Summary</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 text-sm">
-              <div>Commission Amount: ₦{calculations.commission_amount.toLocaleString()}</div>
-              <div>VAT Amount: ₦{calculations.vat_amount.toLocaleString()}</div>
-              <div>Net Premium: ₦{calculations.net_premium.toLocaleString()}</div>
-              <div className="font-semibold">Total Amount: ₦{calculations.total_amount.toLocaleString()}</div>
+              <div>Commission Amount: ₦{calculations.commission.toLocaleString()}</div>
+              <div>VAT Amount: ₦{calculations.vat.toLocaleString()}</div>
+              <div>Net Premium: ₦{calculations.netPremium.toLocaleString()}</div>
+              <div className="font-semibold">Gross Premium: ₦{calculations.grossPremium.toLocaleString()}</div>
             </CardContent>
           </Card>
         )}
