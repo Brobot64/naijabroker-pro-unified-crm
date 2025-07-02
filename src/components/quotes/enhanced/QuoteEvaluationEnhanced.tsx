@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Eye, Download, Star, TrendingUp, TrendingDown, Brain, Mail, Sparkles } from "lucide-react";
+import { Upload, Eye, Download, Star, TrendingUp, TrendingDown, Brain, Mail, Sparkles, CheckCircle, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { emailMonitoringService, EmailQuoteResponse } from "@/services/emailMonitoringService";
 
 interface QuoteEvaluationEnhancedProps {
   insurerMatches: any[];
@@ -22,10 +23,15 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
   const [loading, setLoading] = useState(false);
   const [evaluationMode, setEvaluationMode] = useState<'human' | 'ai'>('human');
   const [aiAnalysisResults, setAiAnalysisResults] = useState<any[]>([]);
+  const [emailMonitoring, setEmailMonitoring] = useState(false);
   
   // Initialize quotes from dispatched insurers
-  const [quotes, setQuotes] = useState(
-    insurerMatches?.map(match => ({
+  const [quotes, setQuotes] = useState(() => {
+    console.log("Received insurerMatches:", insurerMatches);
+    if (!insurerMatches || !Array.isArray(insurerMatches)) {
+      return [];
+    }
+    return insurerMatches.map(match => ({
       ...match,
       premium_quoted: 0,
       terms_conditions: '',
@@ -37,8 +43,54 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
       response_received: false,
       status: 'dispatched',
       dispatched_at: match.dispatched_at || new Date().toISOString(),
-    })) || []
-  );
+    }));
+  });
+
+  // Email monitoring effect
+  useEffect(() => {
+    if (emailMonitoring && quotes.length > 0) {
+      const handleEmailResponse = (response: EmailQuoteResponse) => {
+        // Find matching insurer and update quote
+        const matchingIndex = quotes.findIndex(q => 
+          q.insurer_name?.toLowerCase().includes(response.insurerName.toLowerCase()) ||
+          response.insurerName.toLowerCase().includes(q.insurer_name?.toLowerCase())
+        );
+
+        if (matchingIndex !== -1) {
+          const updatedQuote = {
+            ...quotes[matchingIndex],
+            premium_quoted: response.premiumQuoted,
+            terms_conditions: response.termsConditions || '',
+            exclusions: response.exclusions || [],
+            coverage_limits: response.coverageLimits || {},
+            document_url: response.documentUrl || '',
+            response_received: true,
+            response_date: response.responseDate
+          };
+
+          setQuotes(prev => prev.map((quote, i) => 
+            i === matchingIndex ? updatedQuote : quote
+          ));
+
+          toast({
+            title: "Quote Received via Email",
+            description: `Quote received from ${response.insurerName} with premium ₦${response.premiumQuoted.toLocaleString()}`,
+          });
+        }
+      };
+
+      emailMonitoringService.startMonitoring("quote-123", handleEmailResponse);
+
+      return () => {
+        emailMonitoringService.stopMonitoring();
+      };
+    }
+  }, [emailMonitoring, quotes.length]);
+
+  // Debug log to check quotes
+  useEffect(() => {
+    console.log("Current quotes state:", quotes);
+  }, [quotes]);
 
   const handleQuoteUpdate = (index: number, field: string, value: any) => {
     setQuotes(prev => prev.map((quote, i) => 
@@ -255,14 +307,47 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
         </div>
 
         {/* Email Monitoring Alert */}
-        <Alert>
+        <Alert className={emailMonitoring ? "border-green-500 bg-green-50" : ""}>
           <Mail className="h-4 w-4" />
           <AlertDescription>
-            System monitoring dedicated email: <strong>quotes@yourbroker.com</strong> for responses with PDF attachments
-            <Button variant="outline" size="sm" className="ml-2" onClick={handleEmailMonitoring}>
-              <Mail className="h-4 w-4 mr-1" />
-              Check Email
-            </Button>
+            System monitoring dedicated email: <strong>{emailMonitoringService.getMonitoringEmail()}</strong> for responses with PDF attachments
+            <div className="flex items-center gap-2 mt-2">
+              <Button 
+                variant={emailMonitoring ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => {
+                  setEmailMonitoring(!emailMonitoring);
+                  if (!emailMonitoring) {
+                    toast({
+                      title: "Email Monitoring Started",
+                      description: `Monitoring ${emailMonitoringService.getMonitoringEmail()} for quote responses`,
+                    });
+                  } else {
+                    toast({
+                      title: "Email Monitoring Stopped",
+                      description: "Email monitoring has been stopped",
+                    });
+                  }
+                }}
+              >
+                {emailMonitoring ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Monitoring Active
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4 mr-1" />
+                    Start Monitoring
+                  </>
+                )}
+              </Button>
+              {emailMonitoring && (
+                <Badge variant="default" className="bg-green-600">
+                  Live
+                </Badge>
+              )}
+            </div>
           </AlertDescription>
         </Alert>
 
@@ -295,15 +380,94 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
             </div>
             
             {aiAnalysisResults.length > 0 && (
-              <Alert>
-                <Brain className="h-4 w-4" />
-                <AlertDescription>
-                  AI analysis complete. Quotes rated based on premium competitiveness, terms analysis, and risk assessment.
-                </AlertDescription>
-              </Alert>
+              <div className="space-y-4">
+                <Alert>
+                  <Brain className="h-4 w-4" />
+                  <AlertDescription>
+                    AI analysis complete. Quotes rated based on premium competitiveness, terms analysis, and risk assessment.
+                  </AlertDescription>
+                </Alert>
+                
+                {/* AI Analysis Results Summary */}
+                <Card className="bg-purple-50">
+                  <CardHeader>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Brain className="h-4 w-4" />
+                      AI Analysis Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {aiAnalysisResults.map((result, index) => (
+                      <div key={index} className="border-l-4 border-purple-500 pl-3">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">{result.insurer_name}</span>
+                          <Badge variant="outline" className="bg-white">
+                            Score: {result.rating_score}/100
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          <div>Premium: {result.ai_analysis?.premium_competitiveness}</div>
+                          <div>Recommendation: {result.ai_analysis?.recommendation}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Quote Comparison Table */}
+        {quotes.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Quote Comparison Table
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-gray-300">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="border border-gray-300 p-2 text-left">Insurer</th>
+                      <th className="border border-gray-300 p-2 text-center">Premium (₦)</th>
+                      <th className="border border-gray-300 p-2 text-center">Commission %</th>
+                      <th className="border border-gray-300 p-2 text-center">Rating Score</th>
+                      <th className="border border-gray-300 p-2 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {quotes.map((quote, index) => (
+                      <tr key={index} className={quote.response_received ? "bg-green-50" : ""}>
+                        <td className="border border-gray-300 p-2 font-medium">{quote.insurer_name}</td>
+                        <td className="border border-gray-300 p-2 text-center">
+                          {quote.premium_quoted > 0 ? `₦${quote.premium_quoted.toLocaleString()}` : '-'}
+                        </td>
+                        <td className="border border-gray-300 p-2 text-center">{quote.commission_split}%</td>
+                        <td className="border border-gray-300 p-2 text-center">
+                          {quote.rating_score > 0 ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                              {quote.rating_score}
+                            </div>
+                          ) : '-'}
+                        </td>
+                        <td className="border border-gray-300 p-2 text-center">
+                          <Badge variant={quote.response_received ? "default" : "outline"}>
+                            {quote.response_received ? "Received" : "Pending"}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Quotes List */}
         <div className="space-y-4">

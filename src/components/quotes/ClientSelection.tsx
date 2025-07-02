@@ -16,9 +16,12 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
   const [portalLinkGenerated, setPortalLinkGenerated] = useState(false);
   const [clientSelection, setClientSelection] = useState<any>(null);
 
+  console.log("ClientSelection received evaluatedQuotes:", evaluatedQuotes);
+  console.log("ClientSelection received clientData:", clientData);
+
   const generatePortalLink = () => {
     const baseUrl = window.location.origin;
-    const link = `${baseUrl}/client-portal?email=${encodeURIComponent(clientData.email)}&quote=selection`;
+    const link = `${baseUrl}/client-portal?email=${encodeURIComponent(clientData?.email || 'client@example.com')}&quote=selection`;
     setPortalLinkGenerated(true);
     
     // In a real implementation, you would send this link to the client
@@ -29,6 +32,30 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
     setClientSelection(quote);
     onSelectionComplete(quote);
   };
+
+  // Handle case where evaluatedQuotes might be empty
+  if (!evaluatedQuotes || evaluatedQuotes.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={onBack}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h2 className="text-2xl font-bold">Client Selection</h2>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-6 text-center">
+            <p className="text-gray-600">No evaluated quotes available for client selection.</p>
+            <Button variant="outline" onClick={onBack} className="mt-4">
+              Go Back
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -55,7 +82,7 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
           <div className="bg-blue-50 p-4 rounded-lg">
             <h4 className="font-semibold text-blue-800 mb-2">Share Quotes with Client</h4>
             <p className="text-sm text-blue-600 mb-3">
-              Generate a secure portal link for {clientData.name} to review and select from the available quotes.
+              Generate a secure portal link for {clientData?.name || 'the client'} to review and select from the available quotes.
             </p>
             <div className="flex items-center gap-2">
               <Button 
@@ -67,7 +94,7 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
                 {portalLinkGenerated ? "Portal Link Generated" : "Generate Portal Link"}
               </Button>
               {portalLinkGenerated && (
-                <Badge variant="secondary">Link sent to {clientData.email}</Badge>
+                <Badge variant="secondary">Link sent to {clientData?.email || 'client@example.com'}</Badge>
               )}
             </div>
           </div>
