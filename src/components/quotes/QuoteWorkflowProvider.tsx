@@ -127,6 +127,9 @@ export const WorkflowProvider = ({ children }: { children: React.ReactNode }) =>
   );
 };
 
+// Export both names for compatibility
+export const QuoteWorkflowProvider = WorkflowProvider;
+
 export const useWorkflowContext = () => {
   const context = useContext(WorkflowContext);
   if (!context) {

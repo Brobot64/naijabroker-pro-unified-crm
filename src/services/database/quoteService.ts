@@ -25,6 +25,17 @@ export class QuoteService {
     return data || [];
   }
 
+  static async getByOrganization(organizationId: string): Promise<Quote[]> {
+    const { data, error } = await supabase
+      .from('quotes')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  }
+
   static async getById(id: string): Promise<QuoteWithClient | null> {
     const { data, error } = await supabase
       .from('quotes')
@@ -60,6 +71,15 @@ export class QuoteService {
 
     if (error) throw error;
     return data;
+  }
+
+  static async delete(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('quotes')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
   }
 
   static async updateStatus(id: string, status: string): Promise<Quote> {

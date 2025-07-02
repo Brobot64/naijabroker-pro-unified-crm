@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,11 +10,11 @@ interface AuditEntry {
   id: string;
   action: string;
   stage: string;
-  user_id: string;
+  user_id: string | null;
   details: any;
-  created_at: string;
-  ip_address: string;
-  user_agent: string;
+  created_at: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
 }
 
 interface QuoteAuditTrailProps {
@@ -45,7 +44,20 @@ export const QuoteAuditTrail = ({ quoteId }: QuoteAuditTrailProps) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setAuditEntries(data || []);
+      
+      // Transform the data to match our interface
+      const transformedData: AuditEntry[] = (data || []).map(entry => ({
+        id: entry.id,
+        action: entry.action,
+        stage: entry.stage,
+        user_id: entry.user_id,
+        details: entry.details,
+        created_at: entry.created_at,
+        ip_address: entry.ip_address ? String(entry.ip_address) : null,
+        user_agent: entry.user_agent
+      }));
+      
+      setAuditEntries(transformedData);
     } catch (error) {
       console.error('Error loading audit trail:', error);
       toast({
@@ -70,7 +82,8 @@ export const QuoteAuditTrail = ({ quoteId }: QuoteAuditTrailProps) => {
     }
   };
 
-  const formatTimestamp = (timestamp: string) => {
+  const formatTimestamp = (timestamp: string | null) => {
+    if (!timestamp) return 'N/A';
     return new Date(timestamp).toLocaleString();
   };
 

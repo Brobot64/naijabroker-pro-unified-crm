@@ -3,7 +3,7 @@ import { useState } from "react";
 import { QuoteManagementWorkflow } from "./QuoteManagementWorkflow";
 import { QuoteDashboard } from "./QuoteDashboard";
 import { QuoteAuditTrail } from "./QuoteAuditTrail";
-import { QuoteWorkflowProvider } from "./QuoteWorkflowProvider";
+import { WorkflowProvider } from "./QuoteWorkflowProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -60,7 +60,7 @@ export const QuoteManagement = () => {
       
       case 'workflow':
         return (
-          <QuoteWorkflowProvider>
+          <WorkflowProvider>
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <Button variant="outline" onClick={handleBackToDashboard}>
@@ -78,7 +78,7 @@ export const QuoteManagement = () => {
                 onWorkflowComplete={handleBackToDashboard}
               />
             </div>
-          </QuoteWorkflowProvider>
+          </WorkflowProvider>
         );
       
       case 'audit':
