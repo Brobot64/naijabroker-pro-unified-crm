@@ -1228,12 +1228,16 @@ export type Database = {
           commission_rate: number
           commission_splits: Json | null
           converted_to_policy: string | null
+          coverage_requirements: string | null
           created_at: string | null
           created_by: string | null
           final_contract_url: string | null
           id: string
+          insured_description: string | null
+          insured_item: string | null
           insurer_splits: Json | null
           interim_contract_url: string | null
+          location: string | null
           notes: string | null
           organization_id: string
           payment_reference: string | null
@@ -1242,6 +1246,7 @@ export type Database = {
           premium: number
           quote_number: string
           rfq_document_url: string | null
+          risk_details: string | null
           status: Database["public"]["Enums"]["quote_status"]
           sum_insured: number
           terms_conditions: string | null
@@ -1259,12 +1264,16 @@ export type Database = {
           commission_rate?: number
           commission_splits?: Json | null
           converted_to_policy?: string | null
+          coverage_requirements?: string | null
           created_at?: string | null
           created_by?: string | null
           final_contract_url?: string | null
           id?: string
+          insured_description?: string | null
+          insured_item?: string | null
           insurer_splits?: Json | null
           interim_contract_url?: string | null
+          location?: string | null
           notes?: string | null
           organization_id: string
           payment_reference?: string | null
@@ -1273,6 +1282,7 @@ export type Database = {
           premium?: number
           quote_number: string
           rfq_document_url?: string | null
+          risk_details?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           sum_insured?: number
           terms_conditions?: string | null
@@ -1290,12 +1300,16 @@ export type Database = {
           commission_rate?: number
           commission_splits?: Json | null
           converted_to_policy?: string | null
+          coverage_requirements?: string | null
           created_at?: string | null
           created_by?: string | null
           final_contract_url?: string | null
           id?: string
+          insured_description?: string | null
+          insured_item?: string | null
           insurer_splits?: Json | null
           interim_contract_url?: string | null
+          location?: string | null
           notes?: string | null
           organization_id?: string
           payment_reference?: string | null
@@ -1304,6 +1318,7 @@ export type Database = {
           premium?: number
           quote_number?: string
           rfq_document_url?: string | null
+          risk_details?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           sum_insured?: number
           terms_conditions?: string | null
