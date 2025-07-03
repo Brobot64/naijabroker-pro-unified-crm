@@ -112,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('Setting up auth state listener');
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('Auth state changed:', event, session?.user?.id);
         
         if (event === 'SIGNED_OUT' || !session) {
@@ -125,8 +125,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session.user);
         
         if (session.user) {
-          // Fetch user data immediately without setTimeout to ensure org data loads
-          await fetchUserData(session.user.id);
+          // Use setTimeout to prevent auth state deadlock
+          setTimeout(() => {
+            fetchUserData(session.user.id);
+          }, 0);
         }
         
         setLoading(false);

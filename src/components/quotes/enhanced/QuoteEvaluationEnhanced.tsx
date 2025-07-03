@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { emailMonitoringService, EmailQuoteResponse } from "@/services/emailMonitoringService";
 import { evaluatedQuotesService } from "@/services/evaluatedQuotesService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InsurerSelect } from "./InsurerSelect";
 
 interface QuoteEvaluationEnhancedProps {
   insurerMatches: any[];
@@ -685,23 +686,18 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Insurer Name</Label>
-                          <Input
-                            value={quote.insurer_name}
-                            onChange={(e) => handleManualQuoteUpdate(index, 'insurer_name', e.target.value)}
-                            placeholder="Enter insurer name"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Insurer Email</Label>
-                          <Input
-                            value={quote.insurer_email}
-                            onChange={(e) => handleManualQuoteUpdate(index, 'insurer_email', e.target.value)}
-                            placeholder="Enter insurer email"
-                          />
-                        </div>
+                      <div className="grid grid-cols-1 gap-4">
+                        <InsurerSelect
+                          value={quote.insurer_name}
+                          onInsurerChange={(name, email, id) => {
+                            handleManualQuoteUpdate(index, 'insurer_name', name);
+                            handleManualQuoteUpdate(index, 'insurer_email', email);
+                            if (id) handleManualQuoteUpdate(index, 'insurer_id', id);
+                          }}
+                          emailValue={quote.insurer_email}
+                          onEmailChange={(email) => handleManualQuoteUpdate(index, 'insurer_email', email)}
+                          disabled={uploadingFile}
+                        />
                         <div className="space-y-2">
                           <Label>Premium Quoted (₦)</Label>
                           <Input
