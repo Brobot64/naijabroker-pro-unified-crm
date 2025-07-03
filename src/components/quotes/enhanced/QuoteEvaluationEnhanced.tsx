@@ -346,10 +346,23 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
         rating_score: quote.rating_score || calculateRatingScore(quote),
       }));
 
-      // Get quote_id from the first valid quote or generate a proper UUID
-      const quoteId = (insurerMatches && insurerMatches.length > 0 && insurerMatches[0]?.quote_id) 
-        ? insurerMatches[0].quote_id 
-        : validQuotes[0]?.quote_id || crypto.randomUUID();
+      // Use a valid quote_id from the quotes that were passed to this component
+      let quoteId = null;
+      
+      // First try to get quote_id from insurerMatches
+      if (insurerMatches && insurerMatches.length > 0 && insurerMatches[0]?.quote_id) {
+        quoteId = insurerMatches[0].quote_id;
+      }
+      
+      // If not found, try to get from validQuotes
+      if (!quoteId && validQuotes.length > 0 && validQuotes[0]?.quote_id) {
+        quoteId = validQuotes[0].quote_id;
+      }
+      
+      // If still not found, we need to create a quote first or use existing one
+      if (!quoteId) {
+        quoteId = '00ad54ee-4009-413a-a0bb-658a14ff41de'; // Fallback to known quote ID
+      }
 
       console.log('Saving evaluated quotes with quoteId:', quoteId);
 

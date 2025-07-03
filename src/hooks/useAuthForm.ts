@@ -45,14 +45,19 @@ export const useAuthForm = () => {
         return;
       }
       
-      // Default redirect logic - prioritize dashboard for existing organizations
-      if (organizationId) {
-        console.log('User has organization, redirecting to dashboard');
-        navigate('/app');
-      } else {
-        console.log('User has no organization, redirecting to onboarding');
-        navigate('/onboarding');
-      }
+      // Add a small delay to ensure organizationId is properly loaded
+      const timeoutId = setTimeout(() => {
+        // Default redirect logic - prioritize dashboard for existing organizations
+        if (organizationId) {
+          console.log('User has organization, redirecting to dashboard');
+          navigate('/app');
+        } else {
+          console.log('User has no organization, redirecting to onboarding');
+          navigate('/onboarding');
+        }
+      }, 100);
+
+      return () => clearTimeout(timeoutId);
     }
   }, [user, organizationId, navigate, loading, isLoading]);
 
