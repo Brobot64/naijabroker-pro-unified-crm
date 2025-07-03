@@ -182,7 +182,7 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
         });
       }
       
-      const quoteName = isManual ? manualQuotes[quoteIndex]?.insurer_name : quotes[quoteIndex]?.insurer_name;
+      const quoteName = isManual ? manualQuotes[quoteIndex]?.insurer_name : quotes[quoteIndex]?.insurer_name || 'Unknown Insurer';
       toast({
         title: "Document Uploaded & Processed",
         description: `Quote document uploaded for ${quoteName}. AI has extracted key information.`,
@@ -591,7 +591,7 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
                     {aiAnalysisResults.map((result, index) => (
                       <div key={index} className="border-l-4 border-purple-500 pl-3">
                         <div className="flex justify-between items-center">
-                          <span className="font-medium">{result.insurer_name}</span>
+                          <span className="font-medium">{result.insurer_name || 'Unknown Insurer'}</span>
                           <Badge variant="outline" className="bg-white">
                             Score: {result.rating_score}/100
                           </Badge>
