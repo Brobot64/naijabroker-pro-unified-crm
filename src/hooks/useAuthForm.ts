@@ -45,10 +45,12 @@ export const useAuthForm = () => {
         return;
       }
       
-      // Default redirect logic
+      // Default redirect logic - prioritize dashboard for existing organizations
       if (organizationId) {
+        console.log('User has organization, redirecting to dashboard');
         navigate('/app');
       } else {
+        console.log('User has no organization, redirecting to onboarding');
         navigate('/onboarding');
       }
     }
