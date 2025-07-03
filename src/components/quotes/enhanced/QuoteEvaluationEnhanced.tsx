@@ -345,10 +345,10 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
         rating_score: quote.rating_score || calculateRatingScore(quote),
       }));
 
-      // Get quote_id from the first valid quote or generate a temp ID
+      // Get quote_id from the first valid quote or generate a proper UUID
       const quoteId = (insurerMatches && insurerMatches.length > 0 && insurerMatches[0]?.quote_id) 
         ? insurerMatches[0].quote_id 
-        : validQuotes[0]?.quote_id || `temp-quote-${Date.now()}`;
+        : validQuotes[0]?.quote_id || crypto.randomUUID();
 
       console.log('Saving evaluated quotes with quoteId:', quoteId);
 
