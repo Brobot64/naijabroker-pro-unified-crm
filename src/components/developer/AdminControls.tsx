@@ -5,6 +5,7 @@ import { SecuritySettingsPanel } from "../admin/SecuritySettingsPanel";
 import { AdminUsersList } from "../admin/AdminUsersList";
 import { AuditLogger } from "../admin/AuditLogger";
 import { AdminMetrics } from "../admin/AdminMetrics";
+import { InsurerManagement } from "../admin/InsurerManagement";
 
 export const AdminControls = () => {
   const [showAuditLogs, setShowAuditLogs] = useState(false);
@@ -34,6 +35,8 @@ export const AdminControls = () => {
       <SecuritySettingsPanel />
       
       <AdminUsersList />
+
+      <InsurerManagement />
     </div>
   );
 };

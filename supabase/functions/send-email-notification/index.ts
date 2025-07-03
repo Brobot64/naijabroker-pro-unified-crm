@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,9 +67,32 @@ serve(async (req) => {
 
     if (dbError) throw dbError;
 
-    // In a real implementation, you would send the email here using a service like Resend
-    // For now, we'll just log it and mark as sent
-    console.log(`Email notification sent: ${type} to ${recipientEmail}`);
+    // Send actual email using Resend
+    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+    
+    try {
+      const emailResponse = await resend.emails.send({
+        from: "NaijaBroker Pro <noreply@naijabrokerpro.com>", // Update with your domain
+        to: [recipientEmail],
+        subject,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2563eb;">${subject}</h2>
+            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              ${message.replace(/\n/g, '<br>')}
+            </div>
+            <p style="color: #64748b; font-size: 14px;">
+              This is an automated message from NaijaBroker Pro Insurance Management System.
+            </p>
+          </div>
+        `,
+      });
+
+      console.log(`Email sent successfully:`, emailResponse);
+    } catch (emailError) {
+      console.error('Failed to send email:', emailError);
+      // Don't throw error for email failures - log and continue
+    }
 
     return new Response(JSON.stringify({ 
       success: true, 

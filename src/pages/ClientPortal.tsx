@@ -1,83 +1,333 @@
-
 import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { ClientDashboard } from "@/components/client/ClientDashboard";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Shield } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { CheckCircle, Star, MessageCircle, ExternalLink } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface EvaluatedQuote {
+  id: string;
+  insurer_name: string;
+  premium_quoted: number;
+  commission_split: number;
+  terms_conditions: string;
+  exclusions: string[];
+  coverage_limits: any;
+  rating_score: number;
+  remarks: string;
+  document_url: string;
+}
 
 export const ClientPortal = () => {
   const [searchParams] = useSearchParams();
-  const [clientEmail, setClientEmail] = useState("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [inputEmail, setInputEmail] = useState("");
-  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [quotes, setQuotes] = useState<EvaluatedQuote[]>([]);
+  const [selectedQuote, setSelectedQuote] = useState<EvaluatedQuote | null>(null);
+  const [clientComments, setClientComments] = useState('');
+  const [portalData, setPortalData] = useState<any>(null);
+  const token = searchParams.get('token');
 
   useEffect(() => {
-    // Check if client email is provided in URL params
-    const emailParam = searchParams.get('email');
-    if (emailParam) {
-      setClientEmail(emailParam);
-      setIsAuthenticated(true);
+    if (token) {
+      fetchPortalData();
+    } else {
+      toast({
+        title: "Invalid Access",
+        description: "Portal token is required",
+        variant: "destructive"
+      });
+      setLoading(false);
     }
-  }, [searchParams]);
+  }, [token]);
 
-  const handleClientLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (inputEmail.trim()) {
-      setClientEmail(inputEmail);
-      setIsAuthenticated(true);
-      // Update URL to include email param
-      navigate(`/client-portal?email=${encodeURIComponent(inputEmail)}`);
+  const fetchPortalData = async () => {
+    try {
+      // Get portal link data
+      const { data: portalLink, error } = await supabase
+        .from('client_portal_links')
+        .select('*')
+        .eq('token', token)
+        .gt('expires_at', new Date().toISOString())
+        .eq('is_used', false)
+        .single();
+
+      if (error || !portalLink) {
+        throw new Error('Invalid or expired portal link');
+      }
+
+      setPortalData(portalLink);
+      setQuotes(Array.isArray(portalLink.evaluated_quotes_data) ? portalLink.evaluated_quotes_data as unknown as EvaluatedQuote[] : []);
+
+      // Get client information
+      const { data: client } = await supabase
+        .from('clients')
+        .select('name, email')
+        .eq('id', portalLink.client_id)
+        .single();
+
+      setPortalData(prev => ({ ...prev, client }));
+    } catch (error: any) {
+      console.error('Error fetching portal data:', error);
+      toast({
+        title: "Access Error",
+        description: error.message || "Failed to load portal data",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!isAuthenticated) {
+  const handleQuoteSelection = async (quote: EvaluatedQuote) => {
+    if (selectedQuote?.id === quote.id) {
+      setSelectedQuote(null);
+      return;
+    }
+
+    setSelectedQuote(quote);
+    toast({
+      title: "Quote Selected",
+      description: `You have selected the quote from ${quote.insurer_name}`,
+    });
+  };
+
+  const handleSubmitSelection = async () => {
+    if (!selectedQuote || !portalData) {
+      toast({
+        title: "No Selection",
+        description: "Please select a quote before submitting",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Mark portal as used
+      await supabase
+        .from('client_portal_links')
+        .update({ is_used: true })
+        .eq('id', portalData.id);
+
+      // Create payment transaction record
+      const { error: paymentError } = await supabase
+        .from('payment_transactions')
+        .insert({
+          organization_id: portalData.organization_id,
+          quote_id: portalData.quote_id,
+          client_id: portalData.client_id,
+          amount: selectedQuote.premium_quoted,
+          payment_method: 'pending_selection',
+          status: 'pending',
+          currency: 'NGN',
+          metadata: {
+            selected_quote_id: selectedQuote.id,
+            selected_insurer: selectedQuote.insurer_name,
+            selected_premium: selectedQuote.premium_quoted,
+            client_comments: clientComments,
+            selected_at: new Date().toISOString()
+          } as any
+        });
+
+      if (paymentError) throw paymentError;
+
+      // Send notification to broker
+      await supabase.functions.invoke('send-email-notification', {
+        body: {
+          type: 'client_quote_selection',
+          recipientEmail: 'broker@naijabrokerpro.com', // Should come from organization settings
+          subject: 'Client Quote Selection Confirmation',
+          message: `Client ${portalData.client?.name} has selected a quote from ${selectedQuote.insurer_name} with premium ₦${selectedQuote.premium_quoted.toLocaleString()}. ${clientComments ? `Client comments: ${clientComments}` : ''}`,
+          metadata: {
+            clientId: portalData.client_id,
+            quoteId: portalData.quote_id,
+            selectedQuote: selectedQuote,
+            clientComments
+          }
+        }
+      });
+
+      toast({
+        title: "Selection Submitted",
+        description: "Your quote selection has been submitted successfully. You will be contacted for payment processing.",
+      });
+
+    } catch (error: any) {
+      console.error('Error submitting selection:', error);
+      toast({
+        title: "Submission Error",
+        description: error.message || "Failed to submit selection",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="max-w-md w-full space-y-8 p-8">
-          <div className="text-center">
-            <Shield className="mx-auto h-12 w-12 text-blue-600" />
-            <h2 className="mt-6 text-3xl font-bold text-gray-900">Client Portal</h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Enter your email address to access your insurance information
-            </p>
-          </div>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Access Your Account</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleClientLogin} className="space-y-4">
-                <div>
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={inputEmail}
-                    onChange={(e) => setInputEmail(e.target.value)}
-                    placeholder="Enter your email address"
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full">
-                  Access Portal
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Loading your insurance quotes...</p>
         </div>
       </div>
     );
   }
 
+  if (!portalData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="p-6 text-center">
+            <h1 className="text-xl font-bold text-red-600 mb-2">Access Denied</h1>
+            <p className="text-gray-600">Invalid or expired portal link</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto p-6">
-        <ClientDashboard clientEmail={clientEmail} />
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Insurance Quote Selection</h1>
+          <p className="text-gray-600">
+            Welcome {portalData.client?.name}! Please review and select your preferred insurance quote.
+          </p>
+        </div>
+
+        {/* Quote Selection */}
+        <div className="space-y-6">
+          {quotes.map((quote, index) => (
+            <Card 
+              key={quote.id || index} 
+              className={`cursor-pointer transition-all hover:shadow-md ${
+                selectedQuote?.id === quote.id ? 'border-blue-500 bg-blue-50' : ''
+              }`}
+              onClick={() => handleQuoteSelection(quote)}
+            >
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl">{quote.insurer_name}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    {selectedQuote?.id === quote.id && (
+                      <Badge className="bg-blue-600">Selected</Badge>
+                    )}
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="text-sm font-medium">{quote.rating_score}/100</span>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <span className="text-gray-600 text-sm">Annual Premium</span>
+                    <p className="text-2xl font-bold text-green-600">₦{quote.premium_quoted.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 text-sm">Commission Split</span>
+                    <p className="text-lg font-semibold">{quote.commission_split}%</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 text-sm">Rating Score</span>
+                    <p className="text-lg font-semibold">{quote.rating_score}/100</p>
+                  </div>
+                </div>
+
+                {quote.terms_conditions && (
+                  <div className="mb-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Terms & Conditions</h4>
+                    <p className="text-sm text-gray-600">{quote.terms_conditions}</p>
+                  </div>
+                )}
+
+                {quote.exclusions && quote.exclusions.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Key Exclusions</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {quote.exclusions.map((exclusion, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          {exclusion}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {quote.document_url && (
+                  <div className="mt-4">
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={quote.document_url} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        View Policy Document
+                      </a>
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Comments Section */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5" />
+              Comments (Optional)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              placeholder="Any questions or special requirements? Let us know..."
+              value={clientComments}
+              onChange={(e) => setClientComments(e.target.value)}
+              rows={3}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Submit Button */}
+        <div className="mt-8 text-center">
+          <Button 
+            size="lg" 
+            onClick={handleSubmitSelection}
+            disabled={!selectedQuote || loading}
+            className="px-8"
+          >
+            {loading ? (
+              "Submitting..."
+            ) : selectedQuote ? (
+              <>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Confirm Selection & Proceed
+              </>
+            ) : (
+              "Please Select a Quote"
+            )}
+          </Button>
+          
+          {selectedQuote && (
+            <p className="text-sm text-gray-600 mt-2">
+              You have selected {selectedQuote.insurer_name} with premium ₦{selectedQuote.premium_quoted.toLocaleString()}
+            </p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="mt-12 text-center text-sm text-gray-500">
+          <p>Having questions? Contact your insurance broker for assistance.</p>
+          <p className="mt-1">This portal link will expire and cannot be reused after submission.</p>
+        </div>
       </div>
     </div>
   );

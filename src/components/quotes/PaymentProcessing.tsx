@@ -40,7 +40,7 @@ export const PaymentProcessing = ({ selectedQuote, clientData, onPaymentComplete
     setPaymentStatus('completed');
     const paymentData = {
       id: `PAY-${Date.now()}`,
-      amount: selectedQuote.premium,
+      amount: selectedQuote.premium_quoted || selectedQuote.premium || 0,
       method: paymentMethod,
       status: 'completed',
       transactionId: `TXN-${Date.now()}`,
@@ -81,7 +81,7 @@ export const PaymentProcessing = ({ selectedQuote, clientData, onPaymentComplete
               </div>
               <div>
                 <span className="text-gray-600">Insurer:</span>
-                <p className="font-semibold">{selectedQuote.insurerName}</p>
+                <p className="font-semibold">{selectedQuote.insurer_name}</p>
               </div>
             </div>
             
@@ -135,7 +135,7 @@ export const PaymentProcessing = ({ selectedQuote, clientData, onPaymentComplete
               <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
               <h3 className="font-semibold text-green-800 mb-2">Payment Successful!</h3>
               <p className="text-green-600 mb-4">
-                Payment of ₦{selectedQuote.premium.toLocaleString()} has been confirmed
+                Payment of ₦{(selectedQuote.premium_quoted || selectedQuote.premium || 0).toLocaleString()} has been confirmed
               </p>
               <Badge variant="secondary" className="mb-4">
                 Transaction ID: TXN-{Date.now()}
