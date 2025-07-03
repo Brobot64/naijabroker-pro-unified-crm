@@ -46,17 +46,39 @@ export const ClientPortal = () => {
 
   const fetchPortalData = async () => {
     try {
+      console.log('Fetching portal data for token:', token);
+      
       // Get portal link data
       const { data: portalLink, error } = await supabase
         .from('client_portal_links')
         .select('*')
         .eq('token', token)
-        .gt('expires_at', new Date().toISOString())
-        .eq('is_used', false)
         .maybeSingle();
 
-      if (error || !portalLink) {
-        throw new Error('Invalid or expired portal link');
+      console.log('Portal link query result:', { portalLink, error });
+
+      if (error) {
+        console.error('Database error:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      if (!portalLink) {
+        console.error('No portal link found for token:', token);
+        throw new Error('Portal link not found');
+      }
+
+      // Check if expired
+      const now = new Date();
+      const expiresAt = new Date(portalLink.expires_at);
+      console.log('Expiration check:', { now, expiresAt, expired: now > expiresAt });
+      
+      if (now > expiresAt) {
+        throw new Error('Portal link has expired');
+      }
+
+      // Check if already used
+      if (portalLink.is_used) {
+        throw new Error('Portal link has already been used');
       }
 
       setPortalData(portalLink);
