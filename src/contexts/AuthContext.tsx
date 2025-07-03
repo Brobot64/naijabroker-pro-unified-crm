@@ -55,6 +55,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (profileError) {
         console.error('Profile fetch error:', profileError);
+        console.log('Will check if profile exists and create if needed');
+        
+        // If profile doesn't exist, user should go to onboarding
+        setOrganizationId(null);
+        setUserRole(null);
         return;
       }
 
@@ -120,10 +125,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session.user);
         
         if (session.user) {
-          // Use setTimeout to prevent potential deadlocks
-          setTimeout(() => {
-            fetchUserData(session.user.id);
-          }, 0);
+          // Fetch user data immediately without setTimeout to ensure org data loads
+          await fetchUserData(session.user.id);
         }
         
         setLoading(false);
@@ -146,9 +149,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session) {
           setSession(session);
           setUser(session.user);
-          setTimeout(() => {
-            fetchUserData(session.user.id);
-          }, 0);
+          // Fetch user data immediately to ensure org data loads
+          await fetchUserData(session.user.id);
         } else {
           clearUserData();
         }

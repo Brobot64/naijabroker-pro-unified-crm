@@ -32,11 +32,16 @@ export const evaluatedQuotesService = {
       if (!user) throw new Error('User not authenticated');
 
       // Get user's organization
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('organization_id')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('Profile error in saveEvaluatedQuotes:', profileError);
+        throw new Error(`Profile fetch error: ${profileError.message}`);
+      }
 
       if (!profile?.organization_id) {
         throw new Error('User organization not found');
