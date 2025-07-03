@@ -190,9 +190,10 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete }: Qu
         );
       
       case 'payment-processing':
+        console.log('Payment processing - workflow data:', state.workflowData);
         return (
           <PaymentProcessing
-            selectedQuote={state.workflowData.clientSelection}
+            selectedQuote={state.workflowData.clientSelection || (state.workflowData as any).clientselection}
             clientData={state.workflowData.client}
             onPaymentComplete={(paymentData) => 
               handleStepComplete('payment-processing', paymentData)
