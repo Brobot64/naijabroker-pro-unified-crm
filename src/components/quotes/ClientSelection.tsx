@@ -99,8 +99,28 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
   };
 
   const simulateClientSelection = (quote: any) => {
-    setClientSelection(quote);
-    onSelectionComplete(quote);
+    // Ensure the quote has required properties
+    const processedQuote = {
+      ...quote,
+      id: quote.id || quote.insurer_id || `quote-${Date.now()}`,
+      insurer_name: quote.insurer_name || 'Unknown Insurer',
+      premium_quoted: Number(quote.premium_quoted) || 0,
+      commission_split: Number(quote.commission_split) || 0,
+      rating_score: Number(quote.rating_score) || 0,
+      response_received: Boolean(quote.response_received),
+      terms_conditions: quote.terms_conditions || '',
+      exclusions: Array.isArray(quote.exclusions) ? quote.exclusions : [],
+      coverage_limits: quote.coverage_limits || {},
+      selected_at: new Date().toISOString()
+    };
+    
+    setClientSelection(processedQuote);
+    onSelectionComplete(processedQuote);
+    
+    toast({
+      title: "Client Selection Simulated",
+      description: `Selected ${processedQuote.insurer_name} with premium ₦${processedQuote.premium_quoted.toLocaleString()}`,
+    });
   };
 
   const copyPortalLink = () => {
