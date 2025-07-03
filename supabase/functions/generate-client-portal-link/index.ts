@@ -73,7 +73,7 @@ serve(async (req) => {
       .from("clients")
       .select("name, email")
       .eq("id", clientId)
-      .single();
+      .maybeSingle();
 
     // Generate portal URL
     const baseUrl = req.headers.get("origin") || "http://localhost:5173";

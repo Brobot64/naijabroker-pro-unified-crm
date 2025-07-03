@@ -54,6 +54,13 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
       // Get the actual quote ID from the quotes
       const quoteId = validQuotes[0]?.quote_id || clientData.quote_id || '00ad54ee-4009-413a-a0bb-658a14ff41de';
       
+      console.log('Generating portal link with:', {
+        quoteId,
+        clientId: clientData.id || 'temp-client-id',
+        validQuotesCount: validQuotes.length,
+        clientData: clientData
+      });
+      
       // Generate secure client portal link with token
       const { data, error } = await evaluatedQuotesService.generateClientPortalLink(
         quoteId,

@@ -16,6 +16,30 @@ export const PaymentProcessing = ({ selectedQuote, clientData, onPaymentComplete
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'processing' | 'completed' | 'failed'>('pending');
   const [paymentMethod, setPaymentMethod] = useState<'gateway' | 'bank_transfer' | 'cheque'>('gateway');
 
+  // Safety check for selectedQuote
+  if (!selectedQuote) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={onBack}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h2 className="text-2xl font-bold">Payment Processing</h2>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-6 text-center">
+            <p className="text-gray-600">No quote selected for payment processing.</p>
+            <Button variant="outline" onClick={onBack} className="mt-4">
+              Go Back
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const handlePaymentGateway = () => {
     setPaymentStatus('processing');
     
@@ -81,7 +105,7 @@ export const PaymentProcessing = ({ selectedQuote, clientData, onPaymentComplete
               </div>
               <div>
                 <span className="text-gray-600">Insurer:</span>
-                <p className="font-semibold">{selectedQuote.insurer_name}</p>
+                <p className="font-semibold">{selectedQuote.insurer_name || 'Unknown Insurer'}</p>
               </div>
             </div>
             

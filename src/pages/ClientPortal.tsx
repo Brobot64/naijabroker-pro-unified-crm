@@ -53,7 +53,7 @@ export const ClientPortal = () => {
         .eq('token', token)
         .gt('expires_at', new Date().toISOString())
         .eq('is_used', false)
-        .single();
+        .maybeSingle();
 
       if (error || !portalLink) {
         throw new Error('Invalid or expired portal link');
@@ -67,7 +67,7 @@ export const ClientPortal = () => {
         .from('clients')
         .select('name, email')
         .eq('id', portalLink.client_id)
-        .single();
+        .maybeSingle();
 
       setPortalData(prev => ({ ...prev, client }));
     } catch (error: any) {
