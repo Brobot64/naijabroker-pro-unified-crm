@@ -62,10 +62,19 @@ interface OnboardingStep {
 
 export const OnboardingFlow = ({ onComplete }: { onComplete: (data: OnboardingData) => void }) => {
   console.log('OnboardingFlow: Component rendering');
+  
+  // Add a simple render test
+  const [isLoaded, setIsLoaded] = useState(false);
+  
+  useEffect(() => {
+    console.log('OnboardingFlow: useEffect triggered');
+    setIsLoaded(true);
+  }, []);
+
   const [currentStep, setCurrentStep] = useState(0);
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({
     organization: { name: '', plan: '', industry: '', size: '' },
-    adminUser: { firstName: '', lastName: '', email: '', phone: '', role: 'BrokerAdmin' }, // Fixed: Changed from 'OrganizationAdmin' to 'BrokerAdmin'
+    adminUser: { firstName: '', lastName: '', email: '', phone: '', role: 'BrokerAdmin' },
     systemConfig: {
       currency: 'NGN',
       timezone: 'Africa/Lagos',
@@ -125,6 +134,21 @@ export const OnboardingFlow = ({ onComplete }: { onComplete: (data: OnboardingDa
     }
   ]);
 
+  console.log('OnboardingFlow: Current state', { currentStep, isLoaded });
+
+  // Early return with loading state
+  if (!isLoaded) {
+    console.log('OnboardingFlow: Not loaded yet, showing loading');
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading onboarding...</p>
+        </div>
+      </div>
+    );
+  }
+
   const updateOnboardingData = (stepData: Partial<OnboardingData>) => {
     setOnboardingData(prev => ({ ...prev, ...stepData }));
   };
@@ -163,6 +187,7 @@ export const OnboardingFlow = ({ onComplete }: { onComplete: (data: OnboardingDa
 
   const renderCurrentStep = () => {
     const stepId = steps[currentStep].id;
+    console.log('OnboardingFlow: Rendering step', stepId);
     
     switch (stepId) {
       case 'organization':
@@ -178,9 +203,11 @@ export const OnboardingFlow = ({ onComplete }: { onComplete: (data: OnboardingDa
       case 'completion':
         return <OnboardingCompletion data={onboardingData} onComplete={() => onComplete(onboardingData)} />;
       default:
-        return null;
+        return <div className="p-4 text-red-500">Unknown step: {stepId}</div>;
     }
   };
+
+  console.log('OnboardingFlow: About to render main UI');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex">
