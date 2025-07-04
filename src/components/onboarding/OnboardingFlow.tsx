@@ -289,3 +289,5 @@ export const OnboardingFlow = ({ onComplete }: { onComplete: (data: OnboardingDa
     </div>
   );
 };
+
+export default OnboardingFlow;
