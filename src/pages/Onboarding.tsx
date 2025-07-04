@@ -76,16 +76,7 @@ const Onboarding = () => {
   }
 
   console.log('Onboarding page: Rendering OnboardingFlow');
-  console.log('Onboarding page: About to return OnboardingFlow component');
-  
-  // Test render
-  return (
-    <div className="min-h-screen bg-red-100 p-8">
-      <h1 className="text-2xl font-bold text-red-900">ONBOARDING PAGE TEST</h1>
-      <p>If you see this, the page is rendering</p>
-      <OnboardingFlow onComplete={handleOnboardingComplete} />
-    </div>
-  );
+  return <OnboardingFlow onComplete={handleOnboardingComplete} />;
 };
 
 export default Onboarding;
