@@ -61,7 +61,7 @@ interface OnboardingStep {
 }
 
 export const OnboardingFlow = ({ onComplete }: { onComplete: (data: OnboardingData) => void }) => {
-  console.log('OnboardingFlow: Component rendering');
+  console.log('OnboardingFlow: Component rendering, onComplete:', typeof onComplete);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({
@@ -126,6 +126,7 @@ export const OnboardingFlow = ({ onComplete }: { onComplete: (data: OnboardingDa
     }
   ]);
 
+  console.log('OnboardingFlow: State initialized, currentStep:', currentStep, 'steps:', steps.length);
 
   const updateOnboardingData = (stepData: Partial<OnboardingData>) => {
     setOnboardingData(prev => ({ ...prev, ...stepData }));
