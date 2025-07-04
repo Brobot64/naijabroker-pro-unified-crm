@@ -38,7 +38,7 @@ export const ProtectedRoute = ({ children, requireRole }: ProtectedRouteProps) =
   }
 
   // If user is authenticated but has no organization, redirect to onboarding
-  if (user && !organizationId) {
+  if (user && !organizationId && location.pathname !== '/onboarding') {
     console.log('ProtectedRoute: No organization, redirecting to onboarding');
     return <Navigate to="/onboarding" replace />;
   }
