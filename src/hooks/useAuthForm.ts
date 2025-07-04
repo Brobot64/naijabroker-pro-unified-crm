@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useAuthNavigation } from "@/hooks/useAuthNavigation";
 
 export const useAuthForm = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -32,34 +33,8 @@ export const useAuthForm = () => {
     }
   }, [toast]);
 
-  // Handle redirect after successful authentication
-  useEffect(() => {
-    if (!loading && user && !isLoading) {
-      console.log('Auth form redirect check:', { user: user.id, organizationId, loading, isLoading });
-      
-      // Check for custom redirect
-      const redirectTo = localStorage.getItem('redirect_after_signin');
-      if (redirectTo) {
-        localStorage.removeItem('redirect_after_signin');
-        navigate(redirectTo);
-        return;
-      }
-      
-      // Add a small delay to ensure organizationId is properly loaded
-      const timeoutId = setTimeout(() => {
-        // Default redirect logic - prioritize dashboard for existing organizations
-        if (organizationId) {
-          console.log('User has organization, redirecting to dashboard');
-          navigate('/app');
-        } else {
-          console.log('User has no organization, redirecting to onboarding');
-          navigate('/onboarding');
-        }
-      }, 100);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [user, organizationId, navigate, loading, isLoading]);
+  // Use centralized auth navigation
+  useAuthNavigation({ user, organizationId, loading, isLoading });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

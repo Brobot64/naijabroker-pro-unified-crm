@@ -1,6 +1,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useLocation } from "react-router-dom";
+import { useAuthNavigation } from "@/hooks/useAuthNavigation";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -19,8 +20,15 @@ export const ProtectedRoute = ({ children, requireRole }: ProtectedRouteProps) =
     pathname: location.pathname 
   });
 
+  // Get navigation state from centralized hook
+  const { shouldRedirectToAuth, isNavigating } = useAuthNavigation({ 
+    user, 
+    organizationId, 
+    loading 
+  });
+
   // Show loading spinner while authentication is being determined
-  if (loading) {
+  if (loading || isNavigating) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -32,28 +40,19 @@ export const ProtectedRoute = ({ children, requireRole }: ProtectedRouteProps) =
   }
 
   // Redirect to auth page if user is not authenticated
-  if (!user) {
+  if (shouldRedirectToAuth) {
     console.log('ProtectedRoute: No user, redirecting to auth');
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // If user is authenticated but has no organization, redirect to onboarding
-  if (user && !organizationId && location.pathname !== '/onboarding') {
-    console.log('ProtectedRoute: No organization, redirecting to onboarding');
-    return <Navigate to="/onboarding" replace />;
-  }
-
-  // Special handling for onboarding route - only allow if user has no organization
+  // For onboarding route - allow access regardless of organization status
+  // The centralized navigation will handle redirects appropriately
   if (location.pathname === '/onboarding') {
-    if (organizationId) {
-      console.log('ProtectedRoute: User has organization, redirecting to app');
-      return <Navigate to="/app" replace />;
-    }
     console.log('ProtectedRoute: Allowing access to onboarding');
     return <>{children}</>;
   }
 
-  // Check role requirements
+  // Check role requirements for protected pages
   if (requireRole && userRole && !requireRole.includes(userRole)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
