@@ -76,7 +76,22 @@ const Onboarding = () => {
   }
 
   console.log('Onboarding page: Rendering OnboardingFlow');
-  return <OnboardingFlow onComplete={handleOnboardingComplete} />;
+  
+  // Temporary simple test to see if this renders
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">Organization Setup</h1>
+        <p className="text-gray-600 mb-8">Let's get your organization set up.</p>
+        <div className="bg-white rounded-lg shadow p-6">
+          <p>Test content - if you can see this, the page is working</p>
+        </div>
+      </div>
+    </div>
+  );
+  
+  // Original component (commented out temporarily)
+  // return <OnboardingFlow onComplete={handleOnboardingComplete} />;
 };
 
 export default Onboarding;
