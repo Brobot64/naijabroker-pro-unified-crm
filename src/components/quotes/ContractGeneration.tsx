@@ -132,7 +132,7 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
                 <div className="space-y-3">
                   <div className="bg-blue-50 p-3 rounded">
                     <p className="text-sm text-blue-800">
-                      Final policy document received from {selectedQuote.insurerName}
+                      Final policy document received from {selectedQuote.insurer_name || 'Insurer'}
                     </p>
                   </div>
                   
@@ -193,15 +193,15 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
             </div>
             <div>
               <span className="text-gray-600">Insurer:</span>
-              <p className="font-semibold">{selectedQuote.insurerName}</p>
+              <p className="font-semibold">{selectedQuote.insurer_name || 'Unknown Insurer'}</p>
             </div>
             <div>
               <span className="text-gray-600">Premium:</span>
-              <p className="font-semibold">₦{selectedQuote.premium.toLocaleString()}</p>
+              <p className="font-semibold">₦{(selectedQuote.premium_quoted || selectedQuote.premium || 0).toLocaleString()}</p>
             </div>
             <div>
               <span className="text-gray-600">Sum Insured:</span>
-              <p className="font-semibold">₦{selectedQuote.sumInsured.toLocaleString()}</p>
+              <p className="font-semibold">₦{(selectedQuote.sum_insured || 0).toLocaleString()}</p>
             </div>
             <div>
               <span className="text-gray-600">Payment Status:</span>
