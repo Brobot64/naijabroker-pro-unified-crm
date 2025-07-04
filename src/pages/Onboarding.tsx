@@ -75,6 +75,7 @@ const Onboarding = () => {
     );
   }
 
+  console.log('Onboarding page: Rendering OnboardingFlow');
   return <OnboardingFlow onComplete={handleOnboardingComplete} />;
 };
 

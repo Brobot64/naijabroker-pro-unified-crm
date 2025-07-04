@@ -61,6 +61,7 @@ interface OnboardingStep {
 }
 
 export const OnboardingFlow = ({ onComplete }: { onComplete: (data: OnboardingData) => void }) => {
+  console.log('OnboardingFlow: Component rendering');
   const [currentStep, setCurrentStep] = useState(0);
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({
     organization: { name: '', plan: '', industry: '', size: '' },
