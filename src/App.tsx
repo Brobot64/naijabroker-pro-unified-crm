@@ -9,6 +9,7 @@ import Auth from './pages/Auth';
 import Landing from './pages/Landing';
 import Onboarding from './pages/Onboarding';
 import ClientPortal from './pages/ClientPortal';
+import Payment from './pages/Payment';
 import { Toaster } from "@/components/ui/toaster"
 import { GlobalErrorBoundary } from "@/components/common/GlobalErrorBoundary";
 
@@ -25,6 +26,7 @@ function App() {
               <Route path="/landing" element={<Landing />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/client-portal" element={<ClientPortal />} />
+              <Route path="/payment" element={<Payment />} />
               <Route path="/onboarding" element={
                 <ProtectedRoute>
                   <Onboarding />
