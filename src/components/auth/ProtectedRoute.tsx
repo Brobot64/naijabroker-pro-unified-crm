@@ -37,16 +37,20 @@ export const ProtectedRoute = ({ children, requireRole }: ProtectedRouteProps) =
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // Special handling for onboarding route - allow access even without organization
-  if (location.pathname === '/onboarding') {
-    console.log('ProtectedRoute: Allowing access to onboarding');
-    return <>{children}</>;
-  }
-
   // If user is authenticated but has no organization, redirect to onboarding
   if (user && !organizationId) {
     console.log('ProtectedRoute: No organization, redirecting to onboarding');
     return <Navigate to="/onboarding" replace />;
+  }
+
+  // Special handling for onboarding route - only allow if user has no organization
+  if (location.pathname === '/onboarding') {
+    if (organizationId) {
+      console.log('ProtectedRoute: User has organization, redirecting to app');
+      return <Navigate to="/app" replace />;
+    }
+    console.log('ProtectedRoute: Allowing access to onboarding');
+    return <>{children}</>;
   }
 
   // Check role requirements
