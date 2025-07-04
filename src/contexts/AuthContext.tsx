@@ -55,13 +55,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (profileError) {
         console.error('Profile fetch error:', profileError);
-        console.log('Will check if profile exists and create if needed');
+        console.log('Profile error details:', profileError.message, profileError.code);
         
         // If profile doesn't exist, user should go to onboarding
         setOrganizationId(null);
         setUserRole(null);
         return;
       }
+
+      console.log('Profile data fetched:', profile);
 
       if (profile?.organization_id) {
         console.log('Setting organization ID:', profile.organization_id);
