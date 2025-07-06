@@ -26,27 +26,9 @@ export const Sidebar = ({ activeSection, onSectionChange, userRole }: SidebarPro
   const menuItems = [
     {
       id: "dashboard",
-      label: "Dashboard",
+      label: "Dashboard", 
       icon: LayoutDashboard,
       roles: ["SuperAdmin", "BrokerAdmin", "Agent", "Underwriter", "Compliance", "User"]
-    },
-    {
-      id: "user-management",
-      label: "User Management",
-      icon: UserCog,
-      roles: ["SuperAdmin", "BrokerAdmin"]
-    },
-    {
-      id: "admin-controls",
-      label: "Admin Controls",
-      icon: Shield,
-      roles: ["SuperAdmin", "BrokerAdmin"]
-    },
-    {
-      id: "leads",
-      label: "Lead Management",
-      icon: Users,
-      roles: ["SuperAdmin", "BrokerAdmin", "Agent"]
     },
     {
       id: "quotes",
@@ -55,14 +37,14 @@ export const Sidebar = ({ activeSection, onSectionChange, userRole }: SidebarPro
       roles: ["SuperAdmin", "BrokerAdmin", "Agent", "Underwriter"]
     },
     {
-      id: "policies",
+      id: "policies", 
       label: "Policies",
       icon: Building2,
       roles: ["SuperAdmin", "BrokerAdmin", "Agent", "Underwriter"]
     },
     {
       id: "claims",
-      label: "Claims",
+      label: "Claims", 
       icon: Zap,
       roles: ["SuperAdmin", "BrokerAdmin", "Agent", "Underwriter", "Compliance"]
     },
@@ -73,10 +55,16 @@ export const Sidebar = ({ activeSection, onSectionChange, userRole }: SidebarPro
       roles: ["SuperAdmin", "BrokerAdmin"]
     },
     {
-      id: "compliance",
-      label: "Compliance",
+      id: "user-management",
+      label: "User Management",
+      icon: UserCog,
+      roles: ["SuperAdmin", "BrokerAdmin"]
+    },
+    {
+      id: "admin-controls", 
+      label: "Admin Controls",
       icon: Shield,
-      roles: ["SuperAdmin", "BrokerAdmin", "Compliance"]
+      roles: ["SuperAdmin", "BrokerAdmin"]
     },
     {
       id: "developer",
