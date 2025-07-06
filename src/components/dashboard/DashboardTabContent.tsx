@@ -19,6 +19,7 @@ const FinancialManagement = React.lazy(() => import("@/components/financial/Fina
 const WorkflowManager = React.lazy(() => import("@/components/workflow/WorkflowManager").then(module => ({ default: module.WorkflowManager })));
 const SocialMediaDashboard = React.lazy(() => import("@/components/social/SocialMediaDashboard").then(module => ({ default: module.SocialMediaDashboard })));
 const UserManagement = React.lazy(() => import("@/components/admin/UserManagement").then(module => ({ default: module.UserManagement })));
+const DeveloperDashboard = React.lazy(() => import("@/components/developer/DeveloperDashboard").then(module => ({ default: module.DeveloperDashboard })));
 
 const ComponentWrapper = ({ children }: { children: React.ReactNode }) => (
   <ErrorBoundary>
@@ -114,6 +115,12 @@ export const DashboardTabContent = ({ userRole }: DashboardTabContentProps) => {
       <TabsContent value="admin">
         <ComponentWrapper>
           <UserManagement />
+        </ComponentWrapper>
+      </TabsContent>
+
+      <TabsContent value="developer">
+        <ComponentWrapper>
+          <DeveloperDashboard />
         </ComponentWrapper>
       </TabsContent>
 
