@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Building2, Palette, Settings, Users } from "lucide-react";
+import { Building2, Palette, Settings, Users, DollarSign, CreditCard, Shield, Zap } from "lucide-react";
 import { ClientConfigurationSettings } from "./ClientConfigurationSettings";
+import { BankAccountSettings } from "./BankAccountSettings";
 
 interface OrganizationData {
   id: string;
@@ -167,23 +168,6 @@ export const OrganizationSettings = () => {
           <TabsTrigger value="integrations" className="flex items-center gap-2">
             <Zap className="w-4 h-4" />
             Integrations
-          </TabsTrigger>
-          </TabsTrigger>
-          <TabsTrigger value="branding" className="flex items-center gap-2">
-            <Palette className="w-4 h-4" />
-            Branding
-          </TabsTrigger>
-          <TabsTrigger value="system" className="flex items-center gap-2">
-            <Settings className="w-4 h-4" />
-            System
-          </TabsTrigger>
-          <TabsTrigger value="plan" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Plan & Industry
-          </TabsTrigger>
-          <TabsTrigger value="client-config" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Client Config
           </TabsTrigger>
         </TabsList>
 
@@ -440,6 +424,74 @@ export const OrganizationSettings = () => {
 
         <TabsContent value="client-config">
           <ClientConfigurationSettings />
+        </TabsContent>
+
+        <TabsContent value="banks">
+          <BankAccountSettings />
+        </TabsContent>
+
+        <TabsContent value="financial">
+          <Card>
+            <CardHeader>
+              <CardTitle>Financial Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-gray-600">Configure payment processing and financial settings.</p>
+              
+              <div>
+                <Label>Default Currency</Label>
+                <Select value={orgData.currency} onValueChange={(value) => setOrgData(prev => prev ? {...prev, currency: value} : null)}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NGN">NGN - Nigerian Naira</SelectItem>
+                    <SelectItem value="USD">USD - US Dollar</SelectItem>
+                    <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                    <SelectItem value="EUR">EUR - Euro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button onClick={() => updateOrganization({ currency: orgData.currency })} disabled={saving}>
+                {saving ? "Saving..." : "Save Financial Settings"}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="security">
+          <Card>
+            <CardHeader>
+              <CardTitle>Security Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-gray-600">Manage security and access control settings.</p>
+              
+              <div className="bg-yellow-50 p-4 rounded border border-yellow-200">
+                <p className="text-sm text-yellow-800">
+                  Security settings are currently managed at the system level. Contact support for advanced security configurations.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="integrations">
+          <Card>
+            <CardHeader>
+              <CardTitle>Integration Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-gray-600">Configure third-party integrations and API settings.</p>
+              
+              <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                <p className="text-sm text-blue-800">
+                  Integration features will be available in future updates. This includes payment gateways, email services, and reporting tools.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

@@ -1,389 +1,272 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, CreditCard, CheckCircle, ExternalLink, Upload, Building2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { ExternalLink, ArrowLeft, CheckCircle, Clock, CreditCard } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PaymentProcessingProps {
-  selectedQuote: any;
+  quoteId: string;
   clientData: any;
-  onPaymentComplete: (paymentData: any) => void;
+  evaluatedQuotes: any[];
+  selectedQuote?: any;
   onBack: () => void;
+  onPaymentComplete?: (paymentData: any) => void;
 }
 
-export const PaymentProcessing = ({ selectedQuote, clientData, onPaymentComplete, onBack }: PaymentProcessingProps) => {
-  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'processing' | 'completed' | 'failed'>('pending');
-  const [paymentMethod, setPaymentMethod] = useState<'gateway' | 'bank_transfer' | 'cheque'>('gateway');
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [bankTransferDetails, setBankTransferDetails] = useState({
-    accountName: '',
-    accountNumber: '',
-    bankName: '',
-    transactionReference: '',
-    notes: ''
-  });
+export const PaymentProcessing = ({ quoteId, clientData, evaluatedQuotes, selectedQuote, onBack, onPaymentComplete }: PaymentProcessingProps) => {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [paymentTransaction, setPaymentTransaction] = useState<any>(null);
+  const [paymentLink, setPaymentLink] = useState<string>('');
 
-  // Safety check for selectedQuote
-  if (!selectedQuote) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onBack}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h2 className="text-2xl font-bold">Payment Processing</h2>
-          </div>
-        </div>
-        <Card>
-          <CardContent className="p-6 text-center">
-            <p className="text-gray-600">No quote selected for payment processing.</p>
-            <Button variant="outline" onClick={onBack} className="mt-4">
-              Go Back
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  useEffect(() => {
+    loadPaymentStatus();
+  }, [quoteId]);
 
-  const handlePaymentGateway = () => {
-    setPaymentStatus('processing');
-    
-    // Simulate payment gateway redirect
-    setTimeout(() => {
-      setPaymentStatus('completed');
-      const paymentData = {
-        id: `PAY-${Date.now()}`,
-                amount: selectedQuote.premium_quoted || selectedQuote.premium,
-        method: paymentMethod,
-        status: 'completed',
-        transactionId: `TXN-${Date.now()}`,
-        paidAt: new Date().toISOString(),
-        quote: selectedQuote,
-        client: clientData
-      };
-      onPaymentComplete(paymentData);
-    }, 3000);
+  const loadPaymentStatus = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('payment_transactions')
+        .select('*')
+        .eq('quote_id', quoteId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setPaymentTransaction(data);
+      }
+    } catch (error) {
+      console.error('Error loading payment status:', error);
+    }
   };
 
-  const handleBankTransferSubmission = () => {
-    if (!bankTransferDetails.transactionReference || !uploadedFile) {
-      alert('Please provide transaction reference and upload proof of payment');
+  const generatePaymentLink = async () => {
+    if (!selectedQuote) {
+      toast({
+        title: "No Quote Selected",
+        description: "Please select a quote first",
+        variant: "destructive"
+      });
       return;
     }
-    
-    setPaymentStatus('processing');
-    // Simulate processing time
-    setTimeout(() => {
-      setPaymentStatus('completed');
-      const paymentData = {
-        id: `PAY-${Date.now()}`,
-        amount: selectedQuote.premium_quoted || selectedQuote.premium || 0,
-        method: paymentMethod,
-        status: 'pending_verification',
-        transactionId: bankTransferDetails.transactionReference,
-        paidAt: new Date().toISOString(),
-        quote: selectedQuote,
-        client: clientData,
-        bankTransferDetails,
-        proofDocument: uploadedFile.name
+
+    setLoading(true);
+    try {
+      // Create or update payment transaction
+      const transactionData = {
+        quote_id: quoteId,
+        client_id: clientData.id,
+        organization_id: clientData.organization_id,
+        amount: selectedQuote.premium_quoted,
+        currency: 'NGN',
+        payment_method: 'pending_selection',
+        status: 'pending',
+        metadata: {
+          selected_quote: selectedQuote,
+          client_selection_confirmed: true,
+          generated_at: new Date().toISOString()
+        }
       };
-      onPaymentComplete(paymentData);
-    }, 2000);
+
+      const { data: transaction, error } = await supabase
+        .from('payment_transactions')
+        .upsert(transactionData, { 
+          onConflict: 'quote_id',
+          ignoreDuplicates: false 
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Generate payment link
+      const { data: linkData, error: linkError } = await supabase.functions.invoke('generate-payment-link', {
+        body: {
+          paymentTransactionId: transaction.id,
+          amount: selectedQuote.premium_quoted,
+          currency: 'NGN',
+          clientEmail: clientData.email,
+          clientName: clientData.name
+        }
+      });
+
+      if (linkError) throw linkError;
+
+      setPaymentLink(linkData.paymentUrl || '');
+      setPaymentTransaction(transaction);
+
+      toast({
+        title: "Payment Link Generated",
+        description: "Payment link has been generated and can be sent to client"
+      });
+
+    } catch (error: any) {
+      console.error('Error generating payment link:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate payment link",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const simulateWebhookConfirmation = () => {
-    setPaymentStatus('completed');
-    const paymentData = {
-      id: `PAY-${Date.now()}`,
-      amount: selectedQuote.premium_quoted || selectedQuote.premium || 0,
-      method: paymentMethod,
-      status: 'completed',
-      transactionId: `TXN-${Date.now()}`,
-      paidAt: new Date().toISOString(),
-      quote: selectedQuote,
-      client: clientData
-    };
-    onPaymentComplete(paymentData);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-green-600';
+      case 'pending_verification': return 'bg-yellow-600';
+      case 'failed': return 'bg-red-600';
+      default: return 'bg-gray-600';
+    }
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Validate file type (images and PDFs only)
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-      if (allowedTypes.includes(file.type)) {
-        setUploadedFile(file);
-      } else {
-        alert('Please upload only images (JPG, PNG) or PDF files');
-      }
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed': return <CheckCircle className="h-4 w-4" />;
+      case 'pending_verification': return <Clock className="h-4 w-4" />;
+      default: return <CreditCard className="h-4 w-4" />;
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Payment Processing</CardTitle>
+          <Button variant="outline" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
           </Button>
-          <h2 className="text-2xl font-bold">Payment Processing</h2>
         </div>
-        {paymentStatus === 'completed' && (
-          <Button onClick={() => onPaymentComplete({ status: 'confirmed' })}>
-            Continue to Contract Generation
-          </Button>
-        )}
-      </div>
-
-      {/* Payment Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Payment Summary */}
+        <Card className="bg-gray-50">
+          <CardHeader>
+            <CardTitle className="text-sm">Payment Summary</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="text-gray-600">Client:</span>
-                <p className="font-semibold">{clientData.name}</p>
-              </div>
-              <div>
-                <span className="text-gray-600">Insurer:</span>
-                <p className="font-semibold">{selectedQuote.insurer_name || 'Unknown Insurer'}</p>
-              </div>
+              <div><strong>Client:</strong> {clientData?.name}</div>
+              <div><strong>Client ID:</strong> {clientData?.client_code}</div>
+              <div><strong>Selected Insurer:</strong> {selectedQuote?.insurer_name || 'N/A'}</div>
+              <div><strong>Total Premium:</strong> ₦{selectedQuote?.premium_quoted?.toLocaleString() || '0'}</div>
             </div>
-            
-            <div className="border-t pt-4">
-              <div className="flex justify-between items-center text-lg">
-                <span>Total Premium:</span>
-                <span className="font-bold">₦{(selectedQuote.premium_quoted || selectedQuote.premium || 0).toLocaleString()}</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Payment Method Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Payment Method</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {paymentStatus === 'pending' && (
-            <div className="space-y-4">
-              {/* Payment Method Tabs */}
-              <div className="flex gap-2 mb-4">
-                <Button 
-                  variant={paymentMethod === 'gateway' ? 'default' : 'outline'}
-                  onClick={() => setPaymentMethod('gateway')}
-                  className="flex items-center gap-2"
-                >
-                  <CreditCard className="h-4 w-4" />
-                  Gateway
-                </Button>
-                <Button 
-                  variant={paymentMethod === 'bank_transfer' ? 'default' : 'outline'}
-                  onClick={() => setPaymentMethod('bank_transfer')}
-                  className="flex items-center gap-2"
-                >
-                  <Building2 className="h-4 w-4" />
-                  Bank Transfer
-                </Button>
+        {/* Payment Status */}
+        {paymentTransaction && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Payment Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2 mb-4">
+                <Badge className={getStatusColor(paymentTransaction.status)}>
+                  {getStatusIcon(paymentTransaction.status)}
+                  <span className="ml-1">{paymentTransaction.status.replace('_', ' ').toUpperCase()}</span>
+                </Badge>
+                <span className="text-sm text-gray-600">
+                  Updated: {new Date(paymentTransaction.updated_at).toLocaleString()}
+                </span>
               </div>
 
-              {/* Gateway Payment */}
-              {paymentMethod === 'gateway' && (
-                <div className="space-y-3">
-                  <Button 
-                    onClick={handlePaymentGateway}
-                    className="w-full flex items-center justify-center gap-2"
-                  >
-                    <CreditCard className="h-4 w-4" />
-                    Pay via Gateway (Paystack/Flutterwave)
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    onClick={simulateWebhookConfirmation}
-                    className="w-full"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Simulate Webhook Confirmation
-                  </Button>
+              {paymentTransaction.status === 'pending_verification' && (
+                <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
+                  <p className="text-sm text-yellow-800">
+                    Bank transfer details submitted by client. Awaiting payment verification.
+                  </p>
                 </div>
               )}
 
-              {/* Bank Transfer Payment */}
-              {paymentMethod === 'bank_transfer' && (
-                <div className="space-y-4">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h4 className="font-semibold mb-2">Bank Details</h4>
-                    <div className="text-sm space-y-1">
-                      <p><strong>Account Name:</strong> Insurance Broker Ltd</p>
-                      <p><strong>Account Number:</strong> 1234567890</p>
-                      <p><strong>Bank:</strong> Access Bank</p>
-                      <p><strong>Amount:</strong> ₦{(selectedQuote.premium_quoted || selectedQuote.premium || 0).toLocaleString()}</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="accountName">Account Name</Label>
-                      <Input
-                        id="accountName"
-                        value={bankTransferDetails.accountName}
-                        onChange={(e) => setBankTransferDetails({...bankTransferDetails, accountName: e.target.value})}
-                        placeholder="Your account name"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="accountNumber">Account Number</Label>
-                      <Input
-                        id="accountNumber"
-                        value={bankTransferDetails.accountNumber}
-                        onChange={(e) => setBankTransferDetails({...bankTransferDetails, accountNumber: e.target.value})}
-                        placeholder="Your account number"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="bankName">Bank Name</Label>
-                      <Input
-                        id="bankName"
-                        value={bankTransferDetails.bankName}
-                        onChange={(e) => setBankTransferDetails({...bankTransferDetails, bankName: e.target.value})}
-                        placeholder="Your bank name"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="transactionRef">Transaction Reference</Label>
-                      <Input
-                        id="transactionRef"
-                        value={bankTransferDetails.transactionReference}
-                        onChange={(e) => setBankTransferDetails({...bankTransferDetails, transactionReference: e.target.value})}
-                        placeholder="e.g. TRX123456789"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="notes">Additional Notes (Optional)</Label>
-                    <Textarea
-                      id="notes"
-                      value={bankTransferDetails.notes}
-                      onChange={(e) => setBankTransferDetails({...bankTransferDetails, notes: e.target.value})}
-                      placeholder="Any additional information"
-                      rows={2}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="proofUpload">Upload Proof of Payment *</Label>
-                    <div className="mt-2">
-                      <Input
-                        id="proofUpload"
-                        type="file"
-                        accept="image/*,.pdf"
-                        onChange={handleFileUpload}
-                        className="mb-2"
-                      />
-                      {uploadedFile && (
-                        <div className="flex items-center gap-2 text-green-600 text-sm">
-                          <Upload className="h-4 w-4" />
-                          {uploadedFile.name} ({(uploadedFile.size / 1024 / 1024).toFixed(2)}MB)
-                        </div>
-                      )}
-                      <p className="text-xs text-gray-500 mt-1">
-                        Upload image (JPG, PNG) or PDF proof of payment
-                      </p>
-                    </div>
-                  </div>
-
-                  <Button 
-                    onClick={handleBankTransferSubmission}
-                    className="w-full flex items-center justify-center gap-2"
-                    disabled={!bankTransferDetails.transactionReference || !uploadedFile}
-                  >
-                    <Upload className="h-4 w-4" />
-                    Submit Bank Transfer Details
-                  </Button>
+              {paymentTransaction.status === 'completed' && (
+                <div className="bg-green-50 p-3 rounded border border-green-200">
+                  <p className="text-sm text-green-800">
+                    Payment confirmed! Policy processing can begin.
+                  </p>
                 </div>
               )}
-            </div>
-          )}
+            </CardContent>
+          </Card>
+        )}
 
-          {paymentStatus === 'processing' && (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Processing payment...</p>
-              <p className="text-sm text-gray-500">Please wait while we confirm your payment</p>
+        {/* Generate Payment Link */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Generate Payment Link</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><strong>Client:</strong> {clientData?.name}</div>
+              <div><strong>Amount:</strong> ₦{selectedQuote?.premium_quoted?.toLocaleString() || '600,000'}</div>
+              <div><strong>Client Email Address:</strong> {clientData?.email}</div>
             </div>
-          )}
 
-          {paymentStatus === 'completed' && (
-            <div className="bg-green-50 p-6 rounded-lg text-center">
-              <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
-              <h3 className="font-semibold text-green-800 mb-2">
-                {paymentMethod === 'bank_transfer' ? 'Bank Transfer Submitted!' : 'Payment Successful!'}
-              </h3>
-              <p className="text-green-600 mb-4">
-                {paymentMethod === 'bank_transfer' 
-                  ? `Bank transfer details for ₦${(selectedQuote.premium_quoted || selectedQuote.premium || 0).toLocaleString()} have been submitted for verification`
-                  : `Payment of ₦${(selectedQuote.premium_quoted || selectedQuote.premium || 0).toLocaleString()} has been confirmed`
-                }
-              </p>
-              <Badge variant="secondary" className="mb-4">
-                {paymentMethod === 'bank_transfer' 
-                  ? `Reference: ${bankTransferDetails.transactionReference}`
-                  : `Transaction ID: TXN-${Date.now()}`
-                }
-              </Badge>
-              <p className="text-sm text-green-600">
-                {paymentMethod === 'bank_transfer' 
-                  ? 'Your payment will be verified and processed within 24 hours'
-                  : 'Interim contract will be generated automatically'
-                }
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            {!paymentLink ? (
+              <Button 
+                onClick={generatePaymentLink} 
+                disabled={loading}
+                className="w-full"
+              >
+                {loading ? "Generating..." : "Generate & Send Payment Link"}
+              </Button>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-green-50 p-4 rounded border border-green-200">
+                  <div className="flex items-center gap-2 text-green-800 mb-2">
+                    <CheckCircle className="h-4 w-4" />
+                    <span className="font-medium">Payment Link Generated</span>
+                  </div>
+                  <p className="text-sm text-green-700 mb-3">
+                    Payment link has been generated and sent to the client's email address.
+                  </p>
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={paymentLink} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      Open Payment Link
+                    </a>
+                  </Button>
+                </div>
 
-      {/* Payment Status Updates */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment Status</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full ${paymentStatus !== 'pending' ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-              <span className={paymentStatus !== 'pending' ? 'text-green-600' : 'text-gray-500'}>
-                Payment Initiated
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full ${paymentStatus === 'completed' ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-              <span className={paymentStatus === 'completed' ? 'text-green-600' : 'text-gray-500'}>
-                Payment Confirmed
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-gray-300"></div>
-              <span className="text-gray-500">Contract Generation</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+                <Button 
+                  onClick={generatePaymentLink} 
+                  disabled={loading}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {loading ? "Regenerating..." : "Regenerate Payment Link"}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Dynamic Status Updates */}
+        <div className="bg-blue-50 p-4 rounded border border-blue-200">
+          <h4 className="font-medium text-blue-800 mb-2">Payment Status Updates</h4>
+          <ul className="text-sm text-blue-700 space-y-1">
+            <li>• Payment status updates automatically as client completes payment</li>
+            <li>• You'll be notified when bank transfer is submitted for verification</li>
+            <li>• Gateway payments are processed immediately</li>
+            <li>• Use the refresh button to check for status changes</li>
+          </ul>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={loadPaymentStatus}
+            className="mt-3"
+          >
+            Refresh Status
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 };

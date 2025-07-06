@@ -194,8 +194,10 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete }: Qu
         console.log('Payment processing - workflow data:', state.workflowData);
         return (
           <PaymentProcessing
-            selectedQuote={state.workflowData.clientSelection || (state.workflowData as any).clientselection}
+            quoteId={state.workflowData.quote?.id || ''}
             clientData={state.workflowData.client}
+            evaluatedQuotes={(state.workflowData as any).quoteevaluation || state.workflowData.quotes || []}
+            selectedQuote={state.workflowData.clientSelection || (state.workflowData as any).clientselection}
             onPaymentComplete={(paymentData) => 
               handleStepComplete('payment-processing', paymentData)
             }

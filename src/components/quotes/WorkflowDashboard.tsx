@@ -28,6 +28,7 @@ export const WorkflowDashboard = () => {
     { value: "insurer-matching", label: "Insurer Matching" },
     { value: "quote-evaluation", label: "Quote Evaluation" },
     { value: "client-selection", label: "Client Selection" },
+    { value: "client_approved", label: "Client Approved" },
     { value: "payment-processing", label: "Payment Processing" },
     { value: "contract-generation", label: "Contract Generation" }
   ];
