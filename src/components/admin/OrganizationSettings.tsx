@@ -143,10 +143,31 @@ export const OrganizationSettings = () => {
       </div>
 
       <Tabs defaultValue="basic" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="basic" className="flex items-center gap-2">
             <Building2 className="w-4 h-4" />
             Basic Info
+          </TabsTrigger>
+          <TabsTrigger value="branding" className="flex items-center gap-2">
+            <Palette className="w-4 h-4" />
+            Branding
+          </TabsTrigger>
+          <TabsTrigger value="financial" className="flex items-center gap-2">
+            <DollarSign className="w-4 h-4" />
+            Financial
+          </TabsTrigger>
+          <TabsTrigger value="banks" className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4" />
+            Bank Accounts
+          </TabsTrigger>
+          <TabsTrigger value="security" className="flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Security
+          </TabsTrigger>
+          <TabsTrigger value="integrations" className="flex items-center gap-2">
+            <Zap className="w-4 h-4" />
+            Integrations
+          </TabsTrigger>
           </TabsTrigger>
           <TabsTrigger value="branding" className="flex items-center gap-2">
             <Palette className="w-4 h-4" />

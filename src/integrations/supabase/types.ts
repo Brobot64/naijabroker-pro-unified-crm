@@ -1214,6 +1214,7 @@ export type Database = {
       organizations: {
         Row: {
           address: string | null
+          bank_details: Json | null
           business_hours: string | null
           created_at: string | null
           currency: string | null
@@ -1234,6 +1235,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          bank_details?: Json | null
           business_hours?: string | null
           created_at?: string | null
           currency?: string | null
@@ -1254,6 +1256,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          bank_details?: Json | null
           business_hours?: string | null
           created_at?: string | null
           currency?: string | null

@@ -27,6 +27,8 @@ export const Payment = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [transaction, setTransaction] = useState<PaymentTransaction | null>(null);
+  const [clientData, setClientData] = useState<any>(null);
+  const [organizationBanks, setOrganizationBanks] = useState<any[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<string>('gateway');
   const [bankTransferDetails, setBankTransferDetails] = useState({
     transactionReference: '',
@@ -65,6 +67,30 @@ export const Payment = () => {
       }
 
       setTransaction(data);
+
+      // Load client data
+      const { data: client, error: clientError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', data.client_id)
+        .single();
+
+      if (!clientError && client) {
+        setClientData(client);
+      }
+
+      // Load organization bank details
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .select('bank_details')
+        .eq('id', data.organization_id)
+        .single();
+
+      if (!orgError && orgData?.bank_details) {
+        const banks = Array.isArray(orgData.bank_details) ? orgData.bank_details : [];
+        setOrganizationBanks(banks);
+      }
+
     } catch (error: any) {
       console.error('Error fetching transaction:', error);
       toast({
@@ -280,12 +306,35 @@ export const Payment = () => {
               {/* Bank Account Details */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h4 className="font-medium mb-2">Transfer to:</h4>
-                <div className="space-y-1 text-sm">
-                  <p><strong>Account Name:</strong> NaijaBroker Pro Limited</p>
-                  <p><strong>Account Number:</strong> 1234567890</p>
-                  <p><strong>Bank:</strong> First Bank of Nigeria</p>
-                  <p><strong>Amount:</strong> {transaction.currency} {transaction.amount.toLocaleString()}</p>
-                </div>
+                {organizationBanks.length > 0 ? (
+                  organizationBanks.map((bank, index) => (
+                    <div key={index} className={`space-y-1 text-sm ${index > 0 ? 'mt-4 pt-4 border-t' : ''}`}>
+                      {bank.is_default && <Badge className="mb-2">Preferred Account</Badge>}
+                      <p><strong>Account Name:</strong> {bank.account_name}</p>
+                      <p><strong>Account Number:</strong> {bank.account_number}</p>
+                      <p><strong>Bank:</strong> {bank.bank_name}</p>
+                      {bank.bank_code && <p><strong>Bank Code:</strong> {bank.bank_code}</p>}
+                      <p><strong>Amount:</strong> {transaction.currency} {transaction.amount.toLocaleString()}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="space-y-1 text-sm">
+                    <p><strong>Account Name:</strong> NaijaBroker Pro Limited</p>
+                    <p><strong>Account Number:</strong> 1234567890</p>
+                    <p><strong>Bank:</strong> First Bank of Nigeria</p>
+                    <p><strong>Amount:</strong> {transaction.currency} {transaction.amount.toLocaleString()}</p>
+                  </div>
+                )}
+                
+                {/* Client ID Reference */}
+                {clientData?.client_code && (
+                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                    <div className="text-sm font-medium text-yellow-800">Important Payment Reference:</div>
+                    <div className="text-sm text-yellow-700">
+                      Please include your <strong>Client ID: {clientData.client_code}</strong> in your transfer narration/description for easy identification.
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Transfer Confirmation Form */}

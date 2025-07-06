@@ -134,7 +134,7 @@ ${additionalNotes ? `Additional Notes:\n${additionalNotes}` : ''}
             <CardTitle className="text-sm">Quote Summary</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2 text-sm">
               <div><strong>Quote #:</strong> {quoteData?.quote_number || 'N/A'}</div>
               <div><strong>Client:</strong> {quoteData?.client_name || 'N/A'}</div>
               <div><strong>Insurance Type:</strong> {quoteData?.policy_type || 'N/A'}</div>
