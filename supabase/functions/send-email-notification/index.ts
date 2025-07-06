@@ -80,12 +80,24 @@ serve(async (req) => {
       const resend = new Resend(resendApiKey);
       
       try {
+        // For testing: send all emails to the verified address until domain is verified
+        // This prevents 403 errors from Resend during testing phase
+        const testEmail = "femikupoluyi@gmail.com"; // Your verified email
+        const isTestingMode = true; // Set to false once you verify a domain in Resend
+        
+        const actualRecipient = isTestingMode ? testEmail : recipientEmail;
+        const testingNote = isTestingMode ? 
+          `<div style="background-color: #fef3c7; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+            <strong>TESTING MODE:</strong> This email was originally intended for: ${recipientEmail}
+          </div>` : '';
+
         const emailResponse = await resend.emails.send({
           from: "NaijaBroker Pro <onboarding@resend.dev>", // Using default Resend domain
-          to: [recipientEmail],
-          subject,
+          to: [actualRecipient],
+          subject: isTestingMode ? `[TEST] ${subject}` : subject,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              ${testingNote}
               <h2 style="color: #2563eb;">${subject}</h2>
               <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 ${message.replace(/\n/g, '<br>')}
@@ -97,9 +109,10 @@ serve(async (req) => {
           `,
         });
 
-        console.log(`Email sent successfully:`, emailResponse);
+        console.log(`Email sent successfully to ${actualRecipient}:`, emailResponse);
       } catch (emailError) {
         console.error('Failed to send email:', emailError);
+        console.error('Error details:', emailError);
         throw new Error(`Email delivery failed: ${emailError.message}`);
       }
     }
