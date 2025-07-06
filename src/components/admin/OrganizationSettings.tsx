@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -112,6 +113,14 @@ export const OrganizationSettings = () => {
       currency: orgData.currency,
       timezone: orgData.timezone,
       business_hours: orgData.business_hours,
+    });
+  };
+
+  const handlePlanIndustrySave = () => {
+    if (!orgData) return;
+    updateOrganization({
+      industry: orgData.industry,
+      size: orgData.size,
     });
   };
 
@@ -291,33 +300,49 @@ export const OrganizationSettings = () => {
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="currency">Currency</Label>
-                <Input
-                  id="currency"
-                  value={orgData.currency}
-                  onChange={(e) => setOrgData(prev => prev ? {...prev, currency: e.target.value} : null)}
-                  className="mt-1"
-                />
+                <Select value={orgData.currency} onValueChange={(value) => setOrgData(prev => prev ? {...prev, currency: value} : null)}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NGN">NGN - Nigerian Naira</SelectItem>
+                    <SelectItem value="USD">USD - US Dollar</SelectItem>
+                    <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                    <SelectItem value="EUR">EUR - Euro</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <Label htmlFor="timezone">Timezone</Label>
-                <Input
-                  id="timezone"
-                  value={orgData.timezone}
-                  onChange={(e) => setOrgData(prev => prev ? {...prev, timezone: e.target.value} : null)}
-                  className="mt-1"
-                />
+                <Select value={orgData.timezone} onValueChange={(value) => setOrgData(prev => prev ? {...prev, timezone: value} : null)}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select timezone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Africa/Lagos">Africa/Lagos (WAT)</SelectItem>
+                    <SelectItem value="UTC">UTC - Coordinated Universal Time</SelectItem>
+                    <SelectItem value="America/New_York">America/New_York (EST/EDT)</SelectItem>
+                    <SelectItem value="Europe/London">Europe/London (GMT/BST)</SelectItem>
+                    <SelectItem value="Asia/Dubai">Asia/Dubai (GST)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <Label htmlFor="businessHours">Business Hours</Label>
-                <Input
-                  id="businessHours"
-                  value={orgData.business_hours}
-                  onChange={(e) => setOrgData(prev => prev ? {...prev, business_hours: e.target.value} : null)}
-                  className="mt-1"
-                  placeholder="9:00-17:00"
-                />
+                <Select value={orgData.business_hours} onValueChange={(value) => setOrgData(prev => prev ? {...prev, business_hours: value} : null)}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select business hours" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="8:00-16:00">8:00 AM - 4:00 PM</SelectItem>
+                    <SelectItem value="9:00-17:00">9:00 AM - 5:00 PM</SelectItem>
+                    <SelectItem value="8:00-17:00">8:00 AM - 5:00 PM</SelectItem>
+                    <SelectItem value="9:00-18:00">9:00 AM - 6:00 PM</SelectItem>
+                    <SelectItem value="24/7">24/7 Operations</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <Button onClick={handleSystemSave} disabled={saving}>
@@ -346,23 +371,43 @@ export const OrganizationSettings = () => {
 
               <div>
                 <Label htmlFor="industry">Industry</Label>
-                <Input
-                  id="industry"
-                  value={orgData.industry || ''}
-                  readOnly
-                  className="mt-1 bg-gray-50"
-                />
+                <Select value={orgData.industry || ''} onValueChange={(value) => setOrgData(prev => prev ? {...prev, industry: value} : null)}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select industry" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="General Insurance">General Insurance</SelectItem>
+                    <SelectItem value="Life Insurance">Life Insurance</SelectItem>
+                    <SelectItem value="Health Insurance">Health Insurance</SelectItem>
+                    <SelectItem value="Property Insurance">Property Insurance</SelectItem>
+                    <SelectItem value="Marine Insurance">Marine Insurance</SelectItem>
+                    <SelectItem value="Aviation Insurance">Aviation Insurance</SelectItem>
+                    <SelectItem value="Reinsurance">Reinsurance</SelectItem>
+                    <SelectItem value="Insurance Brokerage">Insurance Brokerage</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <Label htmlFor="size">Organization Size</Label>
-                <Input
-                  id="size"
-                  value={orgData.size || ''}
-                  readOnly
-                  className="mt-1 bg-gray-50"
-                />
+                <Select value={orgData.size || ''} onValueChange={(value) => setOrgData(prev => prev ? {...prev, size: value} : null)}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select organization size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1-10 employees">1-10 employees</SelectItem>
+                    <SelectItem value="11-50 employees">11-50 employees</SelectItem>
+                    <SelectItem value="51-200 employees">51-200 employees</SelectItem>
+                    <SelectItem value="201-500 employees">201-500 employees</SelectItem>
+                    <SelectItem value="501-1000 employees">501-1000 employees</SelectItem>
+                    <SelectItem value="1000+ employees">1000+ employees</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+
+              <Button onClick={handlePlanIndustrySave} disabled={saving}>
+                {saving ? "Saving..." : "Save Plan & Industry Settings"}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
