@@ -172,12 +172,11 @@ export const ClientPortal = () => {
       // Generate payment link
       const { data: paymentLinkData, error: paymentLinkError } = await supabase.functions.invoke('generate-payment-link', {
         body: {
-          transactionId: paymentTransaction.id,
+          paymentTransactionId: paymentTransaction.id,
           amount: selectedQuote.premium_quoted,
           currency: 'NGN',
-          description: `Insurance Premium Payment - ${selectedQuote.insurer_name}`,
-          clientEmail: portalData.client?.email,
-          clientName: portalData.client?.name
+          clientEmail: portalData.client?.email || 'client@example.com',
+          clientName: portalData.client?.name || 'Valued Client'
         }
       });
 
