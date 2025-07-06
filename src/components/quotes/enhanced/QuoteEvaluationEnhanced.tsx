@@ -31,6 +31,8 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
   const [selectedForClient, setSelectedForClient] = useState<'human' | 'ai' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [businessEmail, setBusinessEmail] = useState<string>('');
+  const [monitoringError, setMonitoringError] = useState<string>('');
   
   // Initialize quotes from dispatched insurers
   const [quotes, setQuotes] = useState(() => {
@@ -63,6 +65,21 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
 
   // Manual quotes for companies not in the original dispatch
   const [manualQuotes, setManualQuotes] = useState<any[]>([]);
+
+  // Fetch business email on component mount
+  useEffect(() => {
+    const fetchBusinessEmail = async () => {
+      try {
+        const email = await realEmailMonitoringService.getMonitoringEmail();
+        setBusinessEmail(email);
+      } catch (error) {
+        console.error('Failed to fetch business email:', error);
+        setMonitoringError('Failed to fetch business email');
+      }
+    };
+    
+    fetchBusinessEmail();
+  }, []);
 
   // Email monitoring effect
   useEffect(() => {
@@ -97,7 +114,12 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
         }
       };
 
-      realEmailMonitoringService.startMonitoring("quote-123", handleEmailResponse);
+      realEmailMonitoringService.startMonitoring("quote-123", handleEmailResponse)
+        .catch(error => {
+          console.error('Email monitoring failed:', error);
+          setMonitoringError('Email monitoring failed to start');
+          setEmailMonitoring(false);
+        });
 
       return () => {
         realEmailMonitoringService.stopMonitoring();
@@ -298,14 +320,36 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
     }
   };
 
-  const handleEmailMonitoring = () => {
-    setEmailMonitoring(!emailMonitoring);
-    toast({
-      title: emailMonitoring ? "Email Monitoring Stopped" : "Email Monitoring Started",
-      description: emailMonitoring ? 
-        "System stopped monitoring for quote responses" :
-        "System is now monitoring dedicated email for quote responses with PDF attachments",
-    });
+  const handleEmailMonitoring = async () => {
+    if (emailMonitoring) {
+      // Stop monitoring
+      setEmailMonitoring(false);
+      setMonitoringError('');
+      toast({
+        title: "Email Monitoring Stopped",
+        description: "System stopped monitoring for quote responses",
+      });
+    } else {
+      // Start monitoring
+      try {
+        if (!businessEmail) {
+          throw new Error('Business email not configured');
+        }
+        setEmailMonitoring(true);
+        setMonitoringError('');
+        toast({
+          title: "Email Monitoring Started",
+          description: `System is now monitoring ${businessEmail} for quote responses with PDF attachments`,
+        });
+      } catch (error) {
+        setMonitoringError(error instanceof Error ? error.message : 'Failed to start monitoring');
+        toast({
+          title: "Monitoring Failed",
+          description: "Unable to start email monitoring. Check configuration.",
+          variant: "destructive"
+        });
+      }
+    }
   };
 
 
@@ -442,26 +486,42 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
 
         {/* Email Monitoring & Manual Upload */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Alert className={emailMonitoring ? "border-green-500 bg-green-50" : ""}>
+          <Alert className={emailMonitoring ? "border-green-500 bg-green-50" : monitoringError ? "border-red-500 bg-red-50" : ""}>
             <Mail className="h-4 w-4" />
             <AlertDescription>
               <div className="font-medium mb-2">Email Monitoring System</div>
-              <div className="text-sm mb-3">
-                System monitoring organization email for PDF quote attachments
+              <div className="text-sm mb-2">
+                {businessEmail ? (
+                  <span>Monitoring: <strong>{businessEmail}</strong></span>
+                ) : (
+                  <span className="text-red-600">No business email configured</span>
+                )}
+              </div>
+              {monitoringError && (
+                <div className="text-sm text-red-600 mb-2 p-2 bg-red-100 rounded">
+                  ⚠️ {monitoringError}
+                </div>
+              )}
+              <div className="text-sm mb-3 text-gray-600">
+                System monitors organization email for PDF quote attachments
               </div>
               <div className="flex items-center gap-2">
                 <Button 
                   variant={emailMonitoring ? "default" : "outline"} 
                   size="sm" 
-                  onClick={() => {
-                    handleEmailMonitoring();
-                  }}
+                  onClick={handleEmailMonitoring}
+                  disabled={!businessEmail}
                 >
                   {emailMonitoring ? "Stop Monitoring" : "Start Monitoring"}
                 </Button>
                 {emailMonitoring && (
                   <Badge variant="default" className="bg-green-600">
                     Live
+                  </Badge>
+                )}
+                {monitoringError && (
+                  <Badge variant="destructive">
+                    Error
                   </Badge>
                 )}
               </div>
