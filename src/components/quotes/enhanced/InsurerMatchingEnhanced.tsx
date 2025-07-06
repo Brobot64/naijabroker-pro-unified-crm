@@ -83,7 +83,87 @@ export const InsurerMatchingEnhanced = ({ rfqData, onMatchingComplete, onBack }:
     setLoading(true);
 
     try {
-      // Dispatch RFQ to selected insurers
+      // Get current user's profile for broker email
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user?.id)
+        .single();
+
+      if (!profile?.organization_id) {
+        throw new Error('Organization not found');
+      }
+
+      // Get organization details for broker email
+      const { data: organization } = await supabase
+        .from('organizations')
+        .select('email, name')
+        .eq('id', profile.organization_id)
+        .single();
+
+      const brokerEmail = organization?.email || 'broker@naijabrokerpro.com';
+
+      // Send RFQ emails to all selected insurers
+      for (const insurer of selectedInsurers) {
+        try {
+          const rfqContent = `
+Dear ${insurer.name},
+
+We are pleased to invite you to provide a quotation for the following insurance requirement:
+
+RFQ Details:
+- Client: ${rfqData?.client_name || 'Valued Client'}
+- Coverage Type: ${rfqData?.policy_type || 'General Insurance'}
+- Sum Insured: ${rfqData?.sum_insured ? `₦${parseFloat(rfqData.sum_insured).toLocaleString()}` : 'TBD'}
+- Coverage Period: ${rfqData?.start_date || 'TBD'} to ${rfqData?.end_date || 'TBD'}
+
+Please provide your competitive quotation within 48 hours. Include your premium rates, terms and conditions, and any exclusions.
+
+Respond to this email with your quote documents attached.
+
+Best regards,
+${organization?.name || 'NaijaBroker Pro'}
+Insurance Brokers
+          `.trim();
+
+          await supabase.functions.invoke('send-email-notification', {
+            body: {
+              type: 'rfq_dispatch',
+              recipientEmail: insurer.email,
+              subject: `Request for Quotation - ${rfqData?.client_name || 'Insurance RFQ'}`,
+              message: rfqContent,
+              metadata: {
+                insurer_id: insurer.id,
+                insurer_name: insurer.name,
+                rfq_data: rfqData,
+                broker_copy: true
+              }
+            }
+          });
+
+          // Send copy to broker
+          await supabase.functions.invoke('send-email-notification', {
+            body: {
+              type: 'rfq_dispatch_copy',
+              recipientEmail: brokerEmail,
+              subject: `RFQ Sent to ${insurer.name} - ${rfqData?.client_name || 'Insurance RFQ'}`,
+              message: `RFQ has been successfully sent to ${insurer.name} (${insurer.email}).\n\nRFQ Content:\n${rfqContent}`,
+              metadata: {
+                insurer_id: insurer.id,
+                insurer_name: insurer.name,
+                copy_type: 'broker_notification'
+              }
+            }
+          });
+
+        } catch (emailError) {
+          console.error(`Failed to send RFQ to ${insurer.name}:`, emailError);
+          // Continue with other insurers even if one fails
+        }
+      }
+
+      // Create matches for tracking
       const matches = selectedInsurers.map(insurer => ({
         insurer_id: insurer.id,
         insurer_name: insurer.name,
@@ -94,8 +174,8 @@ export const InsurerMatchingEnhanced = ({ rfqData, onMatchingComplete, onBack }:
       }));
 
       toast({
-        title: "Success",
-        description: `RFQ dispatched to ${selectedInsurers.length} insurers`,
+        title: "RFQ Dispatched Successfully",
+        description: `RFQ sent to ${selectedInsurers.length} insurers with copies to broker email`,
       });
 
       onMatchingComplete(matches);
@@ -103,7 +183,7 @@ export const InsurerMatchingEnhanced = ({ rfqData, onMatchingComplete, onBack }:
       console.error('Error dispatching RFQ:', error);
       toast({
         title: "Error",
-        description: "Failed to dispatch RFQ",
+        description: error.message || "Failed to dispatch RFQ",
         variant: "destructive"
       });
     } finally {

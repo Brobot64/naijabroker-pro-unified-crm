@@ -11,6 +11,7 @@ import { Upload, Eye, Download, Star, TrendingUp, TrendingDown, Brain, Mail, Spa
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { emailMonitoringService, EmailQuoteResponse } from "@/services/emailMonitoringService";
+import { realEmailMonitoringService } from "@/services/realEmailMonitoringService";
 import { evaluatedQuotesService } from "@/services/evaluatedQuotesService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InsurerSelect } from "./InsurerSelect";
@@ -96,10 +97,10 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
         }
       };
 
-      emailMonitoringService.startMonitoring("quote-123", handleEmailResponse);
+      realEmailMonitoringService.startMonitoring("quote-123", handleEmailResponse);
 
       return () => {
-        emailMonitoringService.stopMonitoring();
+        realEmailMonitoringService.stopMonitoring();
       };
     }
   }, [emailMonitoring, quotes.length]);
@@ -298,28 +299,45 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
   };
 
   const handleEmailMonitoring = () => {
+    setEmailMonitoring(!emailMonitoring);
     toast({
-      title: "Email Monitoring Active",
-      description: "System is monitoring dedicated email for quote responses with PDF attachments",
+      title: emailMonitoring ? "Email Monitoring Stopped" : "Email Monitoring Started",
+      description: emailMonitoring ? 
+        "System stopped monitoring for quote responses" :
+        "System is now monitoring dedicated email for quote responses with PDF attachments",
     });
   };
 
-  const simulateEmailReceived = (index: number) => {
-    const updatedQuote = {
-      ...quotes[index],
-      response_received: true,
-      premium_quoted: Math.floor(Math.random() * 500000) + 1000000, // Random premium
-      terms_conditions: 'Standard terms and conditions with competitive rates',
-      document_url: 'simulated-pdf-url',
-      response_date: new Date().toISOString()
-    };
-    
-    setQuotes(prev => prev.map((quote, i) => i === index ? updatedQuote : quote));
-    
-    toast({
-      title: "Quote Received",
-      description: `Email with PDF quote received from ${quotes[index].insurer_name}`,
-    });
+  const simulateEmailReceived = async (index: number) => {
+    try {
+      const insurerName = quotes[index]?.insurer_name || 'Test Insurer';
+      const mockResponse = await realEmailMonitoringService.simulateEmailReceived(insurerName, "quote-123");
+      
+      const updatedQuote = {
+        ...quotes[index],
+        response_received: true,
+        premium_quoted: mockResponse.premiumQuoted,
+        terms_conditions: mockResponse.termsConditions || 'Standard terms and conditions with competitive rates',
+        exclusions: mockResponse.exclusions || ['War risks', 'Nuclear risks'],
+        coverage_limits: mockResponse.coverageLimits || {},
+        document_url: mockResponse.documentUrl || 'simulated-pdf-url',
+        response_date: mockResponse.responseDate
+      };
+      
+      setQuotes(prev => prev.map((quote, i) => i === index ? updatedQuote : quote));
+      
+      toast({
+        title: "Quote Received via Email",
+        description: `Email with PDF quote received from ${insurerName} - Premium: ₦${mockResponse.premiumQuoted.toLocaleString()}`,
+      });
+    } catch (error) {
+      console.error('Error simulating email:', error);
+      toast({
+        title: "Simulation Error",
+        description: "Failed to simulate email receipt",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleForwardToClient = async (source: 'human' | 'ai') => {
@@ -467,31 +485,10 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
                   variant={emailMonitoring ? "default" : "outline"} 
                   size="sm" 
                   onClick={() => {
-                    setEmailMonitoring(!emailMonitoring);
-                    if (!emailMonitoring) {
-                      toast({
-                        title: "Email Monitoring Started",
-                        description: "Monitoring nbcgrandelite3@gmail.com for quote responses",
-                      });
-                    } else {
-                      toast({
-                        title: "Email Monitoring Stopped",
-                        description: "Email monitoring has been stopped",
-                      });
-                    }
+                    handleEmailMonitoring();
                   }}
                 >
-                  {emailMonitoring ? (
-                    <>
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      Monitoring Active
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="h-4 w-4 mr-1" />
-                      Start Monitoring
-                    </>
-                  )}
+                  {emailMonitoring ? "Stop Monitoring" : "Start Monitoring"}
                 </Button>
                 {emailMonitoring && (
                   <Badge variant="default" className="bg-green-600">

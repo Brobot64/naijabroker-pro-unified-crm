@@ -129,14 +129,24 @@ export const ClientPortal = () => {
 
     setLoading(true);
     try {
-      // Mark portal as used
+      // Mark portal as used and update quote status
       await supabase
         .from('client_portal_links')
         .update({ is_used: true })
         .eq('id', portalData.id);
 
+      // Update quote status to show client approval
+      await supabase
+        .from('quotes')
+        .update({ 
+          workflow_stage: 'client_approved',
+          payment_status: 'pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', portalData.quote_id);
+
       // Create payment transaction record
-      const { error: paymentError } = await supabase
+      const { data: paymentTransaction, error: paymentError } = await supabase
         .from('payment_transactions')
         .insert({
           organization_id: portalData.organization_id,
@@ -153,30 +163,86 @@ export const ClientPortal = () => {
             client_comments: clientComments,
             selected_at: new Date().toISOString()
           } as any
-        });
+        })
+        .select()
+        .single();
 
       if (paymentError) throw paymentError;
 
-      // Send notification to broker
+      // Generate payment link
+      const { data: paymentLinkData, error: paymentLinkError } = await supabase.functions.invoke('generate-payment-link', {
+        body: {
+          transactionId: paymentTransaction.id,
+          amount: selectedQuote.premium_quoted,
+          currency: 'NGN',
+          description: `Insurance Premium Payment - ${selectedQuote.insurer_name}`,
+          clientEmail: portalData.client?.email,
+          clientName: portalData.client?.name
+        }
+      });
+
+      if (paymentLinkError) {
+        console.error('Payment link generation error:', paymentLinkError);
+      }
+
+      // Send notifications
+      const { data: organizationData } = await supabase
+        .from('organizations')
+        .select('email, name')
+        .eq('id', portalData.organization_id)
+        .single();
+
+      const brokerEmail = organizationData?.email || 'broker@naijabrokerpro.com';
+
+      // Notify broker
       await supabase.functions.invoke('send-email-notification', {
         body: {
           type: 'client_quote_selection',
-          recipientEmail: 'broker@naijabrokerpro.com', // Should come from organization settings
+          recipientEmail: brokerEmail,
           subject: 'Client Quote Selection Confirmation',
-          message: `Client ${portalData.client?.name} has selected a quote from ${selectedQuote.insurer_name} with premium ₦${selectedQuote.premium_quoted.toLocaleString()}. ${clientComments ? `Client comments: ${clientComments}` : ''}`,
+          message: `Client ${portalData.client?.name} has selected a quote from ${selectedQuote.insurer_name} with premium ₦${selectedQuote.premium_quoted.toLocaleString()}.\n\n${clientComments ? `Client comments: ${clientComments}\n\n` : ''}Payment link has been generated and sent to client.`,
           metadata: {
             clientId: portalData.client_id,
             quoteId: portalData.quote_id,
             selectedQuote: selectedQuote,
-            clientComments
+            clientComments,
+            paymentTransactionId: paymentTransaction.id
           }
         }
       });
 
-      toast({
-        title: "Selection Submitted",
-        description: "Your quote selection has been submitted successfully. You will be contacted for payment processing.",
-      });
+      // Send payment link to client
+      if (paymentLinkData?.paymentUrl && portalData.client?.email) {
+        await supabase.functions.invoke('send-email-notification', {
+          body: {
+            type: 'payment_link',
+            recipientEmail: portalData.client.email,
+            subject: 'Complete Your Insurance Payment',
+            message: `Dear ${portalData.client.name},\n\nThank you for selecting your insurance quote from ${selectedQuote.insurer_name}.\n\nPremium Amount: ₦${selectedQuote.premium_quoted.toLocaleString()}\n\nPlease click the link below to complete your payment:\n${paymentLinkData.paymentUrl}\n\nThis payment link will expire in 24 hours.\n\nBest regards,\n${organizationData?.name || 'Your Insurance Broker'}`,
+            metadata: {
+              paymentTransactionId: paymentTransaction.id,
+              paymentUrl: paymentLinkData.paymentUrl
+            }
+          }
+        });
+      }
+
+      // Show success message with payment link
+      if (paymentLinkData?.paymentUrl) {
+        // Store payment URL for display
+        setPortalData(prev => ({ ...prev, paymentUrl: paymentLinkData.paymentUrl }));
+        
+        toast({
+          title: "Selection Confirmed!",
+          description: "Payment link generated and sent to your email. You can also use the link below.",
+          duration: 8000
+        });
+      } else {
+        toast({
+          title: "Selection Submitted",
+          description: "Your quote selection has been submitted successfully. You will be contacted for payment processing.",
+        });
+      }
 
     } catch (error: any) {
       console.error('Error submitting selection:', error);
@@ -250,14 +316,10 @@ export const ClientPortal = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <span className="text-gray-600 text-sm">Annual Premium</span>
                     <p className="text-2xl font-bold text-green-600">₦{quote.premium_quoted.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-600 text-sm">Commission Split</span>
-                    <p className="text-lg font-semibold">{quote.commission_split}%</p>
                   </div>
                   <div>
                     <span className="text-gray-600 text-sm">Rating Score</span>
@@ -318,7 +380,7 @@ export const ClientPortal = () => {
           </CardContent>
         </Card>
 
-        {/* Submit Button */}
+        {/* Submit Button & Payment Link */}
         <div className="mt-8 text-center">
           <Button 
             size="lg" 
@@ -342,6 +404,29 @@ export const ClientPortal = () => {
             <p className="text-sm text-gray-600 mt-2">
               You have selected {selectedQuote.insurer_name} with premium ₦{selectedQuote.premium_quoted.toLocaleString()}
             </p>
+          )}
+
+          {/* Payment Link Display */}
+          {portalData?.paymentUrl && (
+            <Card className="mt-6 bg-green-50 border-green-200">
+              <CardContent className="p-6 text-center">
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                  <h3 className="text-lg font-semibold text-green-800">Selection Confirmed!</h3>
+                </div>
+                <p className="text-green-700 mb-4">
+                  Your quote selection has been submitted. Complete your payment using the link below:
+                </p>
+                <Button asChild className="bg-green-600 hover:bg-green-700">
+                  <a href={portalData.paymentUrl} target="_blank" rel="noopener noreferrer">
+                    Proceed to Payment
+                  </a>
+                </Button>
+                <p className="text-sm text-green-600 mt-2">
+                  Payment link also sent to your email address
+                </p>
+              </CardContent>
+            </Card>
           )}
         </div>
 
