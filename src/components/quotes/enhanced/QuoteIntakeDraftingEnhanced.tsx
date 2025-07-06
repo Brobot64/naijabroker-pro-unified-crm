@@ -112,22 +112,32 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteS
         coverage_requirements: editingQuote.coverage_requirements || '',
       });
     } else {
-      // Load saved data from workflow state if available
-      if (state.workflowData.quote) {
-        setFormData(state.workflowData.quote);
-      }
+      // Clear form data for new clients and reset to defaults
+      setFormData({
+        policy_type: '',
+        underwriter: '',
+        sum_insured: 0,
+        premium: 0,
+        commission_rate: 12.5,
+        valid_until: '',
+        terms_conditions: '',
+        notes: '',
+        insured_item: '',
+        insured_description: '',
+        location: '',
+        risk_details: '',
+        coverage_requirements: '',
+      });
       
       // Set default validity date (30 days from today)
       const defaultDate = new Date();
       defaultDate.setDate(defaultDate.getDate() + 30);
-      if (!formData.valid_until) {
-        setFormData(prev => ({
-          ...prev,
-          valid_until: defaultDate.toISOString().split('T')[0]
-        }));
-      }
+      setFormData(prev => ({
+        ...prev,
+        valid_until: defaultDate.toISOString().split('T')[0]
+      }));
     }
-  }, [editingQuote, state.workflowData.quote]);
+  }, [editingQuote, clientData]);
 
   useEffect(() => {
     // Recalculate financials when relevant fields change

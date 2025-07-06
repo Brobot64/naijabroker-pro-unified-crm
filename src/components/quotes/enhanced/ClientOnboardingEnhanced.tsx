@@ -446,37 +446,42 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="contact_birthday">Contact Birthday</Label>
-              <Input
-                id="contact_birthday"
-                type="date"
-                value={formData.contact_birthday}
-                onChange={(e) => handleInputChange('contact_birthday', e.target.value)}
-                disabled={loading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="contact_anniversary">Contact Anniversary</Label>
-              <Input
-                id="contact_anniversary"
-                type="date"
-                value={formData.contact_anniversary}
-                onChange={(e) => handleInputChange('contact_anniversary', e.target.value)}
+              <Label htmlFor="contact_address">Contact Address</Label>
+              <Textarea
+                id="contact_address"
+                value={formData.contact_address}
+                onChange={(e) => handleInputChange('contact_address', e.target.value)}
                 disabled={loading}
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="contact_address">Contact Address</Label>
-            <Textarea
-              id="contact_address"
-              value={formData.contact_address}
-              onChange={(e) => handleInputChange('contact_address', e.target.value)}
-              disabled={loading}
-            />
-          </div>
+          {/* Individual client specific fields */}
+          {!isCompanyType && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+              <div className="space-y-2">
+                <Label htmlFor="contact_birthday">Birthday</Label>
+                <Input
+                  id="contact_birthday"
+                  type="date"
+                  value={formData.contact_birthday}
+                  onChange={(e) => handleInputChange('contact_birthday', e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="contact_anniversary">Anniversary</Label>
+                <Input
+                  id="contact_anniversary"
+                  type="date"
+                  value={formData.contact_anniversary}
+                  onChange={(e) => handleInputChange('contact_anniversary', e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Company-specific fields */}
