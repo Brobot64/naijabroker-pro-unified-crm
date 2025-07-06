@@ -164,7 +164,10 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
       if (isNewClient) {
         const clientWithOrgId = {
           ...formData,
-          organization_id: organizationId
+          organization_id: organizationId,
+          // Convert empty date strings to null to avoid database errors
+          birthday: formData.birthday?.trim() || null,
+          anniversary: formData.anniversary?.trim() || null
         };
         clientData = await ClientService.create(clientWithOrgId);
         toast({
