@@ -18,7 +18,7 @@ const ClaimsManagement = React.lazy(() => import("@/components/claims/ClaimsMana
 const FinancialManagement = React.lazy(() => import("@/components/financial/FinancialManagement").then(module => ({ default: module.FinancialManagement })));
 const WorkflowManager = React.lazy(() => import("@/components/workflow/WorkflowManager").then(module => ({ default: module.WorkflowManager })));
 const SocialMediaDashboard = React.lazy(() => import("@/components/social/SocialMediaDashboard").then(module => ({ default: module.SocialMediaDashboard })));
-const UserManagement = React.lazy(() => import("@/components/admin/UserManagement").then(module => ({ default: module.UserManagement })));
+const AdminControls = React.lazy(() => import("@/components/developer/AdminControls").then(module => ({ default: module.AdminControls })));
 const DeveloperDashboard = React.lazy(() => import("@/components/developer/DeveloperDashboard").then(module => ({ default: module.DeveloperDashboard })));
 
 const ComponentWrapper = ({ children }: { children: React.ReactNode }) => (
@@ -114,7 +114,7 @@ export const DashboardTabContent = ({ userRole }: DashboardTabContentProps) => {
 
       <TabsContent value="admin">
         <ComponentWrapper>
-          <UserManagement />
+          <AdminControls />
         </ComponentWrapper>
       </TabsContent>
 

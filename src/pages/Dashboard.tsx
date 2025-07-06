@@ -19,7 +19,7 @@ export const Dashboard = () => {
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} userRole={userRole || 'User'} />
           <DashboardTabContent userRole={userRole || 'User'} />
         </Tabs>
       </div>
