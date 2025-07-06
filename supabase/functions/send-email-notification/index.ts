@@ -82,7 +82,7 @@ serve(async (req) => {
       try {
         // For testing: send all emails to the verified address until domain is verified
         // This prevents 403 errors from Resend during testing phase
-        const testEmail = "NGBrokerPro@gmail.com"; // Your verified email
+        const testEmail = "ngbrokerpro@gmail.com"; // Your verified email
         const isTestingMode = true; // Set to false once you verify a domain in Resend
         
         const actualRecipient = isTestingMode ? testEmail : recipientEmail;
