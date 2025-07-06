@@ -124,6 +124,7 @@ export const ClientOnboarding = ({ onClientSelected, onBack }: ClientOnboardingP
     try {
       const client = await ClientService.create({
         organization_id: organizationId,
+        client_type: 'company',
         name: newClient.name,
         email: newClient.email || undefined,
         phone: newClient.phone || undefined,

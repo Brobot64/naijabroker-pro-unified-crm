@@ -562,17 +562,31 @@ export type Database = {
           anniversary: string | null
           birthday: string | null
           chairman: string | null
+          chairman_birthday: string | null
+          chairman_email: string | null
+          chairman_phone: string | null
           classification: string | null
           client_code: string
+          client_type: string | null
           contact_address: string | null
+          contact_anniversary: string | null
+          contact_birthday: string | null
+          contact_email: string | null
           contact_name: string | null
+          contact_phone: string | null
           created_at: string | null
           created_by: string | null
           email: string | null
           head_of_finance: string | null
+          head_of_finance_birthday: string | null
+          head_of_finance_email: string | null
+          head_of_finance_phone: string | null
           id: string
           industry: string | null
           md: string | null
+          md_birthday: string | null
+          md_email: string | null
+          md_phone: string | null
           name: string
           organization_id: string
           phone: string | null
@@ -586,17 +600,31 @@ export type Database = {
           anniversary?: string | null
           birthday?: string | null
           chairman?: string | null
+          chairman_birthday?: string | null
+          chairman_email?: string | null
+          chairman_phone?: string | null
           classification?: string | null
           client_code: string
+          client_type?: string | null
           contact_address?: string | null
+          contact_anniversary?: string | null
+          contact_birthday?: string | null
+          contact_email?: string | null
           contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string | null
           created_by?: string | null
           email?: string | null
           head_of_finance?: string | null
+          head_of_finance_birthday?: string | null
+          head_of_finance_email?: string | null
+          head_of_finance_phone?: string | null
           id?: string
           industry?: string | null
           md?: string | null
+          md_birthday?: string | null
+          md_email?: string | null
+          md_phone?: string | null
           name: string
           organization_id: string
           phone?: string | null
@@ -610,17 +638,31 @@ export type Database = {
           anniversary?: string | null
           birthday?: string | null
           chairman?: string | null
+          chairman_birthday?: string | null
+          chairman_email?: string | null
+          chairman_phone?: string | null
           classification?: string | null
           client_code?: string
+          client_type?: string | null
           contact_address?: string | null
+          contact_anniversary?: string | null
+          contact_birthday?: string | null
+          contact_email?: string | null
           contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string | null
           created_by?: string | null
           email?: string | null
           head_of_finance?: string | null
+          head_of_finance_birthday?: string | null
+          head_of_finance_email?: string | null
+          head_of_finance_phone?: string | null
           id?: string
           industry?: string | null
           md?: string | null
+          md_birthday?: string | null
+          md_email?: string | null
+          md_phone?: string | null
           name?: string
           organization_id?: string
           phone?: string | null
@@ -2081,7 +2123,7 @@ export type Database = {
     }
     Functions: {
       generate_client_code: {
-        Args: { org_id: string }
+        Args: { org_id: string } | { org_id: string; client_type?: string }
         Returns: string
       }
       get_user_organization: {
