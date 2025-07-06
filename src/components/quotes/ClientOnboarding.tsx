@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ClientService } from "@/services/database/clientService";
+import { AdminConfigService } from "@/services/database/adminConfigService";
 import { useAuth } from "@/contexts/AuthContext";
 import { Search, Plus } from "lucide-react";
 
@@ -23,6 +24,12 @@ export const ClientOnboarding = ({ onClientSelected, onBack }: ClientOnboardingP
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { user, organizationId } = useAuth();
+  
+  // Admin configuration data
+  const [classifications, setClassifications] = useState<any[]>([]);
+  const [industries, setIndustries] = useState<any[]>([]);
+  const [sources, setSources] = useState<any[]>([]);
+  const [accountOfficers, setAccountOfficers] = useState<any[]>([]);
 
   const [newClient, setNewClient] = useState({
     name: "",
@@ -40,6 +47,33 @@ export const ClientOnboarding = ({ onClientSelected, onBack }: ClientOnboardingP
     accountOfficer: "",
     remark: ""
   });
+
+  useEffect(() => {
+    loadAdminData();
+  }, []);
+
+  const loadAdminData = async () => {
+    try {
+      const [classificationsData, industriesData, sourcesData, officersData] = await Promise.all([
+        AdminConfigService.getClassifications(),
+        AdminConfigService.getIndustries(),
+        AdminConfigService.getSources(),
+        AdminConfigService.getAccountOfficers()
+      ]);
+
+      setClassifications(classificationsData);
+      setIndustries(industriesData);
+      setSources(sourcesData);
+      setAccountOfficers(officersData);
+    } catch (error) {
+      console.error('Error loading admin data:', error);
+      toast({
+        title: "Warning",
+        description: "Could not load configuration data. Please check admin settings.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
@@ -206,10 +240,9 @@ export const ClientOnboarding = ({ onClientSelected, onBack }: ClientOnboardingP
                       <SelectValue placeholder="Select classification" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="corporate">Corporate</SelectItem>
-                      <SelectItem value="individual">Individual</SelectItem>
-                      <SelectItem value="sme">SME</SelectItem>
-                      <SelectItem value="government">Government</SelectItem>
+                      {classifications.map(item => (
+                        <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -250,12 +283,16 @@ export const ClientOnboarding = ({ onClientSelected, onBack }: ClientOnboardingP
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="industry">Industry</Label>
-                  <Input
-                    id="industry"
-                    value={newClient.industry}
-                    onChange={(e) => setNewClient({...newClient, industry: e.target.value})}
-                    placeholder="e.g., Manufacturing, Oil & Gas"
-                  />
+                  <Select value={newClient.industry} onValueChange={(value) => setNewClient({...newClient, industry: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select industry" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {industries.map(item => (
+                        <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="source">Source</Label>
@@ -264,11 +301,9 @@ export const ClientOnboarding = ({ onClientSelected, onBack }: ClientOnboardingP
                       <SelectValue placeholder="How did you find us?" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="referral">Referral</SelectItem>
-                      <SelectItem value="website">Website</SelectItem>
-                      <SelectItem value="cold_call">Cold Call</SelectItem>
-                      <SelectItem value="existing_client">Existing Client</SelectItem>
-                      <SelectItem value="marketing">Marketing Campaign</SelectItem>
+                      {sources.map(item => (
+                        <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -306,11 +341,16 @@ export const ClientOnboarding = ({ onClientSelected, onBack }: ClientOnboardingP
                   </div>
                   <div>
                     <Label htmlFor="accountOfficer">Account Officer</Label>
-                    <Input
-                      id="accountOfficer"
-                      value={newClient.accountOfficer}
-                      onChange={(e) => setNewClient({...newClient, accountOfficer: e.target.value})}
-                    />
+                    <Select value={newClient.accountOfficer} onValueChange={(value) => setNewClient({...newClient, accountOfficer: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select account officer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accountOfficers.map(officer => (
+                          <SelectItem key={officer.id} value={officer.name}>{officer.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>

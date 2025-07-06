@@ -16,42 +16,7 @@ interface ClientOnboardingEnhancedProps {
   onBack: () => void;
 }
 
-// Configuration data - this will later come from database
-const CLASSIFICATIONS = [
-  { value: 'corporate', label: 'Corporate' },
-  { value: 'sme', label: 'Small & Medium Enterprise' },
-  { value: 'individual', label: 'Individual' },
-  { value: 'government', label: 'Government' },
-];
-
-const INDUSTRIES = [
-  { value: 'manufacturing', label: 'Manufacturing' },
-  { value: 'oil-gas', label: 'Oil & Gas' },
-  { value: 'construction', label: 'Construction' },
-  { value: 'healthcare', label: 'Healthcare' },
-  { value: 'technology', label: 'Technology' },
-  { value: 'finance', label: 'Financial Services' },
-  { value: 'retail', label: 'Retail' },
-  { value: 'agriculture', label: 'Agriculture' },
-  { value: 'transportation', label: 'Transportation' },
-  { value: 'education', label: 'Education' },
-];
-
-const SOURCES = [
-  { value: 'referral', label: 'Referral' },
-  { value: 'website', label: 'Website' },
-  { value: 'social-media', label: 'Social Media' },
-  { value: 'direct-sales', label: 'Direct Sales' },
-  { value: 'partner', label: 'Partner' },
-  { value: 'advertisement', label: 'Advertisement' },
-];
-
-const ACCOUNT_OFFICERS = [
-  { value: 'john-doe', label: 'John Doe' },
-  { value: 'jane-smith', label: 'Jane Smith' },
-  { value: 'mike-johnson', label: 'Mike Johnson' },
-  { value: 'sarah-wilson', label: 'Sarah Wilson' },
-];
+import { AdminConfigService, AdminConfigOption, AccountOfficer } from '@/services/database/adminConfigService';
 
 export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnboardingEnhancedProps) => {
   const { state, dispatch } = useWorkflowContext();
@@ -61,6 +26,12 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
   const [clients, setClients] = useState<any[]>([]);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [isNewClient, setIsNewClient] = useState(true);
+  
+  // Admin configuration data
+  const [classifications, setClassifications] = useState<AdminConfigOption[]>([]);
+  const [industries, setIndustries] = useState<AdminConfigOption[]>([]);
+  const [sources, setSources] = useState<AdminConfigOption[]>([]);
+  const [accountOfficers, setAccountOfficers] = useState<AccountOfficer[]>([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -83,6 +54,7 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
 
   useEffect(() => {
     loadClients();
+    loadAdminData();
     // Load saved data if available
     if (state.workflowData.client) {
       setFormData(state.workflowData.client);
@@ -100,6 +72,29 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
       toast({
         title: "Warning",
         description: "Could not load existing clients",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const loadAdminData = async () => {
+    try {
+      const [classificationsData, industriesData, sourcesData, officersData] = await Promise.all([
+        AdminConfigService.getClassifications(),
+        AdminConfigService.getIndustries(),
+        AdminConfigService.getSources(),
+        AdminConfigService.getAccountOfficers()
+      ]);
+
+      setClassifications(classificationsData);
+      setIndustries(industriesData);
+      setSources(sourcesData);
+      setAccountOfficers(officersData);
+    } catch (error) {
+      console.error('Error loading admin data:', error);
+      toast({
+        title: "Warning",
+        description: "Could not load configuration data. Please check admin settings.",
         variant: "destructive"
       });
     }
@@ -268,7 +263,7 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
                 <SelectValue placeholder="Select classification..." />
               </SelectTrigger>
               <SelectContent>
-                {CLASSIFICATIONS.map(item => (
+                {classifications.map(item => (
                   <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -282,7 +277,7 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
                 <SelectValue placeholder="Select industry..." />
               </SelectTrigger>
               <SelectContent>
-                {INDUSTRIES.map(item => (
+                {industries.map(item => (
                   <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -296,7 +291,7 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
                 <SelectValue placeholder="Select source..." />
               </SelectTrigger>
               <SelectContent>
-                {SOURCES.map(item => (
+                {sources.map(item => (
                   <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -310,8 +305,8 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
                 <SelectValue placeholder="Select account officer..." />
               </SelectTrigger>
               <SelectContent>
-                {ACCOUNT_OFFICERS.map(item => (
-                  <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                {accountOfficers.map(officer => (
+                  <SelectItem key={officer.id} value={officer.name}>{officer.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

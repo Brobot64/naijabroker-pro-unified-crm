@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Building2, Palette, Settings, Users } from "lucide-react";
+import { ClientConfigurationSettings } from "./ClientConfigurationSettings";
 
 interface OrganizationData {
   id: string;
@@ -142,7 +143,7 @@ export const OrganizationSettings = () => {
       </div>
 
       <Tabs defaultValue="basic" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="basic" className="flex items-center gap-2">
             <Building2 className="w-4 h-4" />
             Basic Info
@@ -158,6 +159,10 @@ export const OrganizationSettings = () => {
           <TabsTrigger value="plan" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
             Plan & Industry
+          </TabsTrigger>
+          <TabsTrigger value="client-config" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Client Config
           </TabsTrigger>
         </TabsList>
 
@@ -410,6 +415,10 @@ export const OrganizationSettings = () => {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="client-config">
+          <ClientConfigurationSettings />
         </TabsContent>
       </Tabs>
     </div>
