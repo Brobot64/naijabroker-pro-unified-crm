@@ -68,30 +68,40 @@ serve(async (req) => {
     if (dbError) throw dbError;
 
     // Send actual email using Resend
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
     
-    try {
-      const emailResponse = await resend.emails.send({
-        from: "NaijaBroker Pro <noreply@naijabrokerpro.com>", // Update with your domain
-        to: [recipientEmail],
-        subject,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2563eb;">${subject}</h2>
-            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              ${message.replace(/\n/g, '<br>')}
+    if (!resendApiKey) {
+      console.log('RESEND_API_KEY not configured - email simulation mode');
+      // Simulate email sending for testing
+      console.log(`Would send email to: ${recipientEmail}`);
+      console.log(`Subject: ${subject}`);
+      console.log(`Message: ${message}`);
+    } else {
+      const resend = new Resend(resendApiKey);
+      
+      try {
+        const emailResponse = await resend.emails.send({
+          from: "NaijaBroker Pro <onboarding@resend.dev>", // Using default Resend domain
+          to: [recipientEmail],
+          subject,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #2563eb;">${subject}</h2>
+              <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                ${message.replace(/\n/g, '<br>')}
+              </div>
+              <p style="color: #64748b; font-size: 14px;">
+                This is an automated message from NaijaBroker Pro Insurance Management System.
+              </p>
             </div>
-            <p style="color: #64748b; font-size: 14px;">
-              This is an automated message from NaijaBroker Pro Insurance Management System.
-            </p>
-          </div>
-        `,
-      });
+          `,
+        });
 
-      console.log(`Email sent successfully:`, emailResponse);
-    } catch (emailError) {
-      console.error('Failed to send email:', emailError);
-      // Don't throw error for email failures - log and continue
+        console.log(`Email sent successfully:`, emailResponse);
+      } catch (emailError) {
+        console.error('Failed to send email:', emailError);
+        throw new Error(`Email delivery failed: ${emailError.message}`);
+      }
     }
 
     return new Response(JSON.stringify({ 
