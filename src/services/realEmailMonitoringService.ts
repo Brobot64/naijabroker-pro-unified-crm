@@ -29,9 +29,36 @@ export class RealEmailMonitoringService {
 
   constructor() {
     this.config = {
-      email: "nbcgrandelite3@gmail.com",
+      email: "",
       provider: 'gmail'
     };
+  }
+
+  private async getOrganizationEmail(): Promise<string> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("User not authenticated");
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile?.organization_id) {
+      throw new Error("User organization not found");
+    }
+
+    const { data: organization } = await supabase
+      .from('organizations')
+      .select('email')
+      .eq('id', profile.organization_id)
+      .single();
+
+    if (!organization?.email) {
+      throw new Error("Organization email not configured");
+    }
+
+    return organization.email;
   }
 
   static getInstance(): RealEmailMonitoringService {
@@ -47,15 +74,17 @@ export class RealEmailMonitoringService {
       return;
     }
 
-    this.isMonitoring = true;
-    console.log(`Starting real email monitoring for ${this.config.email}`);
-
     try {
+      const orgEmail = await this.getOrganizationEmail();
+      this.config.email = orgEmail;
+      this.isMonitoring = true;
+      console.log(`Starting real email monitoring for ${orgEmail}`);
+
       // Start the email monitoring service via edge function
       const { data, error } = await supabase.functions.invoke('monitor-email-quotes', {
         body: {
           quoteId,
-          email: this.config.email,
+          email: orgEmail,
           provider: this.config.provider,
           action: 'start'
         }
@@ -185,45 +214,9 @@ export class RealEmailMonitoringService {
     }
   }
 
-  async simulateEmailReceived(insurerName: string, quoteId: string) {
-    // For testing purposes - simulate receiving an email
-    const mockResponse: EmailQuoteResponse = {
-      insurerName,
-      premiumQuoted: Math.floor(Math.random() * 500000) + 1000000,
-      termsConditions: "Standard terms and conditions with competitive coverage",
-      exclusions: ["War risks", "Nuclear risks", "Cyber attacks"],
-      coverageLimits: {
-        "Property Damage": "50,000,000",
-        "Public Liability": "100,000,000",
-        "Professional Indemnity": "25,000,000"
-      },
-      documentUrl: `mock-pdf-url-${Date.now()}`,
-      responseDate: new Date().toISOString(),
-      emailSubject: `Re: Request for Quotation - ${insurerName}`,
-      emailBody: `Please find attached our competitive quotation for the insurance coverage requested.`
-    };
 
-    // Save to database
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('organization_id')
-        .eq('id', user?.id)
-        .single();
-
-      if (profile?.organization_id) {
-        await this.saveInsurerResponse(quoteId, profile.organization_id, mockResponse);
-      }
-    } catch (error) {
-      console.error("Error saving simulated response:", error);
-    }
-
-    return mockResponse;
-  }
-
-  getMonitoringEmail(): string {
-    return this.config.email;
+  async getMonitoringEmail(): Promise<string> {
+    return await this.getOrganizationEmail();
   }
 
   isCurrentlyMonitoring(): boolean {

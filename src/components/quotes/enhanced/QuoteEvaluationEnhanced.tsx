@@ -308,37 +308,6 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
     });
   };
 
-  const simulateEmailReceived = async (index: number) => {
-    try {
-      const insurerName = quotes[index]?.insurer_name || 'Test Insurer';
-      const mockResponse = await realEmailMonitoringService.simulateEmailReceived(insurerName, "quote-123");
-      
-      const updatedQuote = {
-        ...quotes[index],
-        response_received: true,
-        premium_quoted: mockResponse.premiumQuoted,
-        terms_conditions: mockResponse.termsConditions || 'Standard terms and conditions with competitive rates',
-        exclusions: mockResponse.exclusions || ['War risks', 'Nuclear risks'],
-        coverage_limits: mockResponse.coverageLimits || {},
-        document_url: mockResponse.documentUrl || 'simulated-pdf-url',
-        response_date: mockResponse.responseDate
-      };
-      
-      setQuotes(prev => prev.map((quote, i) => i === index ? updatedQuote : quote));
-      
-      toast({
-        title: "Quote Received via Email",
-        description: `Email with PDF quote received from ${insurerName} - Premium: ₦${mockResponse.premiumQuoted.toLocaleString()}`,
-      });
-    } catch (error) {
-      console.error('Error simulating email:', error);
-      toast({
-        title: "Simulation Error",
-        description: "Failed to simulate email receipt",
-        variant: "destructive"
-      });
-    }
-  };
 
   const handleForwardToClient = async (source: 'human' | 'ai') => {
     // Combine all quotes
@@ -478,7 +447,7 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
             <AlertDescription>
               <div className="font-medium mb-2">Email Monitoring System</div>
               <div className="text-sm mb-3">
-                System monitoring: <strong>nbcgrandelite3@gmail.com</strong> for PDF attachments
+                System monitoring organization email for PDF quote attachments
               </div>
               <div className="flex items-center gap-2">
                 <Button 
@@ -787,17 +756,7 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
                         Response Received
                       </Badge>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">Pending</Badge>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => simulateEmailReceived(index)}
-                        >
-                          <Mail className="h-4 w-4 mr-1" />
-                          Simulate Email
-                        </Button>
-                      </div>
+                      <Badge variant="outline">Pending</Badge>
                     )}
                     {quote.rating_score > 0 && (
                       <div className="flex items-center gap-1">
