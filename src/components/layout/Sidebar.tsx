@@ -73,6 +73,12 @@ export const Sidebar = ({ activeSection, onSectionChange, userRole }: SidebarPro
       roles: ["SuperAdmin"]
     },
     {
+      id: "organization-settings",
+      label: "Organization Settings",
+      icon: Building2,
+      roles: ["SuperAdmin", "BrokerAdmin"]
+    },
+    {
       id: "settings",
       label: "Settings",
       icon: Settings,

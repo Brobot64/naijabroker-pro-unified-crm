@@ -15,6 +15,7 @@ const PolicyManagement = React.lazy(() => import("../components/policies/PolicyM
 const ClaimsManagement = React.lazy(() => import("../components/claims/ClaimsManagement").then(module => ({ default: module.ClaimsManagement })));
 const FinancialManagement = React.lazy(() => import("../components/financial/FinancialManagement").then(module => ({ default: module.FinancialManagement })));
 const DeveloperDashboard = React.lazy(() => import("../components/developer/DeveloperDashboard").then(module => ({ default: module.DeveloperDashboard })));
+const OrganizationSettings = React.lazy(() => import("../components/admin/OrganizationSettings").then(module => ({ default: module.OrganizationSettings })));
 
 const Index = () => {
   const { userRole } = useAuth();
@@ -66,6 +67,12 @@ const Index = () => {
         return (
           <Suspense fallback={<LoadingSpinner size="lg" text="Loading..." className="py-12" />}>
             <DeveloperDashboard />
+          </Suspense>
+        );
+      case "organization-settings":
+        return (
+          <Suspense fallback={<LoadingSpinner size="lg" text="Loading..." className="py-12" />}>
+            <OrganizationSettings />
           </Suspense>
         );
       case "settings":
