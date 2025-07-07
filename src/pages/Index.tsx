@@ -14,6 +14,7 @@ const QuoteManagement = React.lazy(() => import("../components/quotes/QuoteManag
 const PolicyManagement = React.lazy(() => import("../components/policies/PolicyManagement").then(module => ({ default: module.PolicyManagement })));
 const ClaimsManagement = React.lazy(() => import("../components/claims/ClaimsManagement").then(module => ({ default: module.ClaimsManagement })));
 const FinancialManagement = React.lazy(() => import("../components/financial/FinancialManagement").then(module => ({ default: module.FinancialManagement })));
+const SocialMediaDashboard = React.lazy(() => import("../components/social/SocialMediaDashboard").then(module => ({ default: module.SocialMediaDashboard })));
 const DeveloperDashboard = React.lazy(() => import("../components/developer/DeveloperDashboard").then(module => ({ default: module.DeveloperDashboard })));
 const OrganizationSettings = React.lazy(() => import("../components/admin/OrganizationSettings").then(module => ({ default: module.OrganizationSettings })));
 
@@ -49,6 +50,12 @@ const Index = () => {
         return (
           <Suspense fallback={<LoadingSpinner size="lg" text="Loading..." className="py-12" />}>
             <FinancialManagement />
+          </Suspense>
+        );
+      case "social-media":
+        return (
+          <Suspense fallback={<LoadingSpinner size="lg" text="Loading..." className="py-12" />}>
+            <SocialMediaDashboard />
           </Suspense>
         );
       case "user-management":

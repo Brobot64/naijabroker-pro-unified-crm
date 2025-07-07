@@ -9,7 +9,8 @@ import {
   Building2,
   UserCog,
   Code,
-  Zap
+  Zap,
+  MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -53,6 +54,12 @@ export const Sidebar = ({ activeSection, onSectionChange, userRole }: SidebarPro
       label: "Financial",
       icon: DollarSign,
       roles: ["SuperAdmin", "BrokerAdmin"]
+    },
+    {
+      id: "social-media",
+      label: "Social Media",
+      icon: MessageSquare,
+      roles: ["SuperAdmin", "BrokerAdmin", "Agent"]
     },
     {
       id: "user-management",
