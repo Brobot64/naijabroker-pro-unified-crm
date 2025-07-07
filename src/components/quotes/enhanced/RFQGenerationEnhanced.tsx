@@ -111,6 +111,17 @@ ${additionalNotes ? `Additional Notes:\n${additionalNotes}` : ''}
       generated_at: new Date().toISOString(),
       quote_id: quoteData?.id,
       additional_notes: additionalNotes,
+      // Include all quote data for email generation
+      quote_number: quoteData?.quote_number,
+      client_name: quoteData?.client_name,
+      policy_type: quoteData?.policy_type,
+      sum_insured: quoteData?.sum_insured,
+      premium: quoteData?.premium,
+      start_date: quoteData?.start_date,
+      end_date: quoteData?.end_date,
+      valid_until: quoteData?.valid_until,
+      location: quoteData?.location,
+      risk_details: quoteData?.risk_details,
     };
 
     onRFQGenerated(rfqData);
