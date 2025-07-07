@@ -113,10 +113,14 @@ Dear ${insurer.name},
 We are pleased to invite you to provide a quotation for the following insurance requirement:
 
 RFQ Details:
-- Client: ${rfqData?.client_name || 'Valued Client'}
+- Quote Number: ${rfqData?.quote_number || 'N/A'}
+- Client: ${rfqData?.client_name || 'N/A'}
 - Coverage Type: ${rfqData?.policy_type || 'General Insurance'}
 - Sum Insured: ${rfqData?.sum_insured ? `₦${parseFloat(rfqData.sum_insured).toLocaleString()}` : 'TBD'}
-- Coverage Period: ${rfqData?.start_date || 'TBD'} to ${rfqData?.end_date || 'TBD'}
+- Premium: ${rfqData?.premium ? `₦${parseFloat(rfqData.premium).toLocaleString()}` : 'TBD'}
+- Coverage Period: ${rfqData?.start_date || 'TBD'} to ${rfqData?.end_date || rfqData?.valid_until || 'TBD'}
+- Location: ${rfqData?.location || 'TBD'}
+- Risk Details: ${rfqData?.risk_details || 'Please see attached details'}
 
 Please provide your competitive quotation within 48 hours. Include your premium rates, terms and conditions, and any exclusions.
 
@@ -131,7 +135,7 @@ Insurance Brokers
             body: {
               type: 'rfq_dispatch',
               recipientEmail: insurer.email,
-              subject: `Request for Quotation - ${rfqData?.client_name || 'Insurance RFQ'}`,
+              subject: `RFQ ${rfqData?.quote_number || ''} - Request for Quotation - ${rfqData?.client_name || 'Insurance RFQ'}`,
               message: rfqContent,
               metadata: {
                 insurer_id: insurer.id,
@@ -147,7 +151,7 @@ Insurance Brokers
             body: {
               type: 'rfq_dispatch_copy',
               recipientEmail: brokerEmail,
-              subject: `RFQ Sent to ${insurer.name} - ${rfqData?.client_name || 'Insurance RFQ'}`,
+              subject: `RFQ ${rfqData?.quote_number || ''} Sent to ${insurer.name} - ${rfqData?.client_name || 'Insurance RFQ'}`,
               message: `RFQ has been successfully sent to ${insurer.name} (${insurer.email}).\n\nRFQ Content:\n${rfqContent}`,
               metadata: {
                 insurer_id: insurer.id,

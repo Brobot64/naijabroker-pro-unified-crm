@@ -397,68 +397,76 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
-            <Textarea
-              id="address"
-              value={formData.address}
-              onChange={(e) => handleInputChange('address', e.target.value)}
-              disabled={loading}
-            />
-          </div>
+          {/* Only show Address for Company clients */}
+          {isCompanyType && (
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <Textarea
+                id="address"
+                value={formData.address}
+                onChange={(e) => handleInputChange('address', e.target.value)}
+                disabled={loading}
+              />
+            </div>
+          )}
         </div>
 
         <Separator />
 
-        {/* Contact Information */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Contact Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="contact_name">Contact Person Name *</Label>
-              <Input
-                id="contact_name"
-                value={formData.contact_name}
-                onChange={(e) => handleInputChange('contact_name', e.target.value)}
-                disabled={loading}
-              />
-            </div>
+        {/* Contact Information - Only for Company clients */}
+        {isCompanyType && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Contact Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="contact_name">Contact Person Name *</Label>
+                <Input
+                  id="contact_name"
+                  value={formData.contact_name}
+                  onChange={(e) => handleInputChange('contact_name', e.target.value)}
+                  disabled={loading}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="contact_phone">Contact Phone</Label>
-              <Input
-                id="contact_phone"
-                value={formData.contact_phone}
-                onChange={(e) => handleInputChange('contact_phone', e.target.value)}
-                disabled={loading}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_phone">Contact Phone</Label>
+                <Input
+                  id="contact_phone"
+                  value={formData.contact_phone}
+                  onChange={(e) => handleInputChange('contact_phone', e.target.value)}
+                  disabled={loading}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="contact_email">Contact Email</Label>
-              <Input
-                id="contact_email"
-                type="email"
-                value={formData.contact_email}
-                onChange={(e) => handleInputChange('contact_email', e.target.value)}
-                disabled={loading}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_email">Contact Email</Label>
+                <Input
+                  id="contact_email"
+                  type="email"
+                  value={formData.contact_email}
+                  onChange={(e) => handleInputChange('contact_email', e.target.value)}
+                  disabled={loading}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="contact_address">Contact Address</Label>
-              <Textarea
-                id="contact_address"
-                value={formData.contact_address}
-                onChange={(e) => handleInputChange('contact_address', e.target.value)}
-                disabled={loading}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="contact_address">Contact Address</Label>
+                <Textarea
+                  id="contact_address"
+                  value={formData.contact_address}
+                  onChange={(e) => handleInputChange('contact_address', e.target.value)}
+                  disabled={loading}
+                />
+              </div>
             </div>
           </div>
+        )}
 
-          {/* Individual client specific fields */}
-          {!isCompanyType && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+        {/* Individual client specific fields - Only Birthday and Anniversary */}
+        {!isCompanyType && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Personal Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="contact_birthday">Birthday</Label>
                 <Input
@@ -481,8 +489,8 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
                 />
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Company-specific fields */}
         {isCompanyType && (
