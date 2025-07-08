@@ -49,6 +49,13 @@ serve(async (req) => {
 
     const { type, recipientEmail, subject, message, metadata }: EmailRequest = await req.json();
 
+    // Debug: Log the email request data
+    console.log('DEBUG: Email notification request received');
+    console.log('DEBUG: Type:', type);
+    console.log('DEBUG: Subject:', subject);
+    console.log('DEBUG: Message:', message);
+    console.log('DEBUG: Metadata:', metadata);
+
     // Store email notification in database
     const { data: notification, error: dbError } = await supabaseClient
       .from("email_notifications")

@@ -124,6 +124,9 @@ ${additionalNotes ? `Additional Notes:\n${additionalNotes}` : ''}
       risk_details: quoteData?.risk_details,
     };
 
+    console.log('DEBUG: RFQ Generation - rfqData being passed:', rfqData);
+    console.log('DEBUG: RFQ Generation - rfqContent:', rfqContent);
+
     onRFQGenerated(rfqData);
   };
 

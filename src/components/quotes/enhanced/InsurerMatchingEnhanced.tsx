@@ -107,6 +107,10 @@ export const InsurerMatchingEnhanced = ({ rfqData, onMatchingComplete, onBack }:
        // Send RFQ emails to all selected insurers
       for (const insurer of selectedInsurers) {
         try {
+          // Debug: Log the rfqData to see what's being passed
+          console.log('DEBUG: rfqData in InsurerMatching:', rfqData);
+          console.log('DEBUG: rfqData.content:', rfqData?.content);
+          
           // Use the pre-generated RFQ content with proper header
           const rfqContent = `Dear ${insurer.name},
 
