@@ -104,23 +104,15 @@ export const InsurerMatchingEnhanced = ({ rfqData, onMatchingComplete, onBack }:
 
       const brokerEmail = organization?.email || 'broker@naijabrokerpro.com';
 
-      // Send RFQ emails to all selected insurers
+       // Send RFQ emails to all selected insurers
       for (const insurer of selectedInsurers) {
         try {
-          const rfqContent = `
-Dear ${insurer.name},
+          // Use the pre-generated RFQ content with proper header
+          const rfqContent = `Dear ${insurer.name},
 
 We are pleased to invite you to provide a quotation for the following insurance requirement:
 
-RFQ Details:
-- Quote Number: ${rfqData?.quote_number || 'N/A'}
-- Client: ${rfqData?.client_name || 'N/A'}
-- Coverage Type: ${rfqData?.policy_type || 'General Insurance'}
-- Sum Insured: ${rfqData?.sum_insured ? `₦${parseFloat(rfqData.sum_insured).toLocaleString()}` : 'TBD'}
-- Premium: ${rfqData?.premium ? `₦${parseFloat(rfqData.premium).toLocaleString()}` : 'TBD'}
-- Coverage Period: ${rfqData?.start_date || 'TBD'} to ${rfqData?.end_date || rfqData?.valid_until || 'TBD'}
-- Location: ${rfqData?.location || 'TBD'}
-- Risk Details: ${rfqData?.risk_details || 'Please see attached details'}
+${rfqData?.content || 'RFQ details not available'}
 
 Please provide your competitive quotation within 48 hours. Include your premium rates, terms and conditions, and any exclusions.
 
@@ -128,8 +120,7 @@ Respond to this email with your quote documents attached.
 
 Best regards,
 ${organization?.name || 'NaijaBroker Pro'}
-Insurance Brokers
-          `.trim();
+Insurance Brokers`;
 
           await supabase.functions.invoke('send-email-notification', {
             body: {
