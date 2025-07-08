@@ -73,7 +73,21 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete }: Qu
   ] as const;
 
   const handleStepComplete = (stepId: WorkflowStep, data: any) => {
-    dispatch({ type: 'SET_DATA', payload: { key: stepId.replace('-', ''), data } });
+    // Map step IDs to proper data keys
+    const keyMap: Record<string, string> = {
+      'client-onboarding': 'client',
+      'quote-drafting': 'quote', 
+      'clause-recommendation': 'clauses',
+      'rfq-generation': 'rfq',
+      'insurer-matching': 'insurerMatches',
+      'quote-evaluation': 'quotes',
+      'client-selection': 'clientSelection',
+      'payment-processing': 'payment',
+      'contract-generation': 'contracts'
+    };
+    
+    const key = keyMap[stepId] || stepId.replace('-', '');
+    dispatch({ type: 'SET_DATA', payload: { key, data } });
     dispatch({ type: 'COMPLETE_STEP', payload: stepId });
     dispatch({ type: 'SET_STEP', payload: stepId });
     
