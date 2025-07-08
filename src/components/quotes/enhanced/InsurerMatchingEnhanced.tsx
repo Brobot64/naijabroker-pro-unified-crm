@@ -107,13 +107,20 @@ export const InsurerMatchingEnhanced = ({ rfqData, onMatchingComplete, onBack }:
       // Send RFQ emails to all selected insurers
       for (const insurer of selectedInsurers) {
         try {
-          // Use the actual RFQ content that was generated instead of reconstructing it
           const rfqContent = `
 Dear ${insurer.name},
 
 We are pleased to invite you to provide a quotation for the following insurance requirement:
 
-${rfqData?.content || 'RFQ details not available'}
+RFQ Details:
+- Quote Number: ${rfqData?.quote_number || 'N/A'}
+- Client: ${rfqData?.client_name || 'N/A'}
+- Coverage Type: ${rfqData?.policy_type || 'General Insurance'}
+- Sum Insured: ${rfqData?.sum_insured ? `₦${parseFloat(rfqData.sum_insured).toLocaleString()}` : 'TBD'}
+- Premium: ${rfqData?.premium ? `₦${parseFloat(rfqData.premium).toLocaleString()}` : 'TBD'}
+- Coverage Period: ${rfqData?.start_date || 'TBD'} to ${rfqData?.end_date || rfqData?.valid_until || 'TBD'}
+- Location: ${rfqData?.location || 'TBD'}
+- Risk Details: ${rfqData?.risk_details || 'Please see attached details'}
 
 Please provide your competitive quotation within 48 hours. Include your premium rates, terms and conditions, and any exclusions.
 
