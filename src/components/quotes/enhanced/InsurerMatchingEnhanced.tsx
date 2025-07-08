@@ -107,16 +107,33 @@ export const InsurerMatchingEnhanced = ({ rfqData, onMatchingComplete, onBack }:
       // Send RFQ emails to all selected insurers
       for (const insurer of selectedInsurers) {
         try {
+          // Use the actual RFQ content that was generated instead of reconstructing it
+          const rfqContent = `
+Dear ${insurer.name},
+
+We are pleased to invite you to provide a quotation for the following insurance requirement:
+
+${rfqData?.content || 'RFQ details not available'}
+
+Please provide your competitive quotation within 48 hours. Include your premium rates, terms and conditions, and any exclusions.
+
+Respond to this email with your quote documents attached.
+
+Best regards,
+${organization?.name || 'NaijaBroker Pro'}
+Insurance Brokers
+          `.trim();
+
           await supabase.functions.invoke('send-email-notification', {
             body: {
               type: 'rfq_dispatch',
               recipientEmail: insurer.email,
               subject: `RFQ ${rfqData?.quote_number || ''} - Request for Quotation - ${rfqData?.client_name || 'Insurance RFQ'}`,
-              message: '', // Will be generated in the email function with attachment
+              message: rfqContent,
               metadata: {
                 insurer_id: insurer.id,
                 insurer_name: insurer.name,
-                rfq_data: rfqData, // Pass the complete RFQ data
+                rfq_data: rfqData,
                 broker_copy: true
               }
             }
@@ -128,12 +145,11 @@ export const InsurerMatchingEnhanced = ({ rfqData, onMatchingComplete, onBack }:
               type: 'rfq_dispatch_copy',
               recipientEmail: brokerEmail,
               subject: `RFQ ${rfqData?.quote_number || ''} Sent to ${insurer.name} - ${rfqData?.client_name || 'Insurance RFQ'}`,
-              message: `RFQ has been successfully sent to ${insurer.name} (${insurer.email}).`,
+              message: `RFQ has been successfully sent to ${insurer.name} (${insurer.email}).\n\nRFQ Content:\n${rfqContent}`,
               metadata: {
                 insurer_id: insurer.id,
                 insurer_name: insurer.name,
-                copy_type: 'broker_notification',
-                rfq_data: rfqData // Include RFQ data for broker copy too
+                copy_type: 'broker_notification'
               }
             }
           });
