@@ -149,6 +149,7 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteS
   };
 
   const handleAIGenerate = async (field: string) => {
+    console.log('AI Generate started for field:', field);
     setLoading(true);
     try {
       let prompt = '';
@@ -170,11 +171,16 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteS
           return;
       }
 
+      console.log('Sending prompt to AI:', prompt);
+      
       const { data, error } = await supabase.functions.invoke('generate-text-ai', {
         body: { prompt, maxTokens: 300 }
       });
 
+      console.log('AI Response:', { data, error });
+
       if (error) {
+        console.error('Supabase function error:', error);
         throw error;
       }
 
@@ -189,7 +195,7 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteS
       console.error('AI generation error:', error);
       toast({
         title: "AI Generation Failed",
-        description: "Could not generate content. Please try again or fill manually.",
+        description: `Could not generate content. Error: ${error?.message || 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {
