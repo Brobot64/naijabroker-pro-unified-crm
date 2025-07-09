@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { QuoteService } from '@/services/database/quoteService';
 import { calculateFinancials } from '@/utils/financialCalculations';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Quote {
   id: string;
@@ -53,15 +54,6 @@ const POLICY_TYPES = [
   { value: 'cyber', label: 'Cyber Insurance' },
 ];
 
-const UNDERWRITERS = [
-  { value: 'aiico', label: 'AIICO Insurance' },
-  { value: 'leadway', label: 'Leadway Assurance' },
-  { value: 'axa-mansard', label: 'AXA Mansard' },
-  { value: 'cornerstone', label: 'Cornerstone Insurance' },
-  { value: 'sovereign-trust', label: 'Sovereign Trust Insurance' },
-  { value: 'lasaco', label: 'LASACO Assurance' },
-  { value: 'consolidated-hallmark', label: 'Consolidated Hallmark' },
-];
 
 export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteSaved, onBack }: QuoteIntakeDraftingEnhancedProps) => {
   const { state, dispatch } = useWorkflowContext();
@@ -156,6 +148,55 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteS
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleAIGenerate = async (field: string) => {
+    setLoading(true);
+    try {
+      let prompt = '';
+      
+      switch (field) {
+        case 'insured_description':
+          prompt = `Generate a detailed professional description for insurance coverage of: ${formData.insured_item || 'property/asset'}. The insurance type is ${formData.policy_type}. Include specific details about the item/asset characteristics, usage, and relevant features for insurance purposes.`;
+          break;
+        case 'risk_details':
+          prompt = `Generate a comprehensive risk assessment for ${formData.policy_type} insurance covering: ${formData.insured_item || 'the insured property/asset'}. Include potential hazards, risk factors, and vulnerabilities that should be considered for insurance coverage.`;
+          break;
+        case 'coverage_requirements':
+          prompt = `Generate specific coverage requirements for ${formData.policy_type} insurance for: ${formData.insured_item || 'the insured property/asset'}. Include what should be covered, any specific terms, and coverage limits or conditions that should be considered.`;
+          break;
+        case 'notes':
+          prompt = `Generate additional professional notes and considerations for ${formData.policy_type} insurance quote for: ${formData.insured_item || 'the client\'s property/asset'}. Include any special considerations, recommendations, or important points for the underwriter.`;
+          break;
+        default:
+          return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('generate-text-ai', {
+        body: { prompt, maxTokens: 300 }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.generatedText) {
+        handleInputChange(field, data.generatedText);
+        toast({
+          title: "AI Content Generated",
+          description: `${field.replace('_', ' ')} has been filled with AI-generated content`,
+        });
+      }
+    } catch (error) {
+      console.error('AI generation error:', error);
+      toast({
+        title: "AI Generation Failed",
+        description: "Could not generate content. Please try again or fill manually.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const generateQuoteNumber = () => {
     const date = new Date();
     const year = date.getFullYear();
@@ -174,7 +215,6 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteS
     const validationErrors = [];
     
     if (!formData.policy_type) validationErrors.push('Policy type is required');
-    if (!formData.underwriter) validationErrors.push('Underwriter is required');
     if (!formData.sum_insured || formData.sum_insured <= 0) validationErrors.push('Sum insured must be greater than 0');
     if (!clientData?.name) validationErrors.push('Client data is missing');
     if (!organizationId) validationErrors.push('Organization not found');
@@ -203,7 +243,7 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteS
         client_id: clientData.id || null,
         organization_id: organizationId,
         policy_type: formData.policy_type,
-        underwriter: formData.underwriter,
+        underwriter: 'TBD', // Will be determined during insurer matching
         sum_insured: Number(formData.sum_insured),
         premium: Number(formData.premium) || 0,
         commission_rate: Number(formData.commission_rate),
@@ -278,7 +318,7 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteS
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Policy Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div className="space-y-2">
             <Label htmlFor="policy_type">Class of Insurance *</Label>
             <Select value={formData.policy_type} onValueChange={(value) => handleInputChange('policy_type', value)} disabled={loading}>
@@ -288,20 +328,6 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteS
               <SelectContent>
                 {POLICY_TYPES.map(type => (
                   <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="underwriter">Preferred Underwriter *</Label>
-            <Select value={formData.underwriter} onValueChange={(value) => handleInputChange('underwriter', value)} disabled={loading}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select underwriter..." />
-              </SelectTrigger>
-              <SelectContent>
-                {UNDERWRITERS.map(underwriter => (
-                  <SelectItem key={underwriter.value} value={underwriter.value}>{underwriter.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -338,38 +364,74 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteS
 
           <div className="space-y-2">
             <Label htmlFor="insured_description">Detailed Description</Label>
-            <Textarea
-              id="insured_description"
-              value={formData.insured_description}
-              onChange={(e) => handleInputChange('insured_description', e.target.value)}
-              placeholder="Provide detailed description of what is being insured..."
-              rows={3}
-              disabled={loading}
-            />
+            <div className="relative">
+              <Textarea
+                id="insured_description"
+                value={formData.insured_description}
+                onChange={(e) => handleInputChange('insured_description', e.target.value)}
+                placeholder="Provide detailed description of what is being insured..."
+                rows={3}
+                disabled={loading}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="absolute top-2 right-2"
+                onClick={() => handleAIGenerate('insured_description')}
+                disabled={loading || !formData.insured_item}
+              >
+                ✨ AI Fill
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="risk_details">Risk Assessment</Label>
-            <Textarea
-              id="risk_details"
-              value={formData.risk_details}
-              onChange={(e) => handleInputChange('risk_details', e.target.value)}
-              placeholder="Describe potential risks and hazards..."
-              rows={3}
-              disabled={loading}
-            />
+            <div className="relative">
+              <Textarea
+                id="risk_details"
+                value={formData.risk_details}
+                onChange={(e) => handleInputChange('risk_details', e.target.value)}
+                placeholder="Describe potential risks and hazards..."
+                rows={3}
+                disabled={loading}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="absolute top-2 right-2"
+                onClick={() => handleAIGenerate('risk_details')}
+                disabled={loading || !formData.policy_type}
+              >
+                ✨ AI Fill
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="coverage_requirements">Coverage Requirements</Label>
-            <Textarea
-              id="coverage_requirements"
-              value={formData.coverage_requirements}
-              onChange={(e) => handleInputChange('coverage_requirements', e.target.value)}
-              placeholder="Specific coverage requirements from client..."
-              rows={3}
-              disabled={loading}
-            />
+            <div className="relative">
+              <Textarea
+                id="coverage_requirements"
+                value={formData.coverage_requirements}
+                onChange={(e) => handleInputChange('coverage_requirements', e.target.value)}
+                placeholder="Specific coverage requirements from client..."
+                rows={3}
+                disabled={loading}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="absolute top-2 right-2"
+                onClick={() => handleAIGenerate('coverage_requirements')}
+                disabled={loading || !formData.policy_type}
+              >
+                ✨ AI Fill
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -438,13 +500,26 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteS
 
         <div className="space-y-2">
           <Label htmlFor="notes">Additional Notes</Label>
-          <Textarea
-            id="notes"
-            value={formData.notes}
-            onChange={(e) => handleInputChange('notes', e.target.value)}
-            rows={3}
-            disabled={loading}
-          />
+          <div className="relative">
+            <Textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => handleInputChange('notes', e.target.value)}
+              rows={3}
+              disabled={loading}
+              placeholder="Any additional notes or special requirements..."
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="absolute top-2 right-2"
+              onClick={() => handleAIGenerate('notes')}
+              disabled={loading}
+            >
+              ✨ AI Fill
+            </Button>
+          </div>
         </div>
 
         <div className="flex justify-between">

@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from '@/integrations/supabase/client';
 import { Bot, Loader2, Plus } from "lucide-react";
 
 interface AIClauseAssistantProps {
   policyType: string;
   sumInsured: number;
+  quoteData?: any;
   onClauseSuggested: (clause: {
     name: string;
     description: string;
@@ -20,7 +22,7 @@ interface AIClauseAssistantProps {
   }) => void;
 }
 
-export const AIClauseAssistant = ({ policyType, sumInsured, onClauseSuggested }: AIClauseAssistantProps) => {
+export const AIClauseAssistant = ({ policyType, sumInsured, quoteData, onClauseSuggested }: AIClauseAssistantProps) => {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -38,33 +40,87 @@ export const AIClauseAssistant = ({ policyType, sumInsured, onClauseSuggested }:
 
     setLoading(true);
     try {
-      // Simulate AI response for now - in production you'd call an AI service
-      const mockSuggestions = [
-        {
-          name: "Enhanced Coverage Extension",
-          description: "Extended coverage based on your specific requirements",
-          category: "extension",
-          clause_text: `This policy is extended to cover ${prompt.toLowerCase()}, subject to the terms and conditions herein.`,
-          premium_impact_type: "percentage" as const,
-          premium_impact_value: 3.5,
-          confidence: 0.85
-        },
-        {
-          name: "Risk Mitigation Clause",
-          description: "Additional risk protection clause",
-          category: "warranty",
-          clause_text: `The insured warrants to implement appropriate measures to mitigate risks related to ${prompt.toLowerCase()}.`,
-          premium_impact_type: "percentage" as const,
-          premium_impact_value: -1.5,
-          confidence: 0.78
-        }
-      ];
+      // Create detailed prompt using quote data
+      const detailedPrompt = `
+        Generate specific insurance policy clauses based on this quote information:
+        
+        Policy Type: ${policyType}
+        Sum Insured: ₦${sumInsured?.toLocaleString()}
+        Insured Item: ${quoteData?.insured_item || 'Not specified'}
+        Location: ${quoteData?.location || 'Not specified'}
+        Risk Details: ${quoteData?.risk_details || 'Not specified'}
+        Coverage Requirements: ${quoteData?.coverage_requirements || 'Not specified'}
+        
+        User specific request: ${prompt}
+        
+        Please provide 2-3 relevant policy clauses in this exact JSON format:
+        [
+          {
+            "name": "Clause Name",
+            "description": "Brief description", 
+            "category": "extension",
+            "clause_text": "Full clause text",
+            "premium_impact_type": "percentage",
+            "premium_impact_value": 0.0,
+            "confidence": 0.85
+          }
+        ]
+        
+        Make sure clauses are specific to the policy type and risk profile. Return only valid JSON.
+      `;
 
-      setSuggestions(mockSuggestions);
-      toast({
-        title: "Suggestions Generated",
-        description: `Generated ${mockSuggestions.length} clause suggestions`
+      const { data, error } = await supabase.functions.invoke('generate-text-ai', {
+        body: { prompt: detailedPrompt, maxTokens: 800 }
       });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.generatedText) {
+        try {
+          // Try to parse JSON response
+          const jsonMatch = data.generatedText.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            const parsedSuggestions = JSON.parse(jsonMatch[0]);
+            setSuggestions(parsedSuggestions);
+            toast({
+              title: "Suggestions Generated",
+              description: `Generated ${parsedSuggestions.length} clause suggestions`
+            });
+          } else {
+            throw new Error('Invalid JSON format in AI response');
+          }
+        } catch (parseError) {
+          console.error('JSON parsing error:', parseError);
+          // Fallback to based suggestions using quote data
+          const fallbackSuggestions = [
+            {
+              name: `${policyType} Coverage Extension`,
+              description: `Enhanced coverage for ${quoteData?.insured_item || 'the insured property'}`,
+              category: "extension",
+              clause_text: `This policy is extended to cover ${prompt.toLowerCase()} for ${quoteData?.insured_item || 'the insured property'} located at ${quoteData?.location || 'the specified location'}, subject to the terms and conditions herein.`,
+              premium_impact_type: "percentage" as const,
+              premium_impact_value: 2.5,
+              confidence: 0.80
+            },
+            {
+              name: "Risk Mitigation Warranty",
+              description: "Risk management requirements based on assessment",
+              category: "warranty",
+              clause_text: `The insured warrants to implement appropriate risk mitigation measures for ${quoteData?.insured_item || 'the insured property'}, taking into account ${quoteData?.risk_details || 'the identified risk factors'}.`,
+              premium_impact_type: "percentage" as const,
+              premium_impact_value: -1.0,
+              confidence: 0.75
+            }
+          ];
+          setSuggestions(fallbackSuggestions);
+          toast({
+            title: "Suggestions Generated",
+            description: "Generated clause recommendations based on your quote data"
+          });
+        }
+      }
     } catch (error) {
       console.error('Error generating suggestions:', error);
       toast({

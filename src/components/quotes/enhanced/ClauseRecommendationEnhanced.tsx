@@ -268,6 +268,7 @@ export const ClauseRecommendationEnhanced = ({ quoteData, onClausesSelected, onB
         <AIClauseAssistant
           policyType={quoteData.policy_type}
           sumInsured={quoteData.sum_insured || 0}
+          quoteData={quoteData}
           onClauseSuggested={handleAISuggestion}
         />
 

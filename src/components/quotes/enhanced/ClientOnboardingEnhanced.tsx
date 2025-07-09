@@ -188,6 +188,72 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
     setIsNewClient(true);
   };
 
+  const handleEditClient = () => {
+    setIsNewClient(false);
+    // Allow editing of existing client data
+  };
+
+  const handleUpdateClient = async () => {
+    if (!selectedClient?.id) {
+      toast({
+        title: "Error",
+        description: "No client selected for update",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!formData.name || !formData.email) {
+      toast({
+        title: "Validation Error",
+        description: "Name and email are required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    dispatch({ type: 'SET_LOADING', payload: true });
+
+    try {
+      const updatedData = {
+        ...formData,
+        // Convert empty date strings to null to avoid database errors
+        birthday: formData.birthday?.trim() || null,
+        anniversary: formData.anniversary?.trim() || null,
+        contact_birthday: formData.contact_birthday?.trim() || null,
+        contact_anniversary: formData.contact_anniversary?.trim() || null,
+        chairman_birthday: formData.chairman_birthday?.trim() || null,
+        md_birthday: formData.md_birthday?.trim() || null,
+        head_of_finance_birthday: formData.head_of_finance_birthday?.trim() || null,
+      };
+
+      const clientData = await ClientService.update(selectedClient.id, updatedData);
+      setSelectedClient(clientData);
+      
+      toast({
+        title: "Success",
+        description: "Client information updated successfully",
+      });
+
+      // Save to workflow state
+      dispatch({ type: 'SET_DATA', payload: { key: 'client', data: clientData } });
+      dispatch({ type: 'COMPLETE_STEP', payload: 'client-onboarding' });
+      
+      onClientSelected(clientData);
+    } catch (error) {
+      console.error('Error updating client:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update client information",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  };
+
   const handleSubmit = async () => {
     if (!formData.name || !formData.email) {
       toast({
@@ -231,6 +297,10 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
           title: "Success",
           description: `New ${formData.client_type} client created with ID: ${clientData.client_code}`,
         });
+      } else if (selectedClient?.id && JSON.stringify(formData) !== JSON.stringify(selectedClient)) {
+        // Update existing client if data has changed
+        await handleUpdateClient();
+        return;
       } else {
         clientData = selectedClient;
       }
@@ -282,6 +352,15 @@ export const ClientOnboardingEnhanced = ({ onClientSelected, onBack }: ClientOnb
                 ))}
               </SelectContent>
             </Select>
+            {selectedClient && (
+              <Button 
+                variant="outline" 
+                onClick={handleEditClient}
+                disabled={loading}
+              >
+                Edit Client
+              </Button>
+            )}
           </div>
         </div>
 
