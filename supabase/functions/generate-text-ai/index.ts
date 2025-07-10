@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const deepseekApiKey = Deno.env.get('DEEPSEEK_AI_KEY');
+const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,23 +18,23 @@ serve(async (req) => {
     const { prompt, maxTokens = 500 } = await req.json();
     console.log('Function called with prompt:', prompt?.substring(0, 100) + '...');
 
-    if (!deepseekApiKey) {
-      console.error('DeepSeek API key not found in environment variables');
-      return new Response(JSON.stringify({ error: 'DeepSeek API key not configured. Please add your API key in Supabase Edge Functions secrets.' }), {
+    if (!openAIApiKey) {
+      console.error('OpenAI API key not found in environment variables');
+      return new Response(JSON.stringify({ error: 'OpenAI API key not configured. Please add your API key in Supabase Edge Functions secrets.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log('Making request to DeepSeek API...');
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    console.log('Making request to OpenAI API...');
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${deepseekApiKey}`,
+        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'gpt-4o-mini',
         messages: [
           { 
             role: 'system', 
@@ -47,12 +47,12 @@ serve(async (req) => {
       }),
     });
 
-    console.log('DeepSeek API response status:', response.status);
+    console.log('OpenAI API response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('DeepSeek API error details:', errorText);
-      throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`);
+      console.error('OpenAI API error details:', errorText);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
