@@ -16,14 +16,17 @@ serve(async (req) => {
 
   try {
     const { prompt, maxTokens = 500 } = await req.json();
+    console.log('Function called with prompt:', prompt?.substring(0, 100) + '...');
 
     if (!openAIApiKey) {
-      return new Response(JSON.stringify({ error: 'OpenAI API key not configured' }), {
+      console.error('OpenAI API key not found in environment variables');
+      return new Response(JSON.stringify({ error: 'OpenAI API key not configured. Please add your API key in Supabase Edge Functions secrets.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    console.log('Making request to OpenAI API...');
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -44,19 +47,25 @@ serve(async (req) => {
       }),
     });
 
+    console.log('OpenAI API response status:', response.status);
+
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('OpenAI API error details:', errorText);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
     const generatedText = data.choices[0].message.content;
+    console.log('Successfully generated text, length:', generatedText?.length);
 
     return new Response(JSON.stringify({ generatedText }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Error in generate-text-ai function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMessage = error.message || 'Unknown error occurred';
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
