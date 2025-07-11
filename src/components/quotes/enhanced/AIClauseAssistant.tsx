@@ -23,7 +23,7 @@ interface AIClauseAssistantProps {
 }
 
 export const AIClauseAssistant = ({ policyType, sumInsured, quoteData, onClauseSuggested }: AIClauseAssistantProps) => {
-  const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState(quoteData?.coverage_requirements || '');
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const { toast } = useToast();
