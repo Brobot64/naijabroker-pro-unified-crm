@@ -47,8 +47,15 @@ Terms & Conditions:
 ${quoteData.terms_conditions || 'Standard terms and conditions apply.'}
 
 ${clauses && clauses.length > 0 ? `
-Selected Clauses:
-${clauses.map((clause, index) => `${index + 1}. ${clause.name || clause.title}`).join('\n')}
+Selected Clauses and Add-ons:
+${clauses.map((clause, index) => {
+  const name = clause.custom_name || clause.name || 'Unknown Clause';
+  const category = clause.category || 'N/A';
+  const premiumImpact = clause.premium_impact_value && clause.premium_impact_value !== 0 
+    ? ` (${clause.premium_impact_value > 0 ? '+' : ''}${clause.premium_impact_value}% premium impact)` 
+    : '';
+  return `${index + 1}. ${name} [${category}]${premiumImpact}`;
+}).join('\n')}
 ` : ''}
 
 Validity: ${quoteData.valid_until || 'N/A'}
