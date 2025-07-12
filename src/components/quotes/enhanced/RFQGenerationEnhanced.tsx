@@ -9,7 +9,7 @@ import { FileText, Download, Eye } from "lucide-react";
 
 interface RFQGenerationEnhancedProps {
   quoteData: any;
-  clauses: any[];
+  clauses: any[] | { clauses: any[], addOns: any[] } | any;
   onRFQGenerated: (rfqData: any) => void;
   onBack: () => void;
 }
@@ -22,6 +22,28 @@ export const RFQGenerationEnhanced = ({ quoteData, clauses, onRFQGenerated, onBa
 
   const generateRFQContent = () => {
     if (!quoteData) return '';
+
+    console.log('DEBUG: RFQ Generation - clauses data:', clauses);
+    console.log('DEBUG: RFQ Generation - clause data type:', typeof clauses);
+    console.log('DEBUG: RFQ Generation - clauses length:', clauses?.length);
+
+    // Handle both clause-only data and the new {clauses, addOns} structure
+    let clausesList = [];
+    let addOnsList = [];
+    
+    if (clauses) {
+      if (Array.isArray(clauses)) {
+        // Old format - just clauses array
+        clausesList = clauses;
+      } else if (clauses.clauses || clauses.addOns) {
+        // New format - {clauses: [], addOns: []}
+        clausesList = clauses.clauses || [];
+        addOnsList = clauses.addOns || [];
+      }
+    }
+
+    console.log('DEBUG: RFQ Generation - processed clausesList:', clausesList);
+    console.log('DEBUG: RFQ Generation - processed addOnsList:', addOnsList);
 
     return `REQUEST FOR QUOTATION
 
@@ -46,16 +68,23 @@ Insured Item Details:
 Terms & Conditions:
 ${quoteData.terms_conditions || 'Standard terms and conditions apply.'}
 
-${clauses && clauses.length > 0 ? `
+${(clausesList.length > 0 || addOnsList.length > 0) ? `
 Selected Clauses and Add-ons:
-${clauses.map((clause, index) => {
+${clausesList.map((clause, index) => {
   const name = clause.custom_name || clause.name || 'Unknown Clause';
   const category = clause.category || 'N/A';
   const premiumImpact = clause.premium_impact_value && clause.premium_impact_value !== 0 
     ? ` (${clause.premium_impact_value > 0 ? '+' : ''}${clause.premium_impact_value}% premium impact)` 
     : '';
   return `${index + 1}. ${name} [${category}]${premiumImpact}`;
-}).join('\n')}
+}).join('\n')}${addOnsList.length > 0 ? `
+${addOnsList.map((addOn, index) => {
+  const name = addOn.custom_name || addOn.name || 'Unknown Add-on';
+  const premiumImpact = addOn.premium_impact_value && addOn.premium_impact_value !== 0 
+    ? ` (${addOn.premium_impact_value > 0 ? '+' : ''}${addOn.premium_impact_value}% premium impact)` 
+    : '';
+  return `${clausesList.length + index + 1}. ${name} [Add-on]${premiumImpact}`;
+}).join('\n')}` : ''}
 ` : ''}
 
 Validity: ${quoteData.valid_until || 'N/A'}
