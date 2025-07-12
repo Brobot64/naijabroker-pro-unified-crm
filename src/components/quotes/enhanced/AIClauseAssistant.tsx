@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 import { Bot, Loader2, Plus } from "lucide-react";
@@ -26,7 +27,25 @@ export const AIClauseAssistant = ({ policyType, sumInsured, quoteData, onClauseS
   const [prompt, setPrompt] = useState(quoteData?.coverage_requirements || '');
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const { toast } = useToast();
+
+  const clauseCategories = [
+    { id: 'extension', label: 'Extension', description: 'Additional coverage and benefits' },
+    { id: 'exclusion', label: 'Exclusions', description: 'Items not covered by the policy' },
+    { id: 'condition', label: 'Conditions', description: 'Terms and conditions of coverage' },
+    { id: 'deductible', label: 'Deductible', description: 'Amount paid before coverage applies' },
+    { id: 'warranty', label: 'Warranty', description: 'Promises made by the insured' },
+    { id: 'excess', label: 'Excess', description: 'Additional deductible amounts' }
+  ];
+
+  const handleCategoryChange = (categoryId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedCategories(prev => [...prev, categoryId]);
+    } else {
+      setSelectedCategories(prev => prev.filter(id => id !== categoryId));
+    }
+  };
 
   const generateSuggestions = async () => {
     if (!prompt.trim()) {
@@ -38,9 +57,19 @@ export const AIClauseAssistant = ({ policyType, sumInsured, quoteData, onClauseS
       return;
     }
 
+    if (selectedCategories.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one clause category",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      // Create detailed prompt using quote data
+      const categoriesText = selectedCategories.join(', ');
+      // Create detailed prompt using quote data and selected categories
       const detailedPrompt = `
         Generate specific insurance policy clauses based on this quote information:
         
@@ -52,13 +81,15 @@ export const AIClauseAssistant = ({ policyType, sumInsured, quoteData, onClauseS
         Coverage Requirements: ${quoteData?.coverage_requirements || 'Not specified'}
         
         User specific request: ${prompt}
+        Selected clause categories to focus on: ${categoriesText}
         
-        Please provide 2-3 relevant policy clauses in this exact JSON format:
+        Please provide 2-3 relevant policy clauses focusing on the selected categories: ${categoriesText}
+        Return results in this exact JSON format:
         [
           {
             "name": "Clause Name",
             "description": "Brief description", 
-            "category": "extension",
+            "category": "one of: ${categoriesText}",
             "clause_text": "Full clause text",
             "premium_impact_type": "percentage",
             "premium_impact_value": 0.0,
@@ -66,7 +97,7 @@ export const AIClauseAssistant = ({ policyType, sumInsured, quoteData, onClauseS
           }
         ]
         
-        Make sure clauses are specific to the policy type and risk profile. Return only valid JSON.
+        Make sure clauses are specific to the policy type, risk profile, and selected categories. Return only valid JSON.
       `;
 
       const { data, error } = await supabase.functions.invoke('generate-text-ai', {
@@ -172,7 +203,34 @@ export const AIClauseAssistant = ({ policyType, sumInsured, quoteData, onClauseS
           />
         </div>
 
-        <Button onClick={generateSuggestions} disabled={loading || !prompt.trim()}>
+        <div>
+          <label className="text-sm font-medium mb-3 block">Select clause categories to focus on:</label>
+          <div className="grid grid-cols-2 gap-3">
+            {clauseCategories.map((category) => (
+              <div key={category.id} className="flex items-start space-x-2">
+                <Checkbox
+                  id={category.id}
+                  checked={selectedCategories.includes(category.id)}
+                  onCheckedChange={(checked) => handleCategoryChange(category.id, !!checked)}
+                  disabled={loading}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <label
+                    htmlFor={category.id}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {category.label}
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    {category.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Button onClick={generateSuggestions} disabled={loading || !prompt.trim() || selectedCategories.length === 0}>
           {loading ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
