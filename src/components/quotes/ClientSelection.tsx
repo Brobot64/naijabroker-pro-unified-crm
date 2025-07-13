@@ -262,15 +262,22 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600">Annual Premium:</span>
-                    <p className="font-semibold text-lg">₦{(quote.premium_quoted || 0).toLocaleString()}</p>
+                    <p className="font-semibold text-lg">₦{(quote.annual_premium || quote.premium_quoted || 0).toLocaleString()}</p>
                   </div>
                   <div>
                     <span className="text-gray-600">Commission Split:</span>
-                    <p className="font-semibold">{quote.commission_split}%</p>
+                    <p className="font-semibold">{quote.commission_percentage || quote.commission_split}%</p>
                   </div>
                   <div>
                     <span className="text-gray-600">Rating Score:</span>
-                    <Badge variant="secondary">{quote.rating_score || 0}/100</Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="secondary">{quote.rating_score || 0}/100</Badge>
+                      {quote.evaluation_source && (
+                        <Badge variant="outline" className="text-xs">
+                          {quote.evaluation_source === 'ai' ? 'AI' : 'Manual'}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <span className="text-gray-600">Response:</span>

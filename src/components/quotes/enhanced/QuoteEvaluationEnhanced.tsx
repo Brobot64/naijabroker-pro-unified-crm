@@ -226,36 +226,60 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
     
     // Combine all quotes for comparison
     const allQuotes = [...quotes, ...manualQuotes];
-    const allPremiums = allQuotes.filter(q => q.premium_quoted > 0).map(q => q.premium_quoted);
+    const validQuotes = allQuotes.filter(q => q.premium_quoted > 0);
+    
+    if (validQuotes.length === 0) return 0;
     
     // Premium competitiveness (40% weight)
+    const allPremiums = validQuotes.map(q => q.premium_quoted);
     if (allPremiums.length > 1) {
       const minPremium = Math.min(...allPremiums);
       const maxPremium = Math.max(...allPremiums);
       const range = maxPremium - minPremium;
       if (range > 0) {
-        score += ((maxPremium - quote.premium_quoted) / range) * 40;
+        // Lower premium gets higher score
+        const premiumScore = ((maxPremium - quote.premium_quoted) / range) * 40;
+        score += premiumScore;
+      } else {
+        // If all premiums are the same
+        score += 20;
       }
+    } else {
+      // Only one quote
+      score += 20;
     }
     
-    // Terms favorability (30% weight) - simplified
+    // Terms favorability (25% weight)
     if (quote.terms_conditions && quote.terms_conditions.length > 50) {
-      score += 25;
+      score += 20;
+      // Bonus for comprehensive terms
+      if (quote.terms_conditions.length > 200) {
+        score += 5;
+      }
     }
     
     // Coverage comprehensiveness (20% weight)
     const coverageLimitsCount = Object.keys(quote.coverage_limits || {}).length;
-    score += Math.min(coverageLimitsCount * 5, 20);
+    score += Math.min(coverageLimitsCount * 4, 20);
     
-    // Response timeliness (10% weight) - if response received
+    // Response timeliness (10% weight)
     if (quote.response_received) {
       score += 10;
+    }
+    
+    // Commission competitiveness (5% weight)
+    const avgCommission = validQuotes.reduce((sum, q) => sum + (q.commission_split || 0), 0) / validQuotes.length;
+    if (quote.commission_split >= avgCommission) {
+      score += 5;
     }
     
     return Math.round(Math.max(0, Math.min(100, score)));
   };
 
   const handleAutoRate = () => {
+    // Get all quotes for proper comparison
+    const allQuotes = [...quotes, ...manualQuotes];
+    
     setQuotes(prev => prev.map(quote => ({
       ...quote,
       rating_score: calculateRatingScore(quote)
@@ -267,8 +291,8 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
     })));
     
     toast({
-      title: "Success",
-      description: "All quotes auto-rated based on competitiveness and terms",
+      title: "Auto-Rating Complete",
+      description: `All ${allQuotes.length} quotes auto-rated based on competitiveness and terms`,
     });
   };
 
@@ -370,12 +394,30 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
     setLoading(true);
     
     try {
-      const evaluatedQuotes = validQuotes.map(quote => ({
-        ...quote,
-        evaluated_at: new Date().toISOString(),
-        evaluation_source: source,
-        rating_score: quote.rating_score || calculateRatingScore(quote),
-      }));
+      // Process quotes with proper premium calculations and updated data
+      const evaluatedQuotes = validQuotes.map(quote => {
+        const calculatedRating = quote.rating_score || calculateRatingScore(quote);
+        
+        return {
+          ...quote,
+          evaluated_at: new Date().toISOString(),
+          evaluation_source: source,
+          rating_score: calculatedRating,
+          // Ensure all required fields are present
+          premium_quoted: Number(quote.premium_quoted) || 0,
+          commission_split: Number(quote.commission_split) || 0,
+          insurer_name: quote.insurer_name || 'Unknown Insurer',
+          terms_conditions: quote.terms_conditions || '',
+          exclusions: Array.isArray(quote.exclusions) ? quote.exclusions : [],
+          coverage_limits: quote.coverage_limits || {},
+          ai_analysis: quote.ai_analysis || null,
+          remarks: quote.remarks || '',
+          document_url: quote.document_url || '',
+          // Add client-facing data
+          annual_premium: Number(quote.premium_quoted) || 0,
+          commission_percentage: Number(quote.commission_split) || 0
+        };
+      });
 
       // Use a valid quote_id from the quotes that were passed to this component
       let quoteId = null;
@@ -396,6 +438,7 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
       }
 
       console.log('Saving evaluated quotes with quoteId:', quoteId);
+      console.log('Evaluated quotes data:', evaluatedQuotes);
 
       // Save to database for persistence
       const { data, error } = await evaluatedQuotesService.saveEvaluatedQuotes(
@@ -410,9 +453,29 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
       setSelectedForClient(source);
       onEvaluationComplete(evaluatedQuotes);
       
+      // Send email notification to client
+      try {
+        await evaluatedQuotesService.sendEmailNotification(
+          'quote_evaluation_complete',
+          'client@example.com', // Replace with actual client email
+          'Your Insurance Quotes Are Ready',
+          `Hello,\n\nYour insurance quotes have been evaluated and are ready for review.\n\nWe have ${evaluatedQuotes.length} quotes from top insurers for your consideration.\n\nPlease log in to your portal to review and select your preferred option.\n\nBest regards,\nYour Insurance Broker`,
+          {
+            quoteCount: evaluatedQuotes.length,
+            evaluationSource: source,
+            bestQuote: evaluatedQuotes.reduce((best, current) => 
+              current.rating_score > best.rating_score ? current : best
+            )
+          }
+        );
+      } catch (emailError) {
+        console.error('Email notification failed:', emailError);
+        // Don't fail the entire process for email issues
+      }
+      
       toast({
-        title: "Success",
-        description: `${evaluatedQuotes.length} quotes (${source} evaluation) forwarded to client for selection`,
+        title: "Evaluation Forwarded Successfully",
+        description: `${evaluatedQuotes.length} quotes (${source} evaluation) forwarded to client with email notification`,
       });
     } catch (error) {
       console.error('Error forwarding quotes:', error);
@@ -665,14 +728,12 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
                           {quote.premium_quoted > 0 ? `₦${quote.premium_quoted.toLocaleString()}` : '-'}
                         </td>
                         <td className="border border-gray-300 p-2 text-center">{quote.commission_split}%</td>
-                        <td className="border border-gray-300 p-2 text-center">
-                          {quote.rating_score > 0 ? (
-                            <div className="flex items-center justify-center gap-1">
-                              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                              {quote.rating_score}
-                            </div>
-                          ) : '-'}
-                        </td>
+                         <td className="border border-gray-300 p-2 text-center">
+                           <div className="flex items-center justify-center gap-1">
+                             <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                             {quote.rating_score || calculateRatingScore(quote)}
+                           </div>
+                         </td>
                         <td className="border border-gray-300 p-2 text-center">
                           <Badge variant={quote.source === 'dispatched' ? "default" : "secondary"}>
                             {quote.source === 'dispatched' ? 'Dispatched' : 'Manual'}
@@ -853,7 +914,14 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          onClick={() => handleQuoteUpdate(index, 'rating_score', calculateRatingScore(quote))}
+                          onClick={() => {
+                            const autoScore = calculateRatingScore(quote);
+                            handleQuoteUpdate(index, 'rating_score', autoScore);
+                            toast({
+                              title: "Auto-Rating Applied",
+                              description: `${quote.insurer_name} rated ${autoScore}/100 based on competitiveness`,
+                            });
+                          }}
                         >
                           Auto
                         </Button>

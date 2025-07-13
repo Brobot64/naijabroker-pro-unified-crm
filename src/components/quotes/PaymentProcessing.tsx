@@ -197,56 +197,6 @@ export const PaymentProcessing = ({ quoteId, clientData, evaluatedQuotes, select
           </Card>
         )}
 
-        {/* Generate Payment Link */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Generate Payment Link</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><strong>Client:</strong> {clientData?.name}</div>
-              <div><strong>Amount:</strong> ₦{selectedQuote?.premium_quoted?.toLocaleString() || '600,000'}</div>
-              <div><strong>Client Email Address:</strong> {clientData?.email}</div>
-            </div>
-
-            {!paymentLink ? (
-              <Button 
-                onClick={generatePaymentLink} 
-                disabled={loading}
-                className="w-full"
-              >
-                {loading ? "Generating..." : "Generate & Send Payment Link"}
-              </Button>
-            ) : (
-              <div className="space-y-4">
-                <div className="bg-green-50 p-4 rounded border border-green-200">
-                  <div className="flex items-center gap-2 text-green-800 mb-2">
-                    <CheckCircle className="h-4 w-4" />
-                    <span className="font-medium">Payment Link Generated</span>
-                  </div>
-                  <p className="text-sm text-green-700 mb-3">
-                    Payment link has been generated and sent to the client's email address.
-                  </p>
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={paymentLink} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-3 w-3 mr-1" />
-                      Open Payment Link
-                    </a>
-                  </Button>
-                </div>
-
-                <Button 
-                  onClick={generatePaymentLink} 
-                  disabled={loading}
-                  variant="outline"
-                  className="w-full"
-                >
-                  {loading ? "Regenerating..." : "Regenerate Payment Link"}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         {/* Dynamic Status Updates */}
         <div className="bg-blue-50 p-4 rounded border border-blue-200">
