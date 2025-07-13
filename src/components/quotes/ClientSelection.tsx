@@ -262,11 +262,11 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600">Annual Premium:</span>
-                    <p className="font-semibold text-lg">₦{(quote.annual_premium || quote.premium_quoted || 0).toLocaleString()}</p>
+                    <p className="font-semibold text-lg">₦{(quote.premium_quoted || 0).toLocaleString()}</p>
                   </div>
                   <div>
                     <span className="text-gray-600">Commission Split:</span>
-                    <p className="font-semibold">{quote.commission_percentage || quote.commission_split}%</p>
+                    <p className="font-semibold">{quote.commission_split || 0}%</p>
                   </div>
                   <div>
                     <span className="text-gray-600">Rating Score:</span>

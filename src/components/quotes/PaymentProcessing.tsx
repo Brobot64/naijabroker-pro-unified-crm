@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ExternalLink, ArrowLeft, CheckCircle, Clock, CreditCard } from "lucide-react";
+import { ArrowLeft, CheckCircle, Clock, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface PaymentProcessingProps {
@@ -19,7 +19,6 @@ export const PaymentProcessing = ({ quoteId, clientData, evaluatedQuotes, select
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [paymentTransaction, setPaymentTransaction] = useState<any>(null);
-  const [paymentLink, setPaymentLink] = useState<string>('');
 
   useEffect(() => {
     loadPaymentStatus();
@@ -42,78 +41,6 @@ export const PaymentProcessing = ({ quoteId, clientData, evaluatedQuotes, select
       }
     } catch (error) {
       console.error('Error loading payment status:', error);
-    }
-  };
-
-  const generatePaymentLink = async () => {
-    if (!selectedQuote) {
-      toast({
-        title: "No Quote Selected",
-        description: "Please select a quote first",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Create or update payment transaction
-      const transactionData = {
-        quote_id: quoteId,
-        client_id: clientData.id,
-        organization_id: clientData.organization_id,
-        amount: selectedQuote.premium_quoted,
-        currency: 'NGN',
-        payment_method: 'pending_selection',
-        status: 'pending',
-        metadata: {
-          selected_quote: selectedQuote,
-          client_selection_confirmed: true,
-          generated_at: new Date().toISOString()
-        }
-      };
-
-      const { data: transaction, error } = await supabase
-        .from('payment_transactions')
-        .upsert(transactionData, { 
-          onConflict: 'quote_id',
-          ignoreDuplicates: false 
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Generate payment link
-      const { data: linkData, error: linkError } = await supabase.functions.invoke('generate-payment-link', {
-        body: {
-          paymentTransactionId: transaction.id,
-          amount: selectedQuote.premium_quoted,
-          currency: 'NGN',
-          clientEmail: clientData.email,
-          clientName: clientData.name
-        }
-      });
-
-      if (linkError) throw linkError;
-
-      setPaymentLink(linkData.paymentUrl || '');
-      setPaymentTransaction(transaction);
-
-      toast({
-        title: "Payment Link Generated",
-        description: "Payment link has been generated and can be sent to client"
-      });
-
-    } catch (error: any) {
-      console.error('Error generating payment link:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to generate payment link",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -196,7 +123,6 @@ export const PaymentProcessing = ({ quoteId, clientData, evaluatedQuotes, select
             </CardContent>
           </Card>
         )}
-
 
         {/* Dynamic Status Updates */}
         <div className="bg-blue-50 p-4 rounded border border-blue-200">
