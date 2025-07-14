@@ -182,7 +182,10 @@ export const ClientPortal = () => {
 
       if (paymentLinkError) {
         console.error('Payment link generation error:', paymentLinkError);
+        throw new Error(`Failed to generate payment link: ${paymentLinkError.message}`);
       }
+
+      console.log('Payment link generated:', paymentLinkData);
 
       // Send notifications
       const { data: organizationData } = await supabase
@@ -237,6 +240,8 @@ export const ClientPortal = () => {
           duration: 8000
         });
       } else {
+        // Still show success but without payment link
+        setPortalData(prev => ({ ...prev, showSuccess: true }));
         toast({
           title: "Selection Submitted",
           description: "Your quote selection has been submitted successfully. You will be contacted for payment processing.",
@@ -423,6 +428,24 @@ export const ClientPortal = () => {
                 </Button>
                 <p className="text-sm text-green-600 mt-2">
                   Payment link also sent to your email address
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Success message without payment link */}
+          {portalData?.showSuccess && !portalData?.paymentUrl && (
+            <Card className="mt-6 bg-blue-50 border-blue-200">
+              <CardContent className="p-6 text-center">
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <CheckCircle className="h-6 w-6 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-blue-800">Selection Submitted!</h3>
+                </div>
+                <p className="text-blue-700 mb-2">
+                  Your quote selection has been submitted successfully.
+                </p>
+                <p className="text-sm text-blue-600">
+                  You will be contacted for payment processing.
                 </p>
               </CardContent>
             </Card>
