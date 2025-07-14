@@ -83,14 +83,9 @@ serve(async (req) => {
         Your Insurance Broker
       `;
 
-      // Call email notification function
-      await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email-notification`, {
-        method: "POST",
-        headers: {
-          "Authorization": req.headers.get("Authorization")!,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      // Call email notification function using Supabase client
+      const { error: emailError } = await supabaseClient.functions.invoke('send-email-notification', {
+        body: {
           type: "payment_link",
           recipientEmail: clientEmail,
           subject: emailSubject,
@@ -100,8 +95,13 @@ serve(async (req) => {
             amount,
             currency,
           },
-        }),
+        }
       });
+
+      if (emailError) {
+        console.error("Email notification error:", emailError);
+        // Don't throw error for email failure, just log it
+      }
     }
 
     return new Response(JSON.stringify({ 
