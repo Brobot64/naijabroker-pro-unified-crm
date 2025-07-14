@@ -13,7 +13,7 @@ import { ClauseRecommendationEnhanced } from "./enhanced/ClauseRecommendationEnh
 import { ClientSelection } from "./ClientSelection";
 import { PaymentProcessing } from "./PaymentProcessing";
 import { ContractGeneration } from "./ContractGeneration";
-import { QuotePaymentLink } from "./QuotePaymentLink";
+
 import { 
   Users, 
   FileText, 
@@ -320,14 +320,6 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete }: Qu
           <div className="space-y-6">
             {renderStepContent()}
             
-            {/* Payment Link Generator - Show after quote evaluation */}
-            {(currentStep === 'quote-evaluation' || currentStep === 'client-selection' || currentStep === 'payment-processing') && 
-             state.workflowData.quote && state.workflowData.client && (
-              <QuotePaymentLink 
-                quote={state.workflowData.quote} 
-                clientData={state.workflowData.client} 
-              />
-            )}
           </div>
         )}
       </div>
