@@ -131,10 +131,10 @@ export const Payment = () => {
   };
 
   const handleBankTransferSubmit = async () => {
-    if (!bankTransferDetails.transactionReference || !uploadedFile) {
+    if (!uploadedFile) {
       toast({
         title: "Missing Information",
-        description: "Please provide transaction reference and upload proof of payment",
+        description: "Please upload proof of payment",
         variant: "destructive"
       });
       return;
@@ -339,45 +339,6 @@ export const Payment = () => {
 
               {/* Transfer Confirmation Form */}
               <div className="space-y-4">
-                <div>
-                  <Label htmlFor="transactionRef">Transaction Reference *</Label>
-                  <Input
-                    id="transactionRef"
-                    placeholder="Enter bank transaction reference"
-                    value={bankTransferDetails.transactionReference}
-                    onChange={(e) => setBankTransferDetails(prev => ({
-                      ...prev,
-                      transactionReference: e.target.value
-                    }))}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="accountName">Account Name</Label>
-                  <Input
-                    id="accountName"
-                    placeholder="Name on the account used for transfer"
-                    value={bankTransferDetails.accountName}
-                    onChange={(e) => setBankTransferDetails(prev => ({
-                      ...prev,
-                      accountName: e.target.value
-                    }))}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="bankName">Bank Name</Label>
-                  <Input
-                    id="bankName"
-                    placeholder="Bank used for transfer"
-                    value={bankTransferDetails.bankName}
-                    onChange={(e) => setBankTransferDetails(prev => ({
-                      ...prev,
-                      bankName: e.target.value
-                    }))}
-                  />
-                </div>
 
                 <div>
                   <Label htmlFor="proofUpload">Upload Proof of Payment *</Label>
@@ -409,7 +370,7 @@ export const Payment = () => {
 
                 <Button 
                   onClick={handleBankTransferSubmit}
-                  disabled={loading || !bankTransferDetails.transactionReference || !uploadedFile}
+                  disabled={loading || !uploadedFile}
                   className="w-full"
                   size="lg"
                 >
