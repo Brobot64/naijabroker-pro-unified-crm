@@ -71,7 +71,7 @@ serve(async (req) => {
     // Get client details for email
     const { data: client } = await supabaseClient
       .from("clients")
-      .select("name, email")
+      .select("name, email, client_code")
       .eq("id", clientId)
       .maybeSingle();
 
@@ -82,12 +82,16 @@ serve(async (req) => {
     // Send email notification to client
     if (client?.email) {
       const emailSubject = "Quote Selection - Review Your Insurance Options";
+      const clientCode = client.client_code || "Contact support for your Customer ID";
       const emailMessage = `
         Dear ${client.name},
 
         Your insurance quotes are ready for review. Please click the link below to view and select your preferred option:
 
         ${portalUrl}
+
+        IMPORTANT: Your Customer ID is ${clientCode}
+        Please keep this ID for reference when making payments.
 
         This link will expire in ${expiryHours} hours.
 
@@ -113,6 +117,7 @@ serve(async (req) => {
             portalLinkId: portalLink.id,
             quoteId,
             clientId,
+            clientCode: client.client_code,
           },
         }),
       });

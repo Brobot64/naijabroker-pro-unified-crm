@@ -350,26 +350,23 @@ export const Payment = () => {
                 <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
                   <div className="text-sm font-medium text-yellow-800">🚨 IMPORTANT: Payment Reference Required</div>
                   <div className="text-sm text-yellow-700">
-                    {clientData && clientData.client_code ? (
+                    {clientData && clientData.client_code && !['ID_MISSING', 'ERROR_FETCHING', 'NOT_FOUND'].includes(clientData.client_code) ? (
                       <>
-                        <strong>MUST INCLUDE:</strong> Your Client ID <strong className="text-yellow-900">{clientData.client_code}</strong> in your bank transfer narration/description.
+                        <strong>MUST INCLUDE:</strong> Your Customer ID <strong className="text-yellow-900 bg-yellow-100 px-2 py-1 rounded">{clientData.client_code}</strong> in your bank transfer narration/description.
                         <br />
-                        <span className="text-xs">This ensures quick identification and processing of your payment.</span>
+                        <span className="text-xs mt-1 block">This ensures quick identification and processing of your payment.</span>
                       </>
                     ) : (
                       <>
                         <strong>MUST INCLUDE:</strong> Your <strong className="text-yellow-900">Customer ID</strong> in your bank transfer narration/description.
                         <br />
-                        <span className="text-xs">Your Customer ID will be provided via email. Contact support if you need assistance.</span>
+                        <span className="text-xs mt-1 block">Your Customer ID has been sent to your email. Check your email or contact support if you need assistance.</span>
+                        {clientData?.client_code && (
+                          <div className="text-xs mt-1 text-red-600">Debug: {clientData.client_code}</div>
+                        )}
                       </>
                     )}
                   </div>
-                  {/* Debug info - remove in production */}
-                  {clientData && (
-                    <div className="text-xs mt-2 text-yellow-600 border-t border-yellow-200 pt-2">
-                      Client: {clientData.name || 'Unknown'} | Status: {clientData.client_code ? 'ID Available' : 'ID Missing'}
-                    </div>
-                  )}
                 </div>
               </div>
 

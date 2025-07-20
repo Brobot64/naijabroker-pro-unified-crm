@@ -34,7 +34,7 @@ serve(async (req) => {
     // Verify the payment transaction exists and get its details
     const { data: paymentTransaction, error: transactionError } = await supabaseClient
       .from("payment_transactions")
-      .select("*, clients!inner(email, name)")
+      .select("*, clients!inner(email, name, client_code)")
       .eq("id", paymentTransactionId)
       .single();
 
@@ -58,6 +58,7 @@ serve(async (req) => {
     // Send email notification using actual client data from transaction
     const actualClientEmail = paymentTransaction.clients?.email || clientEmail;
     const actualClientName = paymentTransaction.clients?.name || clientName;
+    const actualClientCode = paymentTransaction.clients?.client_code || "Contact support for your Customer ID";
     
     if (actualClientEmail) {
       const emailSubject = "Payment Required - Insurance Premium";
@@ -67,9 +68,12 @@ serve(async (req) => {
         Your insurance premium payment is ready for processing.
 
         Amount: ${currency} ${amount.toLocaleString()}
+        Customer ID: ${actualClientCode}
         
         Please click the link below to complete your payment:
         ${paymentUrl}
+
+        IMPORTANT: When making bank transfer, include your Customer ID (${actualClientCode}) in the narration/description for quick identification.
 
         If you have any questions, please contact us.
 
@@ -124,6 +128,7 @@ serve(async (req) => {
                   paymentTransactionId,
                   amount,
                   currency,
+                  clientCode: actualClientCode,
                 },
                 status: 'sent',
                 sent_at: new Date().toISOString(),
