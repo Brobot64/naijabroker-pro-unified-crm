@@ -34,7 +34,7 @@ serve(async (req) => {
     // Verify the payment transaction exists and get its details
     const { data: paymentTransaction, error: transactionError } = await supabaseClient
       .from("payment_transactions")
-      .select("*")
+      .select("*, clients!inner(email, name)")
       .eq("id", paymentTransactionId)
       .single();
 
@@ -55,11 +55,14 @@ serve(async (req) => {
 
     console.log('Generated payment URL:', paymentUrl);
 
-    // Send email notification to client with payment link
-    if (clientEmail) {
+    // Send email notification using actual client data from transaction
+    const actualClientEmail = paymentTransaction.clients?.email || clientEmail;
+    const actualClientName = paymentTransaction.clients?.name || clientName;
+    
+    if (actualClientEmail) {
       const emailSubject = "Payment Required - Insurance Premium";
       const emailMessage = `
-        Dear ${clientName},
+        Dear ${actualClientName},
 
         Your insurance premium payment is ready for processing.
 
@@ -74,28 +77,66 @@ serve(async (req) => {
         Your Insurance Broker
       `;
 
-      console.log('Sending email notification to:', clientEmail);
+      console.log('Sending email notification to:', actualClientEmail);
 
-      // Call email notification function using Supabase client
-      const { error: emailError } = await supabaseClient.functions.invoke('send-email-notification', {
-        body: {
-          type: "payment_link",
-          recipientEmail: clientEmail,
-          subject: emailSubject,
-          message: emailMessage,
-          metadata: {
-            paymentTransactionId,
-            amount,
-            currency,
-          },
+      // Send email directly using Resend since we're in service context
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      
+      if (resendApiKey) {
+        try {
+          const response = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${resendApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: "NaijaBroker Pro <onboarding@resend.dev>",
+              to: [actualClientEmail],
+              subject: emailSubject,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #2563eb;">${emailSubject}</h2>
+                  <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    ${emailMessage.replace(/\n/g, '<br>')}
+                  </div>
+                  <p style="color: #64748b; font-size: 14px;">
+                    This is an automated message from NaijaBroker Pro Insurance Management System.
+                  </p>
+                </div>
+              `,
+            }),
+          });
+
+          if (response.ok) {
+            console.log('Email sent successfully');
+            
+            // Log the email notification in database
+            await supabaseClient
+              .from("email_notifications")
+              .insert({
+                organization_id: paymentTransaction.organization_id,
+                notification_type: "payment_link",
+                recipient_email: actualClientEmail,
+                subject: emailSubject,
+                message: emailMessage,
+                metadata: {
+                  paymentTransactionId,
+                  amount,
+                  currency,
+                },
+                status: 'sent',
+                sent_at: new Date().toISOString(),
+              });
+          } else {
+            const errorData = await response.text();
+            console.error('Email sending failed:', errorData);
+          }
+        } catch (emailError) {
+          console.error('Email notification error:', emailError);
         }
-      });
-
-      if (emailError) {
-        console.error("Email notification error:", emailError);
-        // Don't throw error for email failure, just log it
       } else {
-        console.log('Email sent successfully');
+        console.log('RESEND_API_KEY not configured - email simulation mode');
       }
     }
 
