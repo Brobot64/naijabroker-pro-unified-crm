@@ -68,19 +68,35 @@ export const Payment = () => {
 
       setTransaction(data);
 
-      // Load client data
+      // Load client data with better error handling
+      console.log('Fetching client data for client_id:', data.client_id);
       const { data: client, error: clientError } = await supabase
         .from('clients')
-        .select('*')
+        .select('client_code, name, email, client_type')
         .eq('id', data.client_id)
-        .single();
+        .maybeSingle();
 
       if (clientError) {
         console.error('Error fetching client data:', clientError);
-      }
-      
-      if (client) {
+        // Set fallback client data to ensure yellow box shows
+        setClientData({ 
+          client_code: null, 
+          name: 'Unknown Client',
+          email: '',
+          client_type: 'company'
+        });
+      } else if (client) {
+        console.log('Client data fetched successfully:', client);
         setClientData(client);
+      } else {
+        console.warn('No client found for ID:', data.client_id);
+        // Set fallback client data
+        setClientData({ 
+          client_code: null, 
+          name: 'Unknown Client',
+          email: '',
+          client_type: 'company'
+        });
       }
 
       // Load organization bank details
@@ -332,14 +348,28 @@ export const Payment = () => {
                 
                 {/* Client ID Reference - Always show */}
                 <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                  <div className="text-sm font-medium text-yellow-800">Important Payment Reference:</div>
+                  <div className="text-sm font-medium text-yellow-800">🚨 IMPORTANT: Payment Reference Required</div>
                   <div className="text-sm text-yellow-700">
-                    {clientData?.client_code ? (
-                      <>Please include your <strong>Client ID: {clientData.client_code}</strong> in your transfer narration/description for easy identification.</>
+                    {clientData && clientData.client_code ? (
+                      <>
+                        <strong>MUST INCLUDE:</strong> Your Client ID <strong className="text-yellow-900">{clientData.client_code}</strong> in your bank transfer narration/description.
+                        <br />
+                        <span className="text-xs">This ensures quick identification and processing of your payment.</span>
+                      </>
                     ) : (
-                      <>Please include your <strong>Customer ID</strong> in your transfer narration/description for easy identification. Your Customer ID will be provided in your payment confirmation email.</>
+                      <>
+                        <strong>MUST INCLUDE:</strong> Your <strong className="text-yellow-900">Customer ID</strong> in your bank transfer narration/description.
+                        <br />
+                        <span className="text-xs">Your Customer ID will be provided via email. Contact support if you need assistance.</span>
+                      </>
                     )}
                   </div>
+                  {/* Debug info - remove in production */}
+                  {clientData && (
+                    <div className="text-xs mt-2 text-yellow-600 border-t border-yellow-200 pt-2">
+                      Client: {clientData.name || 'Unknown'} | Status: {clientData.client_code ? 'ID Available' : 'ID Missing'}
+                    </div>
+                  )}
                 </div>
               </div>
 
