@@ -68,44 +68,42 @@ export const Payment = () => {
 
       setTransaction(data);
 
-      // Load client data - ensure we always get client_code
-      console.log('Fetching client data for client_id:', data.client_id);
+      // Load client data directly from the transaction JOIN to ensure we get client_code
+      console.log('Loading payment transaction with client data for transaction:', transactionId);
       
-      if (!data.client_id) {
-        console.error('No client_id found in transaction data');
+      const { data: transactionWithClient, error: joinError } = await supabase
+        .from('payment_transactions')
+        .select(`
+          *,
+          clients (
+            client_code,
+            name,
+            email,
+            client_type
+          )
+        `)
+        .eq('id', transactionId)
+        .single();
+
+      if (joinError) {
+        console.error('Error fetching transaction with client data:', joinError);
         setClientData({ 
-          client_code: 'ID_MISSING', 
-          name: 'Unknown Client',
+          client_code: 'ERROR_LOADING', 
+          name: 'Failed to Load',
           email: '',
           client_type: 'company'
         });
+      } else if (transactionWithClient?.clients) {
+        console.log('Client data from JOIN query:', transactionWithClient.clients);
+        setClientData(transactionWithClient.clients);
       } else {
-        const { data: client, error: clientError } = await supabase
-          .from('clients')
-          .select('client_code, name, email, client_type')
-          .eq('id', data.client_id)
-          .maybeSingle();
-
-        if (clientError) {
-          console.error('Error fetching client data:', clientError);
-          setClientData({ 
-            client_code: 'ERROR_FETCHING', 
-            name: 'Client Data Error',
-            email: '',
-            client_type: 'company'
-          });
-        } else if (client) {
-          console.log('Client data fetched successfully:', client);
-          setClientData(client);
-        } else {
-          console.warn('No client found for ID:', data.client_id);
-          setClientData({ 
-            client_code: 'NOT_FOUND', 
-            name: 'Client Not Found',
-            email: '',
-            client_type: 'company'
-          });
-        }
+        console.warn('No client data found in transaction');
+        setClientData({ 
+          client_code: 'NO_CLIENT_DATA', 
+          name: 'No Client Data',
+          email: '',
+          client_type: 'company'
+        });
       }
 
       // Load organization bank details
