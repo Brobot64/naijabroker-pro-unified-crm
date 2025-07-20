@@ -68,35 +68,44 @@ export const Payment = () => {
 
       setTransaction(data);
 
-      // Load client data with better error handling
+      // Load client data - ensure we always get client_code
       console.log('Fetching client data for client_id:', data.client_id);
-      const { data: client, error: clientError } = await supabase
-        .from('clients')
-        .select('client_code, name, email, client_type')
-        .eq('id', data.client_id)
-        .maybeSingle();
-
-      if (clientError) {
-        console.error('Error fetching client data:', clientError);
-        // Set fallback client data to ensure yellow box shows
+      
+      if (!data.client_id) {
+        console.error('No client_id found in transaction data');
         setClientData({ 
-          client_code: null, 
+          client_code: 'ID_MISSING', 
           name: 'Unknown Client',
           email: '',
           client_type: 'company'
         });
-      } else if (client) {
-        console.log('Client data fetched successfully:', client);
-        setClientData(client);
       } else {
-        console.warn('No client found for ID:', data.client_id);
-        // Set fallback client data
-        setClientData({ 
-          client_code: null, 
-          name: 'Unknown Client',
-          email: '',
-          client_type: 'company'
-        });
+        const { data: client, error: clientError } = await supabase
+          .from('clients')
+          .select('client_code, name, email, client_type')
+          .eq('id', data.client_id)
+          .maybeSingle();
+
+        if (clientError) {
+          console.error('Error fetching client data:', clientError);
+          setClientData({ 
+            client_code: 'ERROR_FETCHING', 
+            name: 'Client Data Error',
+            email: '',
+            client_type: 'company'
+          });
+        } else if (client) {
+          console.log('Client data fetched successfully:', client);
+          setClientData(client);
+        } else {
+          console.warn('No client found for ID:', data.client_id);
+          setClientData({ 
+            client_code: 'NOT_FOUND', 
+            name: 'Client Not Found',
+            email: '',
+            client_type: 'company'
+          });
+        }
       }
 
       // Load organization bank details
