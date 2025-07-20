@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -26,43 +27,33 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const authHeader = req.headers.get("Authorization")!;
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData } = await supabaseClient.auth.getUser(token);
-    const user = userData.user;
-
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-
-    // Get user's organization
-    const { data: profile } = await supabaseClient
-      .from("profiles")
-      .select("organization_id")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile?.organization_id) {
-      throw new Error("User organization not found");
-    }
-
     const { paymentTransactionId, clientEmail, clientName, amount, currency = "NGN" }: PaymentLinkRequest = await req.json();
 
-    // Verify the payment transaction belongs to the user's organization
-    const { data: paymentTransaction } = await supabaseClient
+    console.log('Generating payment link for transaction:', paymentTransactionId);
+
+    // Verify the payment transaction exists and get its details
+    const { data: paymentTransaction, error: transactionError } = await supabaseClient
       .from("payment_transactions")
       .select("*")
       .eq("id", paymentTransactionId)
-      .eq("organization_id", profile.organization_id)
       .single();
 
-    if (!paymentTransaction) {
-      throw new Error("Payment transaction not found or access denied");
+    if (transactionError) {
+      console.error('Transaction fetch error:', transactionError);
+      throw new Error(`Payment transaction not found: ${transactionError.message}`);
     }
 
-    // Generate payment link (in this case, redirect to client portal or payment gateway)
-    const baseUrl = req.headers.get("origin") || "http://localhost:5173";
+    if (!paymentTransaction) {
+      throw new Error("Payment transaction not found");
+    }
+
+    console.log('Found payment transaction:', paymentTransaction);
+
+    // Generate payment link (in this case, redirect to client payment page)
+    const baseUrl = req.headers.get("origin") || "https://d1379a23-d174-4759-a616-1734b9963a0a.lovableproject.com";
     const paymentUrl = `${baseUrl}/payment?transaction=${paymentTransactionId}`;
+
+    console.log('Generated payment URL:', paymentUrl);
 
     // Send email notification to client with payment link
     if (clientEmail) {
@@ -83,6 +74,8 @@ serve(async (req) => {
         Your Insurance Broker
       `;
 
+      console.log('Sending email notification to:', clientEmail);
+
       // Call email notification function using Supabase client
       const { error: emailError } = await supabaseClient.functions.invoke('send-email-notification', {
         body: {
@@ -101,6 +94,8 @@ serve(async (req) => {
       if (emailError) {
         console.error("Email notification error:", emailError);
         // Don't throw error for email failure, just log it
+      } else {
+        console.log('Email sent successfully');
       }
     }
 
