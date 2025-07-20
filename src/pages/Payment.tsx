@@ -75,7 +75,11 @@ export const Payment = () => {
         .eq('id', data.client_id)
         .single();
 
-      if (!clientError && client) {
+      if (clientError) {
+        console.error('Error fetching client data:', clientError);
+      }
+      
+      if (client) {
         setClientData(client);
       }
 
@@ -326,15 +330,17 @@ export const Payment = () => {
                   </div>
                 )}
                 
-                {/* Client ID Reference */}
-                {clientData?.client_code && (
-                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                    <div className="text-sm font-medium text-yellow-800">Important Payment Reference:</div>
-                    <div className="text-sm text-yellow-700">
-                      Please include your <strong>Client ID: {clientData.client_code}</strong> in your transfer narration/description for easy identification.
-                    </div>
+                {/* Client ID Reference - Always show */}
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                  <div className="text-sm font-medium text-yellow-800">Important Payment Reference:</div>
+                  <div className="text-sm text-yellow-700">
+                    {clientData?.client_code ? (
+                      <>Please include your <strong>Client ID: {clientData.client_code}</strong> in your transfer narration/description for easy identification.</>
+                    ) : (
+                      <>Please include your <strong>Customer ID</strong> in your transfer narration/description for easy identification. Your Customer ID will be provided in your payment confirmation email.</>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Transfer Confirmation Form */}
