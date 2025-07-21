@@ -68,42 +68,44 @@ export const Payment = () => {
 
       setTransaction(data);
 
-      // Load client data directly from the transaction JOIN to ensure we get client_code
-      console.log('Loading payment transaction with client data for transaction:', transactionId);
+      // Load client data using direct query to clients table
+      console.log('Loading client data for client_id:', data.client_id);
       
-      const { data: transactionWithClient, error: joinError } = await supabase
-        .from('payment_transactions')
-        .select(`
-          *,
-          clients (
-            client_code,
-            name,
-            email,
-            client_type
-          )
-        `)
-        .eq('id', transactionId)
-        .single();
-
-      if (joinError) {
-        console.error('Error fetching transaction with client data:', joinError);
+      if (!data.client_id) {
+        console.error('No client_id found in transaction data');
         setClientData({ 
-          client_code: 'ERROR_LOADING', 
-          name: 'Failed to Load',
+          client_code: 'MISSING_CLIENT_ID', 
+          name: 'No Client ID in Transaction',
           email: '',
           client_type: 'company'
         });
-      } else if (transactionWithClient?.clients) {
-        console.log('Client data from JOIN query:', transactionWithClient.clients);
-        setClientData(transactionWithClient.clients);
       } else {
-        console.warn('No client data found in transaction');
-        setClientData({ 
-          client_code: 'NO_CLIENT_DATA', 
-          name: 'No Client Data',
-          email: '',
-          client_type: 'company'
-        });
+        const { data: clientInfo, error: clientError } = await supabase
+          .from('clients')
+          .select('client_code, name, email, client_type')
+          .eq('id', data.client_id)
+          .single();
+
+        if (clientError) {
+          console.error('Error fetching client data:', clientError);
+          setClientData({ 
+            client_code: 'DATABASE_ERROR', 
+            name: 'Database Error',
+            email: '',
+            client_type: 'company'
+          });
+        } else if (clientInfo && clientInfo.client_code) {
+          console.log('Client data loaded successfully:', clientInfo);
+          setClientData(clientInfo);
+        } else {
+          console.warn('Client found but no client_code:', clientInfo);
+          setClientData({ 
+            client_code: 'EMPTY_CLIENT_CODE', 
+            name: clientInfo?.name || 'Client Found',
+            email: clientInfo?.email || '',
+            client_type: clientInfo?.client_type || 'company'
+          });
+        }
       }
 
       // Load organization bank details
@@ -357,7 +359,7 @@ export const Payment = () => {
                 <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
                   <div className="text-sm font-medium text-yellow-800">🚨 IMPORTANT: Payment Reference Required</div>
                   <div className="text-sm text-yellow-700">
-                    {clientData && clientData.client_code && !['ID_MISSING', 'ERROR_FETCHING', 'NOT_FOUND'].includes(clientData.client_code) ? (
+                    {clientData && clientData.client_code && !['MISSING_CLIENT_ID', 'DATABASE_ERROR', 'EMPTY_CLIENT_CODE'].includes(clientData.client_code) ? (
                       <>
                         <strong>MUST INCLUDE:</strong> Your Customer ID <strong className="text-yellow-900 bg-yellow-100 px-2 py-1 rounded">{clientData.client_code}</strong> in your bank transfer narration/description.
                         <br />
