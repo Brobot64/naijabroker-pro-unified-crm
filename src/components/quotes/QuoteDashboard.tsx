@@ -79,6 +79,30 @@ export const QuoteDashboard = ({ onNewQuote, onEditQuote, onViewQuote }: QuoteDa
     }
   };
 
+  const handleCompleteContract = async (quoteId: string) => {
+    try {
+      const { WorkflowStatusService } = await import('@/services/workflowStatusService');
+      await WorkflowStatusService.updateQuoteWorkflowStage(quoteId, {
+        stage: 'completed',
+        status: 'accepted',
+        payment_status: 'completed'
+      });
+      
+      toast({
+        title: "Success",
+        description: "Contract completed successfully"
+      });
+      loadQuotes();
+    } catch (error) {
+      console.error('Error completing contract:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete contract",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleDeleteQuote = async (quoteId: string) => {
     if (!confirm('Are you sure you want to delete this quote?')) return;
     
@@ -305,6 +329,15 @@ export const QuoteDashboard = ({ onNewQuote, onEditQuote, onViewQuote }: QuoteDa
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
+                          {quote.workflow_stage === 'contract-generation' && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleCompleteContract(quote.id)}
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                            >
+                              Complete
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"

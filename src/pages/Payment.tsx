@@ -146,7 +146,7 @@ export const Payment = () => {
     }
   };
 
-  const handleGatewayPayment = () => {
+  const handleGatewayPayment = async () => {
     // Simulate payment gateway integration
     toast({
       title: "Redirecting to Payment Gateway",
@@ -154,11 +154,59 @@ export const Payment = () => {
     });
     
     // In a real implementation, you would redirect to Paystack, Flutterwave, etc.
-    setTimeout(() => {
-      toast({
-        title: "Payment Successful",
-        description: "Your payment has been processed successfully",
-      });
+    setTimeout(async () => {
+      try {
+        // Update transaction status to completed
+        const { error: transactionError } = await supabase
+          .from('payment_transactions')
+          .update({
+            status: 'completed',
+            payment_method: 'gateway',
+            paid_at: new Date().toISOString(),
+            metadata: {
+              ...transaction?.metadata,
+              payment_completed_at: new Date().toISOString(),
+              payment_type: 'gateway'
+            }
+          })
+          .eq('id', transactionId);
+
+        if (transactionError) throw transactionError;
+
+        // Progress quote workflow to payment-processing and then contract-generation
+        if (transaction?.quote_id) {
+          const { WorkflowStatusService } = await import('@/services/workflowStatusService');
+          
+          // Update to payment-processing
+          await WorkflowStatusService.updateQuoteWorkflowStage(transaction.quote_id, {
+            stage: 'payment-processing',
+            status: 'sent',
+            payment_status: 'processing'
+          });
+
+          // Immediately move to contract-generation since payment is complete
+          await WorkflowStatusService.updateQuoteWorkflowStage(transaction.quote_id, {
+            stage: 'contract-generation',
+            status: 'accepted',
+            payment_status: 'completed'
+          });
+        }
+
+        toast({
+          title: "Payment Successful",
+          description: "Your payment has been processed successfully",
+        });
+
+        // Refresh transaction data to show completion
+        await fetchTransaction();
+      } catch (error: any) {
+        console.error('Error completing payment:', error);
+        toast({
+          title: "Payment Error",
+          description: "Payment processing failed. Please try again.",
+          variant: "destructive"
+        });
+      }
     }, 3000);
   };
 
@@ -201,6 +249,16 @@ export const Payment = () => {
         .eq('id', transactionId);
 
       if (error) throw error;
+
+      // Progress quote workflow to payment-processing (pending verification)
+      if (transaction?.quote_id) {
+        const { WorkflowStatusService } = await import('@/services/workflowStatusService');
+        await WorkflowStatusService.updateQuoteWorkflowStage(transaction.quote_id, {
+          stage: 'payment-processing',
+          status: 'sent',
+          payment_status: 'pending_verification'
+        });
+      }
 
       toast({
         title: "Bank Transfer Submitted",
