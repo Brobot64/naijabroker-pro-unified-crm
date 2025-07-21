@@ -133,7 +133,7 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
     }
   };
 
-  const simulateClientSelection = (quote: any) => {
+  const simulateClientSelection = async (quote: any) => {
     // Ensure the quote has required properties
     const processedQuote = {
       ...quote,
@@ -148,6 +148,38 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
       coverage_limits: quote.coverage_limits || {},
       selected_at: new Date().toISOString()
     };
+    
+    try {
+      // Update the quote's workflow stage to indicate client approval
+      const currentQuoteId = validQuotes[0]?.quote_id || clientData?.quote_id;
+      if (currentQuoteId) {
+        const { WorkflowStatusService } = await import('@/services/workflowStatusService');
+        await WorkflowStatusService.updateQuoteWorkflowStage(currentQuoteId, {
+          stage: 'client_approved',
+          status: 'sent',
+          payment_status: 'pending'
+        });
+        
+        // Refresh the quote status by re-checking
+        const { data: updatedQuote } = await supabase
+          .from('quotes')
+          .select('workflow_stage, payment_status, updated_at')
+          .eq('id', currentQuoteId)
+          .single();
+        
+        if (updatedQuote) {
+          setQuoteStatus(updatedQuote);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating client selection:', error);
+      toast({
+        title: "Error",
+        description: "Failed to record client selection",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setClientSelection(processedQuote);
     onSelectionComplete(processedQuote);

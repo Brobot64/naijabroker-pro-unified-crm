@@ -450,6 +450,19 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
         throw error;
       }
 
+      // Update quote status and workflow stage
+      if (quoteId) {
+        try {
+          const { WorkflowStatusService } = await import('@/services/workflowStatusService');
+          await WorkflowStatusService.updateQuoteWorkflowStage(quoteId, {
+            stage: 'quote-evaluation',
+            status: 'sent'
+          });
+        } catch (error) {
+          console.error('Failed to update quote status:', error);
+        }
+      }
+
       setSelectedForClient(source);
       onEvaluationComplete(evaluatedQuotes);
       

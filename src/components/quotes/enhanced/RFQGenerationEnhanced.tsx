@@ -132,7 +132,7 @@ ${additionalNotes ? `Additional Notes:\n${additionalNotes}` : ''}
     URL.revokeObjectURL(url);
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!rfqContent) {
       toast({
         title: "Error",
@@ -140,6 +140,20 @@ ${additionalNotes ? `Additional Notes:\n${additionalNotes}` : ''}
         variant: "destructive"
       });
       return;
+    }
+
+    // Update quote status and workflow stage
+    if (quoteData?.id) {
+      try {
+        const { WorkflowStatusService } = await import('@/services/workflowStatusService');
+        await WorkflowStatusService.updateQuoteWorkflowStage(quoteData.id, {
+          stage: 'rfq-generation',
+          status: 'sent',
+          additionalData: { rfq_document_url: rfqContent }
+        });
+      } catch (error) {
+        console.error('Failed to update quote status:', error);
+      }
     }
 
     const rfqData = {

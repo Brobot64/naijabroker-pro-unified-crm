@@ -162,6 +162,19 @@ Insurance Brokers`;
         }
       }
 
+      // Update quote status and workflow stage
+      if (rfqData?.quote_id) {
+        try {
+          const { WorkflowStatusService } = await import('@/services/workflowStatusService');
+          await WorkflowStatusService.updateQuoteWorkflowStage(rfqData.quote_id, {
+            stage: 'insurer-matching',
+            status: 'sent'
+          });
+        } catch (updateError) {
+          console.error('Failed to update quote workflow stage:', updateError);
+        }
+      }
+
       // Create matches for tracking
       const matches = selectedInsurers.map(insurer => ({
         insurer_id: insurer.id,
@@ -170,6 +183,7 @@ Insurance Brokers`;
         dispatched_at: new Date().toISOString(),
         status: 'dispatched',
         rfq_content: rfqData?.content,
+        quote_id: rfqData?.quote_id,
       }));
 
       toast({

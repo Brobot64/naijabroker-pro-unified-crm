@@ -262,8 +262,8 @@ export const QuoteIntakeDraftingEnhanced = ({ clientData, editingQuote, onQuoteS
         risk_details: formData.risk_details || null,
         coverage_requirements: formData.coverage_requirements || null,
         calculations: calculations,
-        status: 'draft' as const,
-        workflow_stage: 'quote-drafting',
+        status: (editingQuote ? editingQuote.status : 'draft') as 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired',
+        workflow_stage: editingQuote ? editingQuote.workflow_stage : 'quote-drafting',
         created_by: null // Will be set by RLS
       };
 
