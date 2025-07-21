@@ -27,6 +27,7 @@ interface Quote {
   premium: number;
   status: string;
   workflow_stage: string;
+  payment_status?: string;
   created_at: string;
   valid_until: string;
 }
@@ -106,6 +107,9 @@ export const QuoteDashboard = ({ onNewQuote, onEditQuote, onViewQuote }: QuoteDa
       case 'rfq-generation': return 'bg-orange-500';
       case 'insurer-matching': return 'bg-cyan-500';
       case 'quote-evaluation': return 'bg-indigo-500';
+      case 'client-selection': return 'bg-teal-500';
+      case 'client_approved': return 'bg-green-600';
+      case 'payment-processing': return 'bg-emerald-500';
       case 'contract-generation': return 'bg-green-500';
       default: return 'bg-gray-500';
     }
@@ -199,6 +203,9 @@ export const QuoteDashboard = ({ onNewQuote, onEditQuote, onViewQuote }: QuoteDa
                   <SelectItem value="rfq-generation">RFQ Generation</SelectItem>
                   <SelectItem value="insurer-matching">Insurer Matching</SelectItem>
                   <SelectItem value="quote-evaluation">Quote Evaluation</SelectItem>
+                  <SelectItem value="client-selection">Client Selection</SelectItem>
+                  <SelectItem value="client_approved">Client Approved</SelectItem>
+                  <SelectItem value="payment-processing">Payment Processing</SelectItem>
                   <SelectItem value="contract-generation">Contract Generation</SelectItem>
                 </SelectContent>
               </Select>
@@ -260,11 +267,16 @@ export const QuoteDashboard = ({ onNewQuote, onEditQuote, onViewQuote }: QuoteDa
                           {quote.status}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4">
-                        <Badge variant="outline" className={`${getStageColor(quote.workflow_stage)} text-white border-0`}>
-                          {quote.workflow_stage?.replace('-', ' ')}
-                        </Badge>
-                      </td>
+                       <td className="py-3 px-4">
+                         <Badge variant="outline" className={`${getStageColor(quote.workflow_stage)} text-white border-0`}>
+                           {quote.workflow_stage?.replace('-', ' ').replace('_', ' ')}
+                         </Badge>
+                         {quote.payment_status && quote.payment_status !== 'pending' && (
+                           <Badge variant="outline" className="ml-1 text-xs">
+                             Payment: {quote.payment_status}
+                           </Badge>
+                         )}
+                       </td>
                       <td className="py-3 px-4">
                         {quote.valid_until ? new Date(quote.valid_until).toLocaleDateString() : 'N/A'}
                       </td>

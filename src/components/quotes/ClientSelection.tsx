@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, ExternalLink, CheckCircle, Mail, Copy } from "lucide-react";
 import { evaluatedQuotesService } from "@/services/evaluatedQuotesService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ClientSelectionProps {
   evaluatedQuotes: any[];
@@ -21,6 +22,7 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
   const [portalLink, setPortalLink] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [validQuotes, setValidQuotes] = useState<any[]>([]);
+  const [quoteStatus, setQuoteStatus] = useState<any>(null);
 
   console.log("ClientSelection received evaluatedQuotes:", evaluatedQuotes);
   console.log("ClientSelection received clientData:", clientData);
@@ -38,6 +40,32 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
       console.log("Valid quotes for client selection:", valid);
     }
   }, [evaluatedQuotes]);
+
+  // Check quote status to see if client has already made selection
+  useEffect(() => {
+    const checkQuoteStatus = async () => {
+      if (validQuotes.length > 0) {
+        try {
+          const quoteId = validQuotes[0]?.quote_id || clientData?.quote_id;
+          if (quoteId) {
+            const { data: quote } = await supabase
+              .from('quotes')
+              .select('workflow_stage, payment_status, updated_at')
+              .eq('id', quoteId)
+              .single();
+            
+            if (quote) {
+              setQuoteStatus(quote);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking quote status:', error);
+        }
+      }
+    };
+    
+    checkQuoteStatus();
+  }, [validQuotes, clientData]);
 
   const generatePortalLink = async () => {
     if (!clientData || !validQuotes.length) {
@@ -242,21 +270,52 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
       {/* Quote Comparison for Client */}
       <Card>
         <CardHeader>
-          <CardTitle>Available Quotes for Client Review ({validQuotes.length})</CardTitle>
+          <CardTitle>
+            Available Quotes for Client Review ({validQuotes.length})
+            {quoteStatus?.workflow_stage === 'client_approved' && (
+              <Badge className="ml-2 bg-green-600">Client Selection Completed</Badge>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
+          {quoteStatus?.workflow_stage === 'client_approved' && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center gap-2 text-green-800 mb-2">
+                <CheckCircle className="h-5 w-5" />
+                <span className="font-medium">Client Has Made Their Selection</span>
+              </div>
+              <p className="text-sm text-green-600 mb-2">
+                The client has successfully selected their preferred quote and the workflow has advanced.
+              </p>
+              <div className="text-xs text-green-600">
+                <strong>Status:</strong> {quoteStatus.payment_status || 'Payment Pending'} | 
+                <strong> Last Updated:</strong> {new Date(quoteStatus.updated_at).toLocaleString()}
+              </div>
+              <div className="mt-3">
+                <Button variant="outline" size="sm" onClick={() => onSelectionComplete(clientSelection)}>
+                  Proceed to Next Stage
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="space-y-4">
             {validQuotes?.map((quote, index) => (
               <div key={quote.insurer_id || index} className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-semibold text-lg">{quote.insurer_name}</h4>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => simulateClientSelection(quote)}
-                  >
-                    Simulate Client Selection
-                  </Button>
+                  {quoteStatus?.workflow_stage === 'client_approved' ? (
+                    <Badge variant="outline" className="text-green-600">
+                      Awaiting Next Stage
+                    </Badge>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => simulateClientSelection(quote)}
+                    >
+                      Simulate Client Selection
+                    </Button>
+                  )}
                 </div>
                 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
