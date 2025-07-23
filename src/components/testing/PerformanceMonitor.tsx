@@ -87,11 +87,9 @@ export const PerformanceMonitor = () => {
     setIsMonitoring(true);
     measureDatabasePerformance();
     
-    const interval = setInterval(() => {
-      measureDatabasePerformance();
-    }, 5000);
-
-    return () => clearInterval(interval);
+    // Auto-refresh disabled to prevent form interruptions
+    // Manual refresh only through the button
+    return () => {}; // No cleanup needed since no interval
   };
 
   const stopMonitoring = () => {

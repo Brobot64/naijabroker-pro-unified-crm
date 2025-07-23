@@ -51,14 +51,7 @@ export const QuoteDashboard = ({ onNewQuote, onEditQuote, onViewQuote }: QuoteDa
     loadQuotes();
   }, [organizationId]);
 
-  // Set up auto-refresh for quotes data
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadQuotes();
-    }, 30000); // Refresh every 30 seconds
-
-    return () => clearInterval(interval);
-  }, [organizationId]);
+  // Manual refresh only - auto-refresh removed to prevent form interruptions
 
   const loadQuotes = async () => {
     if (!organizationId) return;
