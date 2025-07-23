@@ -2130,6 +2130,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_progress_quote_workflow: {
+        Args: { quote_id_param: string }
+        Returns: Json
+      }
       generate_client_code: {
         Args: { org_id: string } | { org_id: string; client_type?: string }
         Returns: string
