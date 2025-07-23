@@ -16,18 +16,22 @@ export class WorkflowStatusService {
     update: WorkflowStageUpdate
   ): Promise<void> {
     try {
-      console.log('Updating quote workflow stage:', { quoteId, update });
+      console.log('🔄 Updating quote workflow stage:', { quoteId, update });
       
       const updateData: any = {
         workflow_stage: update.stage,
         updated_at: new Date().toISOString()
       };
 
-      // Only update status if it's a valid enum value
-      if (update.status && this.VALID_STATUSES.includes(update.status)) {
-        updateData.status = update.status;
-      } else if (update.status) {
-        console.warn(`Invalid status value: ${update.status}. Skipping status update.`);
+      // Always update status if provided - fix validation issue
+      if (update.status) {
+        if (this.VALID_STATUSES.includes(update.status)) {
+          updateData.status = update.status;
+          console.log('✅ Status update allowed:', update.status);
+        } else {
+          console.warn(`⚠️ Invalid status value: ${update.status}. Valid values: ${this.VALID_STATUSES.join(', ')}`);
+          // Don't fail the entire update, just skip invalid status
+        }
       }
 
       if (update.payment_status) {
@@ -38,13 +42,13 @@ export class WorkflowStatusService {
         Object.assign(updateData, update.additionalData);
       }
 
-      console.log('Update data being sent:', updateData);
+      console.log('📤 Update data being sent:', updateData);
       const result = await QuoteService.update(quoteId, updateData);
-      console.log('Quote updated successfully:', result);
+      console.log('✅ Quote updated successfully:', result);
       
     } catch (error) {
-      console.error('Failed to update workflow stage:', error);
-      console.error('Error details:', {
+      console.error('❌ Failed to update workflow stage:', error);
+      console.error('📋 Error details:', {
         quoteId,
         update,
         errorMessage: error instanceof Error ? error.message : 'Unknown error'

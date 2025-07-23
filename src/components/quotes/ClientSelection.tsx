@@ -150,52 +150,87 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
     };
     
     try {
-      // Update the quote's workflow stage to indicate client approval (safer approach)
-      // Use the actual current quote ID from the context, not from validQuotes array
+      // Use the actual current quote ID from the context
       const currentQuoteId = clientData?.quote_id || validQuotes[0]?.quote_id;
       
-      console.log('🔍 Client selection - Quote ID sources:', {
+      console.log('🎯 Client selection - Starting workflow update:', {
         clientDataQuoteId: clientData?.quote_id,
         validQuotesQuoteId: validQuotes[0]?.quote_id,
-        selectedQuoteId: currentQuoteId
+        selectedQuoteId: currentQuoteId,
+        selectedQuote: processedQuote.insurer_name
       });
       
       if (currentQuoteId) {
         const { WorkflowStatusService } = await import('@/services/workflowStatusService');
         
-        console.log('Client selection completed, updating workflow stage for quote:', currentQuoteId);
+        console.log('📋 Client selection completed, updating workflow stage for quote:', currentQuoteId);
         
-        // First update the workflow stage
-        await WorkflowStatusService.updateWorkflowStageOnly(currentQuoteId, 'client_approved');
+        // Create or check payment transaction first to avoid duplicates
+        const { data: existingTransaction } = await supabase
+          .from('payment_transactions')
+          .select('id, status')
+          .eq('quote_id', currentQuoteId)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!existingTransaction && clientData?.id) {
+          console.log('💳 Creating payment transaction for client selection...');
+          const { data: newTransaction, error: transactionError } = await supabase
+            .from('payment_transactions')
+            .insert({
+              quote_id: currentQuoteId,
+              client_id: clientData.id,
+              organization_id: clientData.organization_id,
+              amount: processedQuote.premium_quoted,
+              currency: 'NGN',
+              payment_method: 'bank_transfer',
+              status: 'pending'
+            })
+            .select()
+            .single();
+
+          if (transactionError) {
+            console.error('❌ Failed to create payment transaction:', transactionError);
+          } else {
+            console.log('✅ Payment transaction created:', newTransaction?.id);
+          }
+        } else {
+          console.log('💳 Payment transaction already exists:', existingTransaction?.id);
+        }
         
-        // Then update payment status separately
-        await WorkflowStatusService.updatePaymentStatus(currentQuoteId, 'pending');
-        
-        // Finally try to update the quote status to 'sent' if possible
+        // Use atomic update with all changes at once
         try {
           await WorkflowStatusService.updateQuoteWorkflowStage(currentQuoteId, {
             stage: 'client_approved',
-            status: 'sent'
+            status: 'sent',
+            payment_status: 'pending'
           });
-          console.log('Quote status updated to sent successfully');
-        } catch (statusError) {
-          console.warn('Could not update quote status to sent, but workflow stage updated:', statusError);
-          // Don't throw here - workflow stage update succeeded
+          
+          console.log('✅ Quote workflow updated successfully - stage: client_approved, status: sent, payment: pending');
+        } catch (updateError) {
+          console.error('❌ Failed to update quote workflow:', updateError);
+          // Try individual updates as fallback
+          await WorkflowStatusService.updateWorkflowStageOnly(currentQuoteId, 'client_approved');
+          await WorkflowStatusService.updatePaymentStatus(currentQuoteId, 'pending');
+          console.log('⚠️ Fallback individual updates completed');
         }
         
-        // Refresh the quote status by re-checking
+        // Refresh the quote status
         const { data: updatedQuote } = await supabase
           .from('quotes')
-          .select('workflow_stage, payment_status, updated_at')
+          .select('workflow_stage, status, payment_status, updated_at')
           .eq('id', currentQuoteId)
           .single();
         
         if (updatedQuote) {
+          console.log('📊 Quote status after update:', updatedQuote);
           setQuoteStatus(updatedQuote);
         }
       }
     } catch (error) {
-      console.error('Error updating client selection:', error);
+      console.error('❌ Error updating client selection:', error);
       toast({
         title: "Error",
         description: "Failed to record client selection",
@@ -208,7 +243,7 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
     onSelectionComplete(processedQuote);
     
     toast({
-      title: "Client Selection Simulated",
+      title: "Client Selection Confirmed",
       description: `Selected ${processedQuote.insurer_name} with premium ₦${processedQuote.premium_quoted.toLocaleString()}`,
     });
   };
