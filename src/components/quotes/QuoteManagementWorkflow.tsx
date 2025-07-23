@@ -206,6 +206,7 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete }: Qu
           <ClientSelection
             evaluatedQuotes={(state.workflowData as any).quoteevaluation || state.workflowData.quotes || []}
             clientData={state.workflowData.client}
+            quoteData={state.workflowData.quote}
             onSelectionComplete={(selection) => 
               handleStepComplete('client-selection', selection)
             }

@@ -11,11 +11,12 @@ import { supabase } from "@/integrations/supabase/client";
 interface ClientSelectionProps {
   evaluatedQuotes: any[];
   clientData: any;
+  quoteData?: any; // Add quote data to get the quote ID
   onSelectionComplete: (selection: any) => void;
   onBack: () => void;
 }
 
-export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComplete, onBack }: ClientSelectionProps) => {
+export const ClientSelection = ({ evaluatedQuotes, clientData, quoteData, onSelectionComplete, onBack }: ClientSelectionProps) => {
   const { toast } = useToast();
   const [portalLinkGenerated, setPortalLinkGenerated] = useState(false);
   const [clientSelection, setClientSelection] = useState<any>(null);
@@ -80,14 +81,16 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
     setLoading(true);
     try {
       // Get the actual quote ID - check multiple possible sources
-      const quoteId = validQuotes[0]?.quote_id || 
+      const quoteId = quoteData?.id || 
+                     quoteData?.quote_id || 
                      clientData?.quote_id || 
                      sessionStorage.getItem('currentQuoteId') ||
                      sessionStorage.getItem('workflowQuoteId');
       
       if (!quoteId) {
         console.error('Quote ID sources checked:', {
-          validQuotesQuoteId: validQuotes[0]?.quote_id,
+          quoteDataId: quoteData?.id,
+          quoteDataQuoteId: quoteData?.quote_id,
           clientDataQuoteId: clientData?.quote_id,
           sessionCurrentQuoteId: sessionStorage.getItem('currentQuoteId'),
           sessionWorkflowQuoteId: sessionStorage.getItem('workflowQuoteId'),
