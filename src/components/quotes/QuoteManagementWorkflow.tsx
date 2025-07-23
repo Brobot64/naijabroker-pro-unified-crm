@@ -1,9 +1,10 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useWorkflowContext } from './QuoteWorkflowProvider';
+import { QuoteEditModeSelector } from './QuoteEditModeSelector';
 import { ClientOnboardingEnhanced } from './enhanced/ClientOnboardingEnhanced';
 import { QuoteIntakeDraftingEnhanced } from './enhanced/QuoteIntakeDraftingEnhanced';
 import { RFQGenerationEnhanced } from './enhanced/RFQGenerationEnhanced';
@@ -54,11 +55,14 @@ interface Quote {
 interface QuoteManagementWorkflowProps {
   editingQuote?: Quote | null;
   onWorkflowComplete?: () => void;
+  onBack?: () => void;
 }
 
-export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete }: QuoteManagementWorkflowProps) => {
+export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete, onBack }: QuoteManagementWorkflowProps) => {
   const { state, dispatch } = useWorkflowContext();
   const [currentStep, setCurrentStep] = useState<WorkflowStep>(state.currentStep as WorkflowStep || 'client-onboarding');
+  const [showEditModeSelector, setShowEditModeSelector] = useState<boolean>(false);
+  const [editClientMode, setEditClientMode] = useState<boolean>(false);
 
   const steps = [
     { id: 'client-onboarding', name: 'Client Onboarding', icon: Users, description: 'Register new client or select existing' },
@@ -71,6 +75,79 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete }: Qu
     { id: 'payment-processing', name: 'Payment', icon: CreditCard, description: 'Process premium payment' },
     { id: 'contract-generation', name: 'Contract Generation', icon: FileCheck, description: 'Generate interim and final contracts' }
   ] as const;
+
+  // Map workflow stages to step IDs for resumption
+  const stageToStepMap: Record<string, WorkflowStep> = {
+    'draft': 'quote-drafting',
+    'client-onboarding': 'client-onboarding',
+    'quote-drafting': 'quote-drafting', 
+    'clause-recommendation': 'clause-recommendation',
+    'rfq-generation': 'rfq-generation',
+    'insurer-matching': 'insurer-matching',
+    'quote-evaluation': 'quote-evaluation',
+    'client-selection': 'client-selection',
+    'payment-processing': 'payment-processing',
+    'contract-generation': 'contract-generation',
+    'client_approved': 'payment-processing',
+    'payment_processing': 'payment-processing',
+    'payment_completed': 'contract-generation',
+    'contract_generated': 'contract-generation'
+  };
+
+  // Initialize workflow based on editing mode
+  useEffect(() => {
+    if (editingQuote) {
+      const hasCompletedClientOnboarding = editingQuote.workflow_stage !== 'client-onboarding' && 
+                                         editingQuote.workflow_stage !== 'draft';
+      
+      if (hasCompletedClientOnboarding && !editClientMode) {
+        setShowEditModeSelector(true);
+        return;
+      }
+
+      // If editing client or new quote, start from appropriate step
+      if (editClientMode) {
+        setCurrentStep('client-onboarding');
+        dispatch({ type: 'SET_STEP', payload: 'client-onboarding' });
+      } else {
+        // Resume from current workflow stage
+        const resumeStep = stageToStepMap[editingQuote.workflow_stage] || 'quote-drafting';
+        setCurrentStep(resumeStep);
+        dispatch({ type: 'SET_STEP', payload: resumeStep });
+        
+        // Mark previous steps as completed if resuming from later stage
+        const resumeIndex = steps.findIndex(step => step.id === resumeStep);
+        for (let i = 0; i < resumeIndex; i++) {
+          dispatch({ type: 'COMPLETE_STEP', payload: steps[i].id });
+        }
+      }
+    } else {
+      // For new quotes, ensure fresh start
+      handleResetWorkflow();
+    }
+  }, [editingQuote, editClientMode]);
+
+  const handleContinueQuoteEdit = () => {
+    setShowEditModeSelector(false);
+    setEditClientMode(false);
+    // Resume from current stage
+    const resumeStep = stageToStepMap[editingQuote?.workflow_stage || 'quote-drafting'] || 'quote-drafting';
+    setCurrentStep(resumeStep);
+    dispatch({ type: 'SET_STEP', payload: resumeStep });
+    
+    // Mark previous steps as completed
+    const resumeIndex = steps.findIndex(step => step.id === resumeStep);
+    for (let i = 0; i < resumeIndex; i++) {
+      dispatch({ type: 'COMPLETE_STEP', payload: steps[i].id });
+    }
+  };
+
+  const handleEditClientDetails = () => {
+    setShowEditModeSelector(false);
+    setEditClientMode(true);
+    setCurrentStep('client-onboarding');
+    dispatch({ type: 'SET_STEP', payload: 'client-onboarding' });
+  };
 
   const handleStepComplete = (stepId: WorkflowStep, data: any) => {
     // Map step IDs to proper data keys
@@ -122,6 +199,8 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete }: Qu
     // Clear all workflow state including localStorage
     dispatch({ type: 'RESET_WORKFLOW' });
     setCurrentStep('client-onboarding');
+    setShowEditModeSelector(false);
+    setEditClientMode(false);
     
     // Also clear any browser storage that might contain quote IDs
     try {
@@ -247,11 +326,26 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete }: Qu
     }
   };
 
+  // Show edit mode selector for existing quotes with completed client onboarding
+  if (showEditModeSelector && editingQuote) {
+    return (
+      <QuoteEditModeSelector
+        quote={editingQuote}
+        onContinueQuoteEdit={handleContinueQuoteEdit}
+        onEditClientDetails={handleEditClientDetails}
+        onBack={onBack || (() => {})}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">
-          {editingQuote ? `Edit Quote ${editingQuote.quote_number}` : 'Quote Management Workflow'}
+          {editingQuote ? 
+            (editClientMode ? `Edit Client Details - ${editingQuote.quote_number}` : `Edit Quote ${editingQuote.quote_number}`) : 
+            'Quote Management Workflow'
+          }
         </h1>
         <div className="flex gap-2">
           <Badge variant="outline">

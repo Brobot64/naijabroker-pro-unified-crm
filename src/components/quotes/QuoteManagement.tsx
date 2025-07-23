@@ -76,6 +76,7 @@ export const QuoteManagement = () => {
               <QuoteManagementWorkflow 
                 editingQuote={selectedQuote}
                 onWorkflowComplete={handleBackToDashboard}
+                onBack={handleBackToDashboard}
               />
             </div>
           </WorkflowProvider>
