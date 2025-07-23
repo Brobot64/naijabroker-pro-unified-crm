@@ -71,7 +71,7 @@ export class PaymentTransactionService {
           .from('quotes')
           .select('client_id, premium, organization_id')
           .eq('id', quoteId)
-          .single();
+          .maybeSingle();
 
         if (quoteError || !quote) {
           console.error('❌ Quote not found for payment transaction creation:', quoteError);
@@ -113,7 +113,7 @@ export class PaymentTransactionService {
           }
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (createError) {
         console.error('❌ Failed to create payment transaction:', createError);
@@ -179,7 +179,7 @@ export class PaymentTransactionService {
         .update(updateData)
         .eq('id', transactionId)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       
@@ -217,7 +217,7 @@ export class PaymentTransactionService {
           }
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data;

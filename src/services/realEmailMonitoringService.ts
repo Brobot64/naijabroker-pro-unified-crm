@@ -94,10 +94,10 @@ export class RealEmailMonitoringService {
         throw error;
       }
 
-      // Poll for new responses every 5 minutes to reduce interruptions
+      // Poll for new responses every 10 minutes to minimize interruptions
       this.pollingInterval = setInterval(async () => {
         await this.checkForNewQuotes(quoteId, onQuoteReceived);
-      }, 300000); // 5 minutes
+      }, 600000); // 10 minutes
 
       console.log("Email monitoring started successfully");
     } catch (error) {

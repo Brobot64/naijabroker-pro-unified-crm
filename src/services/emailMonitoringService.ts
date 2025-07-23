@@ -79,10 +79,10 @@ export class EmailMonitoringService {
         throw error;
       }
 
-      // Poll for new responses every 5 minutes to reduce interruptions
+      // Poll for new responses every 10 minutes to minimize interruptions
       this.pollingInterval = setInterval(() => {
         this.checkForNewEmails(quoteId, onQuoteReceived);
-      }, 300000);
+      }, 600000);
     } catch (error) {
       console.error("Failed to start email monitoring:", error);
       this.isMonitoring = false;

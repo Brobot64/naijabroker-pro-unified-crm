@@ -181,7 +181,7 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
           .from('quotes')
           .select('workflow_stage, status, payment_status, updated_at')
           .eq('id', currentQuoteId)
-          .single();
+          .maybeSingle();
         
         if (updatedQuote) {
           console.log('📊 Quote status after progression:', updatedQuote);
