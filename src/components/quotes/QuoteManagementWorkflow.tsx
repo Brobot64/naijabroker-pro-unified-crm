@@ -293,7 +293,7 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete }: Qu
                       {step.name}
                     </span>
                     {isCompleted && (
-                      <Badge variant="secondary" className="mt-1 text-xs">
+                      <Badge variant="secondary" className="mt-1 text-xs bg-green-100 text-green-700 border-green-300">
                         ✓
                       </Badge>
                     )}

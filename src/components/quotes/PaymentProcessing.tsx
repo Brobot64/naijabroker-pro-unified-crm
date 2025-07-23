@@ -75,6 +75,94 @@ export const PaymentProcessing = ({ quoteId, clientData, evaluatedQuotes, select
     }
   };
 
+  const handleVerifyPayment = async () => {
+    if (!paymentTransaction) return;
+    
+    setLoading(true);
+    try {
+      console.log('🔄 Verifying payment for transaction:', paymentTransaction.id);
+      
+      // Import the payment transaction service
+      const { PaymentTransactionService } = await import('@/services/paymentTransactionService');
+      
+      // Update payment status to completed
+      await PaymentTransactionService.updateStatus(
+        paymentTransaction.id, 
+        'completed',
+        { verified_by: 'admin', verified_at: new Date().toISOString() }
+      );
+      
+      // Force refresh quote status to ensure workflow progresses
+      const { QuoteStatusSync } = await import('@/utils/quoteStatusSync');
+      await QuoteStatusSync.refreshQuoteStatus(quoteId);
+      
+      // Reload payment status
+      await loadPaymentStatus();
+      
+      toast({
+        title: "Payment Verified",
+        description: "Payment has been successfully verified and marked as completed"
+      });
+      
+      // Trigger payment completion callback
+      if (onPaymentComplete) {
+        onPaymentComplete({ 
+          transaction: paymentTransaction, 
+          status: 'completed',
+          verified_at: new Date().toISOString()
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Error verifying payment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to verify payment",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectPayment = async () => {
+    if (!paymentTransaction) return;
+    
+    setLoading(true);
+    try {
+      console.log('🔄 Rejecting payment for transaction:', paymentTransaction.id);
+      
+      // Import the payment transaction service
+      const { PaymentTransactionService } = await import('@/services/paymentTransactionService');
+      
+      // Update payment status to failed
+      await PaymentTransactionService.updateStatus(
+        paymentTransaction.id, 
+        'failed',
+        { rejected_by: 'admin', rejected_at: new Date().toISOString() }
+      );
+      
+      // Reload payment status
+      await loadPaymentStatus();
+      
+      toast({
+        title: "Payment Rejected",
+        description: "Payment has been rejected. Client can submit new payment details.",
+        variant: "destructive"
+      });
+      
+    } catch (error) {
+      console.error('❌ Error rejecting payment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reject payment",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -120,10 +208,29 @@ export const PaymentProcessing = ({ quoteId, clientData, evaluatedQuotes, select
               </div>
 
               {paymentTransaction.status === 'pending_verification' && (
-                <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
+                <div className="bg-yellow-50 p-4 rounded border border-yellow-200 space-y-3">
                   <p className="text-sm text-yellow-800">
                     Bank transfer details submitted by client. Awaiting payment verification.
                   </p>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={handleVerifyPayment}
+                      disabled={loading}
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      {loading ? "Verifying..." : "Verify Payment"}
+                    </Button>
+                    <Button 
+                      onClick={handleRejectPayment}
+                      disabled={loading}
+                      variant="outline"
+                      size="sm"
+                      className="border-red-300 text-red-600 hover:bg-red-50"
+                    >
+                      {loading ? "Rejecting..." : "Reject Payment"}
+                    </Button>
+                  </div>
                 </div>
               )}
 
