@@ -2134,6 +2134,10 @@ export type Database = {
         Args: { quote_id_param: string }
         Returns: Json
       }
+      auto_transition_quote_workflow: {
+        Args: { quote_id_param: string }
+        Returns: Json
+      }
       generate_client_code: {
         Args: { org_id: string } | { org_id: string; client_type?: string }
         Returns: string
@@ -2160,6 +2164,15 @@ export type Database = {
       test_organization_insert: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      update_quote_from_client_portal: {
+        Args: {
+          portal_token_param: string
+          new_status?: Database["public"]["Enums"]["quote_status"]
+          new_workflow_stage?: string
+          new_payment_status?: string
+        }
+        Returns: Json
       }
     }
     Enums: {
