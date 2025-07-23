@@ -29,44 +29,15 @@ export const PaymentProcessing = ({ quoteId, clientData, evaluatedQuotes, select
     try {
       console.log('🔄 Loading payment status for quote:', quoteId);
       
-      // Get the most recent payment transaction for this quote
-      const { data, error } = await supabase
-        .from('payment_transactions')
-        .select('*')
-        .eq('quote_id', quoteId)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (error) {
-        console.error('❌ Error fetching payment transactions:', error);
-        throw error;
-      }
-
-      console.log('📊 Payment transactions found:', data?.length || 0);
+      // Import the new payment transaction service
+      const { PaymentTransactionService } = await import('@/services/paymentTransactionService');
       
-      if (data && data.length > 0) {
-        const latestTransaction = data[0];
-        console.log('💳 Latest payment transaction:', latestTransaction);
+      // Use the service to get payment transaction with cleanup
+      const latestTransaction = await PaymentTransactionService.getByQuoteId(quoteId);
+      
+      if (latestTransaction) {
+        console.log('💳 Payment transaction found:', latestTransaction.id);
         setPaymentTransaction(latestTransaction);
-        
-        // Clean up duplicate transactions if more than one exists
-        if (data.length > 1) {
-          console.log(`⚠️ Found ${data.length} payment transactions, keeping latest`);
-          const duplicateIds = data.slice(1).map(t => t.id);
-          
-          // Delete duplicates in background (don't await to avoid blocking UI)
-          supabase
-            .from('payment_transactions')
-            .delete()
-            .in('id', duplicateIds)
-            .then(({ error: deleteError }) => {
-              if (deleteError) {
-                console.error('❌ Failed to clean up duplicate transactions:', deleteError);
-              } else {
-                console.log(`✅ Cleaned up ${duplicateIds.length} duplicate payment transactions`);
-              }
-            });
-        }
       } else {
         console.log('🔍 No payment transaction found for quote');
         setPaymentTransaction(null);
