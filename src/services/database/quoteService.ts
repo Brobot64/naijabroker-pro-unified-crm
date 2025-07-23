@@ -62,6 +62,8 @@ export class QuoteService {
   }
 
   static async update(id: string, updates: QuoteUpdate): Promise<Quote> {
+    console.log(`🔄 QuoteService: Updating quote ${id} with:`, updates);
+    
     const { data, error } = await supabase
       .from('quotes')
       .update(updates)
@@ -69,7 +71,12 @@ export class QuoteService {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error(`❌ QuoteService: Failed to update quote ${id}:`, error);
+      throw error;
+    }
+    
+    console.log(`✅ QuoteService: Quote ${id} updated successfully:`, data);
     return data;
   }
 
@@ -83,11 +90,47 @@ export class QuoteService {
   }
 
   static async updateStatus(id: string, status: string): Promise<Quote> {
-    return this.update(id, { status: status as any });
+    console.log(`🔄 QuoteService: Updating quote ${id} status to ${status}`);
+    const result = await this.update(id, { 
+      status: status as any,
+      updated_at: new Date().toISOString()
+    });
+    console.log(`✅ QuoteService: Quote status updated successfully`);
+    return result;
   }
 
   static async updateWorkflowStage(id: string, stage: string): Promise<Quote> {
-    return this.update(id, { workflow_stage: stage });
+    console.log(`🔄 QuoteService: Updating quote ${id} workflow stage to ${stage}`);
+    const result = await this.update(id, { 
+      workflow_stage: stage,
+      updated_at: new Date().toISOString()
+    });
+    console.log(`✅ QuoteService: Workflow stage updated successfully`);
+    return result;
+  }
+
+  static async updatePaymentStatus(id: string, paymentStatus: string): Promise<Quote> {
+    console.log(`🔄 QuoteService: Updating quote ${id} payment status to ${paymentStatus}`);
+    const result = await this.update(id, { 
+      payment_status: paymentStatus,
+      updated_at: new Date().toISOString()
+    });
+    console.log(`✅ QuoteService: Payment status updated successfully`);
+    return result;
+  }
+
+  static async updateWorkflowData(id: string, updates: { 
+    workflow_stage?: string; 
+    status?: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired'; 
+    payment_status?: string; 
+  }): Promise<Quote> {
+    console.log(`🔄 QuoteService: Batch updating quote ${id} workflow data:`, updates);
+    const result = await this.update(id, { 
+      ...updates,
+      updated_at: new Date().toISOString()
+    });
+    console.log(`✅ QuoteService: Batch workflow update completed successfully`);
+    return result;
   }
 
   static async convertToPolicy(id: string, policyId: string): Promise<Quote> {

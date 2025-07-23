@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { WorkflowStatusService } from './workflowStatusService';
+import { PaymentTransactionService } from './paymentTransactionService';
 
 export class WorkflowSyncService {
   /**
@@ -7,28 +8,31 @@ export class WorkflowSyncService {
    */
   static async syncWorkflowStatus(quoteId: string): Promise<void> {
     try {
-      console.log('🔄 Syncing workflow status for quote:', quoteId);
+      console.log('🔄 WorkflowSyncService: Syncing workflow status for quote:', quoteId);
       
       // Use the database function to sync status
       const { data, error } = await supabase.rpc('sync_quote_workflow_status', {
         quote_id_param: quoteId
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Database sync function failed:', error);
+        throw error;
+      }
 
-      console.log('📊 Sync result:', data);
+      console.log('📊 Workflow sync result:', data);
       
       // Type guard and safe property access
       if (data && typeof data === 'object' && 'updated' in data) {
         const syncResult = data as { updated: boolean; old_status?: string; new_status?: string };
         if (syncResult.updated) {
-          console.log(`✅ Status updated from ${syncResult.old_status} to ${syncResult.new_status}`);
+          console.log(`✅ Status synced from ${syncResult.old_status} to ${syncResult.new_status}`);
         } else {
           console.log('✅ Status already synchronized');
         }
       }
     } catch (error) {
-      console.error('❌ Failed to sync workflow status:', error);
+      console.error('❌ WorkflowSyncService: Failed to sync workflow status:', error);
       throw error;
     }
   }
@@ -36,93 +40,21 @@ export class WorkflowSyncService {
   /**
    * Ensures payment transaction exists for quotes in payment stages
    */
-  static async ensurePaymentTransaction(quoteId: string, clientId?: string, amount?: number): Promise<boolean> {
+  static async ensurePaymentTransaction(quoteId: string): Promise<boolean> {
     try {
-      console.log('💳 Ensuring payment transaction exists for quote:', quoteId);
+      console.log('💳 WorkflowSyncService: Ensuring payment transaction for quote:', quoteId);
       
-      // Check if payment transaction already exists - get all and clean up duplicates
-      const { data: existingTransactions } = await supabase
-        .from('payment_transactions')
-        .select('id, status')
-        .eq('quote_id', quoteId)
-        .order('created_at', { ascending: false });
-
-      // Clean up any duplicates and keep the most recent
-      if (existingTransactions && existingTransactions.length > 1) {
-        console.log(`⚠️ Found ${existingTransactions.length} payment transactions, cleaning up duplicates`);
-        const duplicateIds = existingTransactions.slice(1).map(t => t.id);
-        
-        await supabase
-          .from('payment_transactions')
-          .delete()
-          .in('id', duplicateIds);
-        
-        console.log(`✅ Cleaned up ${duplicateIds.length} duplicate payment transactions`);
-      }
-
-      if (existingTransactions && existingTransactions.length > 0) {
-        console.log('✅ Payment transaction already exists:', existingTransactions[0].id);
+      const transaction = await PaymentTransactionService.ensurePaymentTransaction(quoteId);
+      
+      if (transaction) {
+        console.log('✅ Payment transaction ensured:', transaction.id);
         return true;
-      }
-
-      // Get quote and client details if not provided
-      if (!clientId || !amount) {
-        const { data: quote } = await supabase
-          .from('quotes')
-          .select('client_id, premium, organization_id')
-          .eq('id', quoteId)
-          .single();
-
-        if (!quote) {
-          console.error('❌ Quote not found for payment transaction creation');
-          return false;
-        }
-
-        clientId = clientId || quote.client_id;
-        amount = amount || quote.premium;
-      }
-
-      if (!clientId) {
-        console.error('❌ Cannot create payment transaction without client ID');
+      } else {
+        console.log('⚠️ Failed to ensure payment transaction');
         return false;
       }
-
-      // Get organization ID from quote
-      const { data: quote } = await supabase
-        .from('quotes')
-        .select('organization_id')
-        .eq('id', quoteId)
-        .single();
-
-      if (!quote?.organization_id) {
-        console.error('❌ Cannot create payment transaction without organization ID');
-        return false;
-      }
-
-      // Create payment transaction
-      const { data: newTransaction, error: transactionError } = await supabase
-        .from('payment_transactions')
-        .insert({
-          quote_id: quoteId,
-          client_id: clientId,
-          organization_id: quote.organization_id,
-          amount: amount || 0,
-          currency: 'NGN',
-          payment_method: 'bank_transfer',
-          status: 'pending'
-        })
-        .select()
-        .single();
-
-      if (transactionError) {
-        console.error('❌ Failed to create payment transaction:', transactionError);
-        return false;
-      }
-
-      console.log('✅ Payment transaction created:', newTransaction.id);
-      return true;
     } catch (error) {
-      console.error('❌ Error ensuring payment transaction:', error);
+      console.error('❌ WorkflowSyncService: Error ensuring payment transaction:', error);
       return false;
     }
   }
@@ -132,29 +64,76 @@ export class WorkflowSyncService {
    */
   static async performCompleteSync(quoteId: string): Promise<void> {
     try {
-      console.log('🔄 Performing complete workflow sync for quote:', quoteId);
+      console.log('🔄 WorkflowSyncService: Performing complete workflow sync for quote:', quoteId);
       
-      // First sync the workflow status
-      await this.syncWorkflowStatus(quoteId);
-      
-      // Get updated quote state
-      const { data: quote } = await supabase
+      // Get current quote state
+      const { data: quote, error: quoteError } = await supabase
         .from('quotes')
-        .select('workflow_stage, client_id, premium')
+        .select('workflow_stage, status, client_id, premium, organization_id')
         .eq('id', quoteId)
         .single();
 
-      if (!quote) throw new Error('Quote not found');
+      if (quoteError || !quote) {
+        console.error('❌ Quote not found for sync:', quoteError);
+        throw new Error('Quote not found');
+      }
 
-      // Ensure payment transaction exists for payment stages
+      console.log('📊 Current quote state:', quote);
+
+      // Ensure payment transaction exists for payment-related stages
       const paymentStages = ['client_approved', 'payment-processing', 'contract-generation'];
       if (paymentStages.includes(quote.workflow_stage)) {
-        await this.ensurePaymentTransaction(quoteId, quote.client_id, quote.premium);
+        console.log('💳 Quote is in payment stage, ensuring payment transaction...');
+        await this.ensurePaymentTransaction(quoteId);
       }
+
+      // Sync the workflow status using database function
+      await this.syncWorkflowStatus(quoteId);
 
       console.log('✅ Complete workflow sync completed');
     } catch (error) {
-      console.error('❌ Failed to perform complete sync:', error);
+      console.error('❌ WorkflowSyncService: Failed to perform complete sync:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Direct workflow progression with proper payment transaction handling
+   */
+  static async progressWorkflow(
+    quoteId: string, 
+    targetStage: string, 
+    targetStatus?: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired',
+    paymentStatus?: string
+  ): Promise<void> {
+    try {
+      console.log('📈 WorkflowSyncService: Progressing workflow:', {
+        quoteId,
+        targetStage,
+        targetStatus,
+        paymentStatus
+      });
+
+      // First ensure payment transaction exists if moving to payment stage
+      const paymentStages = ['client_approved', 'payment-processing', 'contract-generation'];
+      if (paymentStages.includes(targetStage)) {
+        console.log('💳 Target stage requires payment transaction, ensuring it exists...');
+        await this.ensurePaymentTransaction(quoteId);
+      }
+
+      // Update workflow stage, status, and payment status atomically
+      await WorkflowStatusService.updateQuoteWorkflowStage(quoteId, {
+        stage: targetStage,
+        status: targetStatus,
+        payment_status: paymentStatus
+      });
+
+      // Perform final sync to ensure consistency
+      await this.syncWorkflowStatus(quoteId);
+
+      console.log('✅ Workflow progression completed successfully');
+    } catch (error) {
+      console.error('❌ WorkflowSyncService: Failed to progress workflow:', error);
       throw error;
     }
   }

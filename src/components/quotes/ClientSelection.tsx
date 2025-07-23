@@ -161,24 +161,22 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
       });
       
       if (currentQuoteId) {
-        const { WorkflowStatusService } = await import('@/services/workflowStatusService');
+        console.log('🎯 Client selection completed - progressing workflow for quote:', currentQuoteId);
+        
+        // Import the new workflow sync service
         const { WorkflowSyncService } = await import('@/services/workflowSyncService');
         
-        console.log('📋 Client selection completed, updating workflow stage for quote:', currentQuoteId);
+        // Use the comprehensive workflow progression method
+        await WorkflowSyncService.progressWorkflow(
+          currentQuoteId,
+          'client_approved',
+          'accepted',
+          'pending'
+        );
         
-        // First, ensure complete sync which creates payment transaction if needed
-        await WorkflowSyncService.performCompleteSync(currentQuoteId);
+        console.log('✅ Workflow progression completed successfully');
         
-        // Then progress to client_approved stage with all changes at once
-        await WorkflowStatusService.updateQuoteWorkflowStage(currentQuoteId, {
-          stage: 'client_approved',
-          status: 'accepted',
-          payment_status: 'pending'
-        });
-        
-        console.log('✅ Complete workflow update completed');
-        
-        // Refresh the quote status
+        // Refresh the quote status to show updated state
         const { data: updatedQuote } = await supabase
           .from('quotes')
           .select('workflow_stage, status, payment_status, updated_at')
@@ -186,7 +184,7 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
           .single();
         
         if (updatedQuote) {
-          console.log('📊 Quote status after update:', updatedQuote);
+          console.log('📊 Quote status after progression:', updatedQuote);
           setQuoteStatus(updatedQuote);
         }
       }
