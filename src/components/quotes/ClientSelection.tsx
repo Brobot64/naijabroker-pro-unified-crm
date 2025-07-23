@@ -79,8 +79,12 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
 
     setLoading(true);
     try {
-      // Get the actual quote ID from the quotes
-      const quoteId = validQuotes[0]?.quote_id || clientData.quote_id || '00ad54ee-4009-413a-a0bb-658a14ff41de';
+      // Get the actual quote ID - ensure we have a valid quote ID
+      const quoteId = validQuotes[0]?.quote_id || clientData.quote_id;
+      
+      if (!quoteId) {
+        throw new Error("No valid quote ID found. Please ensure the quote is properly created.");
+      }
       
       console.log('Generating portal link with:', {
         quoteId,
