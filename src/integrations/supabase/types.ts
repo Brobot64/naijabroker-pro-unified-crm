@@ -2149,6 +2149,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      sync_quote_workflow_status: {
+        Args: { quote_id_param: string }
+        Returns: Json
+      }
       test_organization_insert: {
         Args: Record<PropertyKey, never>
         Returns: string

@@ -9,57 +9,28 @@ export class WorkflowSyncService {
     try {
       console.log('🔄 Syncing workflow status for quote:', quoteId);
       
-      // Get current quote state
-      const { data: quote, error } = await supabase
-        .from('quotes')
-        .select('workflow_stage, status, payment_status')
-        .eq('id', quoteId)
-        .single();
+      // Use the database function to sync status
+      const { data, error } = await supabase.rpc('sync_quote_workflow_status', {
+        quote_id_param: quoteId
+      });
 
       if (error) throw error;
-      if (!quote) throw new Error('Quote not found');
 
-      console.log('📊 Current quote state:', quote);
-
-      // Define expected status based on workflow stage
-      const expectedStatus = this.getExpectedStatusForStage(quote.workflow_stage);
+      console.log('📊 Sync result:', data);
       
-      if (quote.status !== expectedStatus) {
-        console.log(`🔧 Status mismatch - Expected: ${expectedStatus}, Current: ${quote.status}`);
-        
-        // Update status to match workflow stage
-        await WorkflowStatusService.updateQuoteWorkflowStage(quoteId, {
-          stage: quote.workflow_stage,
-          status: expectedStatus
-        });
-        
-        console.log('✅ Status synchronized successfully');
-      } else {
-        console.log('✅ Status already synchronized');
+      // Type guard and safe property access
+      if (data && typeof data === 'object' && 'updated' in data) {
+        const syncResult = data as { updated: boolean; old_status?: string; new_status?: string };
+        if (syncResult.updated) {
+          console.log(`✅ Status updated from ${syncResult.old_status} to ${syncResult.new_status}`);
+        } else {
+          console.log('✅ Status already synchronized');
+        }
       }
     } catch (error) {
       console.error('❌ Failed to sync workflow status:', error);
       throw error;
     }
-  }
-
-  /**
-   * Gets the expected quote status based on workflow stage
-   */
-  private static getExpectedStatusForStage(stage: string): 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired' {
-    const stageStatusMap = {
-      'quote-drafting': 'draft' as const,
-      'rfq-generation': 'sent' as const,
-      'insurer-matching': 'sent' as const,
-      'quote-evaluation': 'sent' as const,
-      'client-selection': 'sent' as const,
-      'client_approved': 'accepted' as const,
-      'payment-processing': 'accepted' as const,
-      'contract-generation': 'accepted' as const,
-      'completed': 'accepted' as const,
-    };
-
-    return stageStatusMap[stage as keyof typeof stageStatusMap] || 'draft';
   }
 
   /**
