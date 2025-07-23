@@ -12,13 +12,7 @@ export const ProtectedRoute = ({ children, requireRole }: ProtectedRouteProps) =
   const { user, loading, userRole, organizationId } = useAuth();
   const location = useLocation();
 
-  console.log('ProtectedRoute - Auth state:', { 
-    user: user?.id, 
-    loading, 
-    userRole, 
-    organizationId,
-    pathname: location.pathname 
-  });
+  // Removed console logging to reduce performance overhead
 
   // Get navigation state from centralized hook
   const { shouldRedirectToAuth, isNavigating } = useAuthNavigation({ 

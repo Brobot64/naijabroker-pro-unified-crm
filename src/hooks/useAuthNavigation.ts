@@ -25,39 +25,26 @@ export const useAuthNavigation = ({
     // Don't navigate if no user
     if (!user) return;
 
-    console.log('Auth navigation check:', { 
-      userId: user.id, 
-      organizationId, 
-      pathname: location.pathname 
-    });
-
     // Check for custom redirect first
     const redirectTo = localStorage.getItem('redirect_after_signin');
     if (redirectTo) {
       localStorage.removeItem('redirect_after_signin');
-      console.log('Custom redirect found:', redirectTo);
       navigate(redirectTo);
       return;
     }
 
-    // Add small delay to ensure organizationId is properly loaded
-    const timeoutId = setTimeout(() => {
-      if (organizationId) {
-        // User has organization - should go to dashboard unless already there
-        if (location.pathname === '/onboarding' || location.pathname === '/auth') {
-          console.log('User has organization, redirecting to dashboard');
-          navigate('/app');
-        }
-      } else {
-        // User has no organization - should go to onboarding unless already there
-        if (location.pathname !== '/onboarding') {
-          console.log('User has no organization, redirecting to onboarding');
-          navigate('/onboarding');
-        }
+    // Only navigate if we're in the wrong place - prevent unnecessary redirects
+    if (organizationId) {
+      // User has organization - only redirect if on onboarding or auth
+      if (location.pathname === '/onboarding' || location.pathname === '/auth') {
+        navigate('/app');
       }
-    }, 100);
-
-    return () => clearTimeout(timeoutId);
+    } else {
+      // User has no organization - only redirect if not on onboarding
+      if (location.pathname !== '/onboarding' && location.pathname !== '/auth') {
+        navigate('/onboarding');
+      }
+    }
   }, [user, organizationId, navigate, location.pathname, loading, isLoading]);
 
   // Return navigation state for components that need it
