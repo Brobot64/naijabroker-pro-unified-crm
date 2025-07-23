@@ -151,7 +151,15 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
     
     try {
       // Update the quote's workflow stage to indicate client approval (safer approach)
-      const currentQuoteId = validQuotes[0]?.quote_id || clientData?.quote_id;
+      // Use the actual current quote ID from the context, not from validQuotes array
+      const currentQuoteId = clientData?.quote_id || validQuotes[0]?.quote_id;
+      
+      console.log('🔍 Client selection - Quote ID sources:', {
+        clientDataQuoteId: clientData?.quote_id,
+        validQuotesQuoteId: validQuotes[0]?.quote_id,
+        selectedQuoteId: currentQuoteId
+      });
+      
       if (currentQuoteId) {
         const { WorkflowStatusService } = await import('@/services/workflowStatusService');
         

@@ -157,7 +157,9 @@ export const Payment = () => {
     setTimeout(async () => {
       try {
         // Update transaction status to completed
-        const { error: transactionError } = await supabase
+        console.log('🔄 Updating payment transaction for gateway payment:', transactionId);
+        
+        const { data: updatedTransaction, error: transactionError } = await supabase
           .from('payment_transactions')
           .update({
             status: 'completed',
@@ -169,7 +171,9 @@ export const Payment = () => {
               payment_type: 'gateway'
             }
           })
-          .eq('id', transactionId);
+          .eq('id', transactionId)
+          .select()
+          .single();
 
         if (transactionError) throw transactionError;
 
@@ -244,7 +248,9 @@ export const Payment = () => {
     setLoading(true);
     try {
       // Update transaction with bank transfer details
-      const { error } = await supabase
+      console.log('🔄 Updating payment transaction:', transactionId);
+      
+      const { data: updatedTransaction, error } = await supabase
         .from('payment_transactions')
         .update({
           payment_method: 'bank_transfer',
@@ -256,7 +262,9 @@ export const Payment = () => {
             submitted_at: new Date().toISOString()
           }
         })
-        .eq('id', transactionId);
+        .eq('id', transactionId)
+        .select()
+        .single();
 
       if (error) throw error;
 
