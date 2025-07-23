@@ -40,17 +40,28 @@ export class WorkflowSyncService {
     try {
       console.log('💳 Ensuring payment transaction exists for quote:', quoteId);
       
-      // Check if payment transaction already exists
-      const { data: existingTransaction } = await supabase
+      // Check if payment transaction already exists - get all and clean up duplicates
+      const { data: existingTransactions } = await supabase
         .from('payment_transactions')
         .select('id, status')
         .eq('quote_id', quoteId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order('created_at', { ascending: false });
 
-      if (existingTransaction) {
-        console.log('✅ Payment transaction already exists:', existingTransaction.id);
+      // Clean up any duplicates and keep the most recent
+      if (existingTransactions && existingTransactions.length > 1) {
+        console.log(`⚠️ Found ${existingTransactions.length} payment transactions, cleaning up duplicates`);
+        const duplicateIds = existingTransactions.slice(1).map(t => t.id);
+        
+        await supabase
+          .from('payment_transactions')
+          .delete()
+          .in('id', duplicateIds);
+        
+        console.log(`✅ Cleaned up ${duplicateIds.length} duplicate payment transactions`);
+      }
+
+      if (existingTransactions && existingTransactions.length > 0) {
+        console.log('✅ Payment transaction already exists:', existingTransactions[0].id);
         return true;
       }
 

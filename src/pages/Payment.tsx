@@ -173,7 +173,7 @@ export const Payment = () => {
           })
           .eq('id', transactionId)
           .select()
-          .single();
+          .maybeSingle();
 
         if (transactionError) {
           console.error('❌ Gateway payment transaction update failed:', transactionError);
@@ -269,7 +269,7 @@ export const Payment = () => {
         })
         .eq('id', transactionId)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('❌ Payment transaction update failed:', error);

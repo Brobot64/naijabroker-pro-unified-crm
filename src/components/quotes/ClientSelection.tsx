@@ -166,15 +166,15 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
         
         console.log('📋 Client selection completed, updating workflow stage for quote:', currentQuoteId);
         
-        // Use atomic update with all changes at once
+        // First, ensure complete sync which creates payment transaction if needed
+        await WorkflowSyncService.performCompleteSync(currentQuoteId);
+        
+        // Then progress to client_approved stage with all changes at once
         await WorkflowStatusService.updateQuoteWorkflowStage(currentQuoteId, {
           stage: 'client_approved',
           status: 'accepted',
           payment_status: 'pending'
         });
-        
-        // Ensure payment transaction exists and sync everything
-        await WorkflowSyncService.performCompleteSync(currentQuoteId);
         
         console.log('✅ Complete workflow update completed');
         
