@@ -119,8 +119,17 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete }: Qu
   };
 
   const handleResetWorkflow = () => {
+    // Clear all workflow state including localStorage
     dispatch({ type: 'RESET_WORKFLOW' });
     setCurrentStep('client-onboarding');
+    
+    // Also clear any browser storage that might contain quote IDs
+    try {
+      sessionStorage.removeItem('currentQuoteId');
+      sessionStorage.removeItem('workflowQuoteId');
+    } catch (error) {
+      console.error('Failed to clear session storage:', error);
+    }
   };
 
   const renderStepContent = () => {

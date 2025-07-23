@@ -64,6 +64,12 @@ const workflowReducer = (state: WorkflowState, action: WorkflowAction): Workflow
         completedSteps: new Set(Array.from(action.payload.completedSteps)),
       };
     case 'RESET_WORKFLOW':
+      // Clear localStorage when resetting
+      try {
+        localStorage.removeItem('quoteWorkflowState');
+      } catch (error) {
+        console.error('Failed to clear workflow state:', error);
+      }
       return initialState;
     default:
       return state;
@@ -75,6 +81,7 @@ const WorkflowContext = createContext<{
   dispatch: React.Dispatch<WorkflowAction>;
   saveState: () => void;
   loadState: () => void;
+  clearState: () => void;
 } | null>(null);
 
 export const WorkflowProvider = ({ children }: { children: React.ReactNode }) => {
@@ -90,6 +97,14 @@ export const WorkflowProvider = ({ children }: { children: React.ReactNode }) =>
       localStorage.setItem('quoteWorkflowState', JSON.stringify(stateToSave));
     } catch (error) {
       console.error('Failed to save workflow state:', error);
+    }
+  };
+
+  const clearState = () => {
+    try {
+      localStorage.removeItem('quoteWorkflowState');
+    } catch (error) {
+      console.error('Failed to clear workflow state:', error);
     }
   };
 
@@ -121,7 +136,7 @@ export const WorkflowProvider = ({ children }: { children: React.ReactNode }) =>
   }, [state]);
 
   return (
-    <WorkflowContext.Provider value={{ state, dispatch, saveState, loadState }}>
+    <WorkflowContext.Provider value={{ state, dispatch, saveState, loadState, clearState }}>
       {children}
     </WorkflowContext.Provider>
   );

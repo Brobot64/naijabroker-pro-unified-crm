@@ -83,7 +83,12 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
       const quoteId = validQuotes[0]?.quote_id || clientData.quote_id;
       
       if (!quoteId) {
-        throw new Error("No valid quote ID found. Please ensure the quote is properly created.");
+        toast({
+          title: "Error",
+          description: "No valid quote ID found. Please ensure the quote is properly created and saved before proceeding to client selection.",
+          variant: "destructive"
+        });
+        return;
       }
       
       console.log('Generating portal link with:', {
