@@ -3,7 +3,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileText, Download, Send, CheckCircle, AlertTriangle } from "lucide-react";
+import { ArrowLeft, FileText, Download, Send, CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ContractGenerationProps {
   paymentData: any;
@@ -18,10 +19,18 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
   const [finalReceived, setFinalReceived] = useState(false);
   const [complianceChecked, setComplianceChecked] = useState(false);
   const [deviations, setDeviations] = useState<string[]>([]);
+  const [isGeneratingInterim, setIsGeneratingInterim] = useState(false);
+  const [isSimulatingFinal, setIsSimulatingFinal] = useState(false);
+  const { toast } = useToast();
 
-  const generateInterimContract = () => {
-    setTimeout(() => {
-      setInterimGenerated(true);
+  const generateInterimContract = async () => {
+    setIsGeneratingInterim(true);
+    
+    try {
+      console.log('🔄 Generating interim contract...');
+      
+      // Simulate contract generation delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Simulate contract generation
       const contracts = {
@@ -33,19 +42,60 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
         }
       };
       
+      setInterimGenerated(true);
       onContractsGenerated(contracts);
-    }, 2000);
+      
+      toast({
+        title: "Success",
+        description: "Interim contract generated successfully"
+      });
+      
+      console.log('✅ Interim contract generated successfully');
+      
+    } catch (error) {
+      console.error('❌ Error generating interim contract:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate interim contract",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingInterim(false);
+    }
   };
 
-  const simulateFinalContract = () => {
-    setFinalReceived(true);
+  const simulateFinalContract = async () => {
+    setIsSimulatingFinal(true);
     
-    // Simulate compliance check
-    setTimeout(() => {
+    try {
+      console.log('🔄 Simulating final contract receipt...');
+      
+      setFinalReceived(true);
+      
+      // Simulate compliance check delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
       setComplianceChecked(true);
       // Simulate some minor deviations
       setDeviations(['Premium rate adjusted from 2.5% to 2.4%', 'Coverage period extended by 1 day']);
-    }, 1500);
+      
+      toast({
+        title: "Success",
+        description: "Final contract received and compliance check completed"
+      });
+      
+      console.log('✅ Final contract simulation completed');
+      
+    } catch (error) {
+      console.error('❌ Error simulating final contract:', error);
+      toast({
+        title: "Error",
+        description: "Failed to simulate final contract receipt",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSimulatingFinal(false);
+    }
   };
 
   return (
@@ -79,8 +129,12 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
                     Generated
                   </Badge>
                 ) : (
-                  <Button onClick={generateInterimContract}>
-                    Generate Interim Contract
+                  <Button 
+                    onClick={generateInterimContract}
+                    disabled={isGeneratingInterim}
+                  >
+                    {isGeneratingInterim && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    {isGeneratingInterim ? "Generating..." : "Generate Interim Contract"}
                   </Button>
                 )}
               </div>
@@ -121,8 +175,14 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
                 ) : (
                   <div className="flex gap-2">
                     <Badge variant="outline">Pending from Insurer</Badge>
-                    <Button variant="outline" size="sm" onClick={simulateFinalContract}>
-                      Simulate Receipt
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={simulateFinalContract}
+                      disabled={isSimulatingFinal}
+                    >
+                      {isSimulatingFinal && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      {isSimulatingFinal ? "Processing..." : "Simulate Receipt"}
                     </Button>
                   </div>
                 )}
