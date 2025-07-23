@@ -82,11 +82,25 @@ export const QuoteDashboard = ({ onNewQuote, onEditQuote, onViewQuote }: QuoteDa
   const handleCompleteContract = async (quoteId: string) => {
     try {
       const { WorkflowStatusService } = await import('@/services/workflowStatusService');
-      await WorkflowStatusService.updateQuoteWorkflowStage(quoteId, {
-        stage: 'completed',
-        status: 'accepted',
-        payment_status: 'completed'
-      });
+      
+      console.log('Completing contract for quote:', quoteId);
+      
+      // Update workflow stage to completed
+      await WorkflowStatusService.updateWorkflowStageOnly(quoteId, 'completed');
+      
+      // Ensure payment status is completed
+      await WorkflowStatusService.updatePaymentStatus(quoteId, 'completed');
+      
+      // Try to update quote status to accepted
+      try {
+        await WorkflowStatusService.updateQuoteWorkflowStage(quoteId, {
+          stage: 'completed',
+          status: 'accepted'
+        });
+        console.log('Quote status updated to accepted successfully');
+      } catch (statusError) {
+        console.warn('Could not update quote status to accepted, but workflow completed:', statusError);
+      }
       
       toast({
         title: "Success",

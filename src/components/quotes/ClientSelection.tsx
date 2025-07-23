@@ -150,15 +150,30 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
     };
     
     try {
-      // Update the quote's workflow stage to indicate client approval
+      // Update the quote's workflow stage to indicate client approval (safer approach)
       const currentQuoteId = validQuotes[0]?.quote_id || clientData?.quote_id;
       if (currentQuoteId) {
         const { WorkflowStatusService } = await import('@/services/workflowStatusService');
-        await WorkflowStatusService.updateQuoteWorkflowStage(currentQuoteId, {
-          stage: 'client_approved',
-          status: 'sent',
-          payment_status: 'pending'
-        });
+        
+        console.log('Client selection completed, updating workflow stage for quote:', currentQuoteId);
+        
+        // First update the workflow stage
+        await WorkflowStatusService.updateWorkflowStageOnly(currentQuoteId, 'client_approved');
+        
+        // Then update payment status separately
+        await WorkflowStatusService.updatePaymentStatus(currentQuoteId, 'pending');
+        
+        // Finally try to update the quote status to 'sent' if possible
+        try {
+          await WorkflowStatusService.updateQuoteWorkflowStage(currentQuoteId, {
+            stage: 'client_approved',
+            status: 'sent'
+          });
+          console.log('Quote status updated to sent successfully');
+        } catch (statusError) {
+          console.warn('Could not update quote status to sent, but workflow stage updated:', statusError);
+          // Don't throw here - workflow stage update succeeded
+        }
         
         // Refresh the quote status by re-checking
         const { data: updatedQuote } = await supabase

@@ -8,17 +8,26 @@ export interface WorkflowStageUpdate {
 }
 
 export class WorkflowStatusService {
+  // Valid enum values for quote status
+  private static readonly VALID_STATUSES = ['draft', 'sent', 'accepted', 'rejected', 'expired'];
+
   static async updateQuoteWorkflowStage(
     quoteId: string, 
     update: WorkflowStageUpdate
   ): Promise<void> {
     try {
+      console.log('Updating quote workflow stage:', { quoteId, update });
+      
       const updateData: any = {
         workflow_stage: update.stage,
+        updated_at: new Date().toISOString()
       };
 
-      if (update.status) {
+      // Only update status if it's a valid enum value
+      if (update.status && this.VALID_STATUSES.includes(update.status)) {
         updateData.status = update.status;
+      } else if (update.status) {
+        console.warn(`Invalid status value: ${update.status}. Skipping status update.`);
       }
 
       if (update.payment_status) {
@@ -29,9 +38,51 @@ export class WorkflowStatusService {
         Object.assign(updateData, update.additionalData);
       }
 
-      await QuoteService.update(quoteId, updateData);
+      console.log('Update data being sent:', updateData);
+      const result = await QuoteService.update(quoteId, updateData);
+      console.log('Quote updated successfully:', result);
+      
     } catch (error) {
       console.error('Failed to update workflow stage:', error);
+      console.error('Error details:', {
+        quoteId,
+        update,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
+      });
+      throw error;
+    }
+  }
+
+  // Separate method for updating just workflow stage (safer)
+  static async updateWorkflowStageOnly(quoteId: string, stage: string): Promise<void> {
+    try {
+      console.log('Updating workflow stage only:', { quoteId, stage });
+      
+      const result = await QuoteService.update(quoteId, {
+        workflow_stage: stage,
+        updated_at: new Date().toISOString()
+      });
+      
+      console.log('Workflow stage updated successfully:', result);
+    } catch (error) {
+      console.error('Failed to update workflow stage only:', error);
+      throw error;
+    }
+  }
+
+  // Separate method for updating payment status
+  static async updatePaymentStatus(quoteId: string, paymentStatus: string): Promise<void> {
+    try {
+      console.log('Updating payment status:', { quoteId, paymentStatus });
+      
+      const result = await QuoteService.update(quoteId, {
+        payment_status: paymentStatus,
+        updated_at: new Date().toISOString()
+      });
+      
+      console.log('Payment status updated successfully:', result);
+    } catch (error) {
+      console.error('Failed to update payment status:', error);
       throw error;
     }
   }

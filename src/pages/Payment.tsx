@@ -177,19 +177,29 @@ export const Payment = () => {
         if (transaction?.quote_id) {
           const { WorkflowStatusService } = await import('@/services/workflowStatusService');
           
-          // Update to payment-processing
-          await WorkflowStatusService.updateQuoteWorkflowStage(transaction.quote_id, {
-            stage: 'payment-processing',
-            status: 'sent',
-            payment_status: 'processing'
-          });
-
-          // Immediately move to contract-generation since payment is complete
-          await WorkflowStatusService.updateQuoteWorkflowStage(transaction.quote_id, {
-            stage: 'contract-generation',
-            status: 'accepted',
-            payment_status: 'completed'
-          });
+          console.log('Payment completed via gateway, updating workflow stages...');
+          
+          // First update to payment-processing
+          await WorkflowStatusService.updateWorkflowStageOnly(transaction.quote_id, 'payment-processing');
+          await WorkflowStatusService.updatePaymentStatus(transaction.quote_id, 'processing');
+          
+          // Small delay to ensure first update completes
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Then move to contract-generation since payment is complete
+          await WorkflowStatusService.updateWorkflowStageOnly(transaction.quote_id, 'contract-generation');
+          await WorkflowStatusService.updatePaymentStatus(transaction.quote_id, 'completed');
+          
+          // Finally try to update quote status to accepted
+          try {
+            await WorkflowStatusService.updateQuoteWorkflowStage(transaction.quote_id, {
+              stage: 'contract-generation',
+              status: 'accepted'
+            });
+            console.log('Quote status updated to accepted successfully');
+          } catch (statusError) {
+            console.warn('Could not update quote status to accepted, but workflow stage updated:', statusError);
+          }
         }
 
         toast({
@@ -253,11 +263,23 @@ export const Payment = () => {
       // Progress quote workflow to payment-processing (pending verification)
       if (transaction?.quote_id) {
         const { WorkflowStatusService } = await import('@/services/workflowStatusService');
-        await WorkflowStatusService.updateQuoteWorkflowStage(transaction.quote_id, {
-          stage: 'payment-processing',
-          status: 'sent',
-          payment_status: 'pending_verification'
-        });
+        
+        console.log('Bank transfer submitted, updating workflow stage...');
+        
+        // Update workflow stage and payment status separately for safety
+        await WorkflowStatusService.updateWorkflowStageOnly(transaction.quote_id, 'payment-processing');
+        await WorkflowStatusService.updatePaymentStatus(transaction.quote_id, 'pending_verification');
+        
+        // Try to update quote status to sent if possible
+        try {
+          await WorkflowStatusService.updateQuoteWorkflowStage(transaction.quote_id, {
+            stage: 'payment-processing',
+            status: 'sent'
+          });
+          console.log('Quote status updated to sent for bank transfer');
+        } catch (statusError) {
+          console.warn('Could not update quote status to sent, but workflow stage updated:', statusError);
+        }
       }
 
       toast({
