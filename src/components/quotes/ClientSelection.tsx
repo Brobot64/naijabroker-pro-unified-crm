@@ -162,60 +162,21 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
       
       if (currentQuoteId) {
         const { WorkflowStatusService } = await import('@/services/workflowStatusService');
+        const { WorkflowSyncService } = await import('@/services/workflowSyncService');
         
         console.log('📋 Client selection completed, updating workflow stage for quote:', currentQuoteId);
         
-        // Create or check payment transaction first to avoid duplicates
-        const { data: existingTransaction } = await supabase
-          .from('payment_transactions')
-          .select('id, status')
-          .eq('quote_id', currentQuoteId)
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (!existingTransaction && clientData?.id) {
-          console.log('💳 Creating payment transaction for client selection...');
-          const { data: newTransaction, error: transactionError } = await supabase
-            .from('payment_transactions')
-            .insert({
-              quote_id: currentQuoteId,
-              client_id: clientData.id,
-              organization_id: clientData.organization_id,
-              amount: processedQuote.premium_quoted,
-              currency: 'NGN',
-              payment_method: 'bank_transfer',
-              status: 'pending'
-            })
-            .select()
-            .single();
-
-          if (transactionError) {
-            console.error('❌ Failed to create payment transaction:', transactionError);
-          } else {
-            console.log('✅ Payment transaction created:', newTransaction?.id);
-          }
-        } else {
-          console.log('💳 Payment transaction already exists:', existingTransaction?.id);
-        }
-        
         // Use atomic update with all changes at once
-        try {
-          await WorkflowStatusService.updateQuoteWorkflowStage(currentQuoteId, {
-            stage: 'client_approved',
-            status: 'sent',
-            payment_status: 'pending'
-          });
-          
-          console.log('✅ Quote workflow updated successfully - stage: client_approved, status: sent, payment: pending');
-        } catch (updateError) {
-          console.error('❌ Failed to update quote workflow:', updateError);
-          // Try individual updates as fallback
-          await WorkflowStatusService.updateWorkflowStageOnly(currentQuoteId, 'client_approved');
-          await WorkflowStatusService.updatePaymentStatus(currentQuoteId, 'pending');
-          console.log('⚠️ Fallback individual updates completed');
-        }
+        await WorkflowStatusService.updateQuoteWorkflowStage(currentQuoteId, {
+          stage: 'client_approved',
+          status: 'accepted',
+          payment_status: 'pending'
+        });
+        
+        // Ensure payment transaction exists and sync everything
+        await WorkflowSyncService.performCompleteSync(currentQuoteId);
+        
+        console.log('✅ Complete workflow update completed');
         
         // Refresh the quote status
         const { data: updatedQuote } = await supabase
