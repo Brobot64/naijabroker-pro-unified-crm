@@ -79,10 +79,21 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
 
     setLoading(true);
     try {
-      // Get the actual quote ID - ensure we have a valid quote ID
-      const quoteId = validQuotes[0]?.quote_id || clientData.quote_id;
+      // Get the actual quote ID - check multiple possible sources
+      const quoteId = validQuotes[0]?.quote_id || 
+                     clientData?.quote_id || 
+                     sessionStorage.getItem('currentQuoteId') ||
+                     sessionStorage.getItem('workflowQuoteId');
       
       if (!quoteId) {
+        console.error('Quote ID sources checked:', {
+          validQuotesQuoteId: validQuotes[0]?.quote_id,
+          clientDataQuoteId: clientData?.quote_id,
+          sessionCurrentQuoteId: sessionStorage.getItem('currentQuoteId'),
+          sessionWorkflowQuoteId: sessionStorage.getItem('workflowQuoteId'),
+          validQuotes: validQuotes
+        });
+        
         toast({
           title: "Error",
           description: "No valid quote ID found. Please ensure the quote is properly created and saved before proceeding to client selection.",
