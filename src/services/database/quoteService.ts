@@ -69,7 +69,7 @@ export class QuoteService {
       .update(updates)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error(`❌ QuoteService: Failed to update quote ${id}:`, error);
