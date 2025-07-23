@@ -58,10 +58,30 @@ export const QuoteDashboard = ({ onNewQuote, onEditQuote, onViewQuote }: QuoteDa
     
     setLoading(true);
     try {
+      console.log('🔄 Loading quotes and refreshing status...');
+      
+      // Force refresh all quote statuses first
+      const { QuoteStatusSync } = await import('@/utils/quoteStatusSync');
+      
       const quotesData = await QuoteService.getByOrganization(organizationId);
-      setQuotes(quotesData || []);
+      
+      // Refresh status for each quote to ensure latest data
+      const quotesWithLatestStatus = await Promise.all(
+        (quotesData || []).map(async (quote) => {
+          try {
+            const latestStatus = await QuoteStatusSync.getLatestQuoteStatus(quote.id);
+            return { ...quote, ...latestStatus };
+          } catch (error) {
+            console.warn(`⚠️ Failed to refresh status for quote ${quote.id}:`, error);
+            return quote;
+          }
+        })
+      );
+      
+      setQuotes(quotesWithLatestStatus);
+      console.log('✅ Quotes loaded and status refreshed');
     } catch (error) {
-      console.error('Error loading quotes:', error);
+      console.error('❌ Error loading quotes:', error);
       toast({
         title: "Error",
         description: "Failed to load quotes",
