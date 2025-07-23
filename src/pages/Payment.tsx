@@ -175,7 +175,12 @@ export const Payment = () => {
           .select()
           .single();
 
-        if (transactionError) throw transactionError;
+        if (transactionError) {
+          console.error('❌ Gateway payment transaction update failed:', transactionError);
+          throw new Error(`Gateway payment update failed: ${transactionError.message}`);
+        }
+
+        console.log('✅ Gateway payment transaction updated successfully:', updatedTransaction);
 
         // Progress quote workflow to payment-processing and then contract-generation
         if (transaction?.quote_id) {
@@ -266,7 +271,12 @@ export const Payment = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Payment transaction update failed:', error);
+        throw new Error(`Payment update failed: ${error.message}`);
+      }
+
+      console.log('✅ Payment transaction updated successfully:', updatedTransaction);
 
       // Progress quote workflow to payment-processing (pending verification)
       if (transaction?.quote_id) {
