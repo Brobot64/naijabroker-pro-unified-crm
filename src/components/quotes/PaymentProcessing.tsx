@@ -29,6 +29,10 @@ export const PaymentProcessing = ({ quoteId, clientData, evaluatedQuotes, select
     try {
       console.log('🔄 Loading payment status for quote:', quoteId);
       
+      // Force refresh quote status first to ensure latest data
+      const { QuoteStatusSync } = await import('@/utils/quoteStatusSync');
+      await QuoteStatusSync.refreshQuoteStatus(quoteId);
+      
       // Import the new payment transaction service
       const { PaymentTransactionService } = await import('@/services/paymentTransactionService');
       

@@ -282,6 +282,10 @@ export const Payment = () => {
           'pending_verification'
         );
         
+        // Force refresh quote status to ensure UI shows latest state
+        const { QuoteStatusSync } = await import('@/utils/quoteStatusSync');
+        await QuoteStatusSync.refreshQuoteStatus(transaction.quote_id);
+        
         console.log('✅ Workflow progressed to payment-processing stage');
       }
 
