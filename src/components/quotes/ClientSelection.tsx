@@ -163,10 +163,11 @@ export const ClientSelection = ({ evaluatedQuotes, clientData, onSelectionComple
       if (currentQuoteId) {
         console.log('🎯 Client selection completed - progressing workflow for quote:', currentQuoteId);
         
-        // Import the new workflow sync service
-        const { WorkflowSyncService } = await import('@/services/workflowSyncService');
+        // Import the new workflow transition hook
+        const { useWorkflowTransition } = await import('@/hooks/useWorkflowTransition');
         
-        // Use the comprehensive workflow progression method
+        // Use the new workflow transition system
+        const { WorkflowSyncService } = await import('@/services/workflowSyncService');
         await WorkflowSyncService.progressWorkflow(
           currentQuoteId,
           'client_approved',

@@ -450,16 +450,21 @@ export const QuoteEvaluationEnhanced = ({ insurerMatches, onEvaluationComplete, 
         throw error;
       }
 
-      // Update quote status and workflow stage
+      // Update quote status and auto-transition workflow
       if (quoteId) {
         try {
-          const { WorkflowStatusService } = await import('@/services/workflowStatusService');
-          await WorkflowStatusService.updateQuoteWorkflowStage(quoteId, {
-            stage: 'quote-evaluation',
-            status: 'sent'
-          });
+          const { WorkflowSyncService } = await import('@/services/workflowSyncService');
+          
+          // First update to quote-evaluation stage
+          await WorkflowSyncService.progressWorkflow(quoteId, 'quote-evaluation', 'sent');
+          
+          // Auto-transition to client-selection with portal link creation
+          console.log('🚀 Auto-transitioning to client-selection stage...');
+          await WorkflowSyncService.progressWorkflow(quoteId, 'client-selection', 'sent');
+          
+          console.log('✅ Quote automatically moved to client-selection stage');
         } catch (error) {
-          console.error('Failed to update quote status:', error);
+          console.error('❌ Failed to update quote workflow:', error);
         }
       }
 

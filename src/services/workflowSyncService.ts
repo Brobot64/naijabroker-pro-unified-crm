@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { WorkflowStatusService } from './workflowStatusService';
 import { PaymentTransactionService } from './paymentTransactionService';
+import { ClientPortalLinkService } from './clientPortalLinkService';
 
 export class WorkflowSyncService {
   /**
@@ -98,7 +99,7 @@ export class WorkflowSyncService {
   }
 
   /**
-   * Direct workflow progression with proper payment transaction handling
+   * Direct workflow progression with comprehensive requirement handling
    */
   static async progressWorkflow(
     quoteId: string, 
@@ -114,12 +115,8 @@ export class WorkflowSyncService {
         paymentStatus
       });
 
-      // First ensure payment transaction exists if moving to payment stage
-      const paymentStages = ['client_approved', 'payment-processing', 'contract-generation'];
-      if (paymentStages.includes(targetStage)) {
-        console.log('💳 Target stage requires payment transaction, ensuring it exists...');
-        await this.ensurePaymentTransaction(quoteId);
-      }
+      // Handle automatic requirements based on stage
+      await this.handleStageRequirements(quoteId, targetStage);
 
       // Update workflow stage, status, and payment status atomically
       await WorkflowStatusService.updateQuoteWorkflowStage(quoteId, {
@@ -135,6 +132,80 @@ export class WorkflowSyncService {
     } catch (error) {
       console.error('❌ WorkflowSyncService: Failed to progress workflow:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Handle automatic requirements for each workflow stage
+   */
+  private static async handleStageRequirements(quoteId: string, targetStage: string): Promise<void> {
+    console.log('🔧 Handling stage requirements for:', targetStage);
+
+    // Client portal link required stages
+    const portalLinkStages = ['client-selection', 'client_approved', 'payment-processing'];
+    if (portalLinkStages.includes(targetStage)) {
+      console.log('🔗 Ensuring client portal link exists...');
+      await ClientPortalLinkService.ensureClientPortalLink(quoteId);
+    }
+
+    // Payment transaction required stages
+    const paymentStages = ['client_approved', 'payment-processing', 'contract-generation'];
+    if (paymentStages.includes(targetStage)) {
+      console.log('💳 Ensuring payment transaction exists...');
+      await this.ensurePaymentTransaction(quoteId);
+    }
+  }
+
+  /**
+   * Auto-transition workflow based on current stage
+   */
+  static async autoTransitionWorkflow(quoteId: string): Promise<string | null> {
+    try {
+      console.log('🤖 Auto-transitioning workflow for quote:', quoteId);
+
+      // Get current quote state
+      const { data: quote, error } = await supabase
+        .from('quotes')
+        .select('id, workflow_stage, status, payment_status')
+        .eq('id', quoteId)
+        .maybeSingle();
+
+      if (error || !quote) {
+        console.error('❌ Failed to fetch quote for auto-transition:', error);
+        return null;
+      }
+
+      const currentStage = quote.workflow_stage;
+      
+      // Define auto-transition rules
+      const autoTransitions: Record<string, { nextStage: string; condition?: () => boolean }> = {
+        'quote-evaluation': {
+          nextStage: 'client-selection',
+          condition: () => {
+            // Auto-transition if we have evaluated quotes
+            return true; // Can add more sophisticated checks here
+          }
+        }
+      };
+
+      const transition = autoTransitions[currentStage];
+      if (transition && (!transition.condition || transition.condition())) {
+        console.log(`🎯 Auto-transitioning from ${currentStage} to ${transition.nextStage}`);
+        
+        await this.progressWorkflow(
+          quoteId,
+          transition.nextStage,
+          'sent'
+        );
+        
+        return transition.nextStage;
+      }
+
+      console.log('⏸️ No auto-transition available for stage:', currentStage);
+      return null;
+    } catch (error) {
+      console.error('❌ Auto-transition failed:', error);
+      return null;
     }
   }
 }
