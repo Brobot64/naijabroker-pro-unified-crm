@@ -1,10 +1,16 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, FileText, Download, Send, CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { QuoteAuditTrail } from "./QuoteAuditTrail";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { PaymentTransactionService } from "@/services/paymentTransactionService";
+import { evaluatedQuotesService } from "@/services/evaluatedQuotesService";
+import { logWorkflowStage } from "@/utils/auditLogger";
 
 interface ContractGenerationProps {
   paymentData: any;
@@ -21,33 +27,135 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
   const [deviations, setDeviations] = useState<string[]>([]);
   const [isGeneratingInterim, setIsGeneratingInterim] = useState(false);
   const [isSimulatingFinal, setIsSimulatingFinal] = useState(false);
+  const [quote, setQuote] = useState<any>(null);
+  const [evaluatedQuotes, setEvaluatedQuotes] = useState<any[]>([]);
+  const [paymentTransaction, setPaymentTransaction] = useState<any>(null);
+  const [insurerInfo, setInsurerInfo] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { user, organizationId } = useAuth();
+
+  // Load contract data on component mount
+  useEffect(() => {
+    loadContractData();
+  }, [selectedQuote]);
+
+  const loadContractData = async () => {
+    if (!selectedQuote?.id) return;
+    
+    setLoading(true);
+    try {
+      // Load quote details
+      const { data: quoteData, error: quoteError } = await supabase
+        .from('quotes')
+        .select(`
+          *,
+          client:clients(*)
+        `)
+        .eq('id', selectedQuote.id)
+        .maybeSingle();
+
+      if (quoteError) throw quoteError;
+      setQuote(quoteData);
+
+      // Load evaluated quotes to get insurer information
+      const { data: evalQuotes } = await evaluatedQuotesService.getEvaluatedQuotes(selectedQuote.id);
+      if (evalQuotes && evalQuotes.length > 0) {
+        setEvaluatedQuotes(evalQuotes);
+        
+        // Find the selected insurer
+        const selectedInsurer = evalQuotes.find(eq => 
+          eq.insurer_name === selectedQuote.insurer_name || 
+          eq.id === selectedQuote.id
+        );
+        
+        if (selectedInsurer) {
+          setInsurerInfo(selectedInsurer);
+        }
+      }
+
+      // Load payment transaction
+      try {
+        const transaction = await PaymentTransactionService.getByQuoteId(selectedQuote.id);
+        setPaymentTransaction(transaction);
+      } catch (error) {
+        console.warn('No payment transaction found:', error);
+      }
+
+      // Check if contracts already exist
+      if (quoteData?.interim_contract_url) {
+        setInterimGenerated(true);
+      }
+      if (quoteData?.final_contract_url) {
+        setFinalReceived(true);
+        setComplianceChecked(true);
+      }
+
+    } catch (error) {
+      console.error('Error loading contract data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load contract data",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const generateInterimContract = async () => {
+    if (!quote?.id || !organizationId) return;
+    
     setIsGeneratingInterim(true);
     
     try {
       console.log('🔄 Generating interim contract...');
       
-      // Simulate contract generation delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Generate document URL (in real implementation, this would call a document generation service)
+      const documentUrl = `https://contracts.example.com/interim/${quote.id}_${Date.now()}.pdf`;
       
-      // Simulate contract generation
+      // Update quote with interim contract URL
+      const { error: updateError } = await supabase
+        .from('quotes')
+        .update({
+          interim_contract_url: documentUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', quote.id);
+
+      if (updateError) throw updateError;
+
+      // Log the action
+      await logWorkflowStage(
+        quote.id,
+        organizationId,
+        'contract-generation',
+        'interim_contract_generated',
+        {
+          document_url: documentUrl,
+          generated_at: new Date().toISOString(),
+          client_name: clientData?.name || quote.client?.name,
+          insurer_name: insurerInfo?.insurer_name || selectedQuote?.insurer_name
+        },
+        user?.id
+      );
+      
       const contracts = {
         interim: {
           id: `INT-${Date.now()}`,
           generatedAt: new Date().toISOString(),
-          documentUrl: '#',
+          documentUrl,
           status: 'generated'
         }
       };
       
       setInterimGenerated(true);
+      setQuote(prev => ({ ...prev, interim_contract_url: documentUrl }));
       onContractsGenerated(contracts);
       
       toast({
         title: "Success",
-        description: "Interim contract generated successfully"
+        description: "Interim contract generated and downloadable"
       });
       
       console.log('✅ Interim contract generated successfully');
@@ -65,10 +173,41 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
   };
 
   const simulateFinalContract = async () => {
+    if (!quote?.id || !organizationId) return;
+    
     setIsSimulatingFinal(true);
     
     try {
       console.log('🔄 Simulating final contract receipt...');
+      
+      // Generate final contract URL
+      const finalDocumentUrl = `https://contracts.example.com/final/${quote.id}_${Date.now()}.pdf`;
+      
+      // Update quote with final contract URL
+      const { error: updateError } = await supabase
+        .from('quotes')
+        .update({
+          final_contract_url: finalDocumentUrl,
+          workflow_stage: 'completed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', quote.id);
+
+      if (updateError) throw updateError;
+
+      // Log the action
+      await logWorkflowStage(
+        quote.id,
+        organizationId,
+        'contract-generation',
+        'final_contract_received',
+        {
+          document_url: finalDocumentUrl,
+          received_at: new Date().toISOString(),
+          compliance_status: 'approved'
+        },
+        user?.id
+      );
       
       setFinalReceived(true);
       
@@ -78,6 +217,12 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
       setComplianceChecked(true);
       // Simulate some minor deviations
       setDeviations(['Premium rate adjusted from 2.5% to 2.4%', 'Coverage period extended by 1 day']);
+      
+      setQuote(prev => ({ 
+        ...prev, 
+        final_contract_url: finalDocumentUrl,
+        workflow_stage: 'completed'
+      }));
       
       toast({
         title: "Success",
@@ -97,6 +242,30 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
       setIsSimulatingFinal(false);
     }
   };
+
+  const downloadContract = (url: string, filename: string) => {
+    // In a real implementation, this would download the actual file
+    // For now, we'll simulate the download
+    toast({
+      title: "Download Started",
+      description: `Downloading ${filename}...`
+    });
+    
+    // Simulate file download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin mr-3" />
+        <span>Loading contract data...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -147,7 +316,14 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => downloadContract(
+                        quote?.interim_contract_url || '#',
+                        `Interim_Contract_${quote?.quote_number || 'UNKNOWN'}.pdf`
+                      )}
+                    >
                       <Download className="h-4 w-4 mr-2" />
                       Download
                     </Button>
@@ -190,10 +366,23 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
               
               {finalReceived && (
                 <div className="space-y-3">
-                  <div className="bg-blue-50 p-3 rounded">
+                 <div className="bg-blue-50 p-3 rounded">
                      <p className="text-sm text-blue-800">
-                       Final policy document received from {selectedQuote?.insurer_name || 'Insurer'}
+                       Final policy document received from {insurerInfo?.insurer_name || selectedQuote?.insurer_name || 'Insurer'}
                      </p>
+                     <div className="flex gap-2 mt-3">
+                       <Button 
+                         variant="outline" 
+                         size="sm"
+                         onClick={() => downloadContract(
+                           quote?.final_contract_url || '#',
+                           `Final_Policy_${quote?.quote_number || 'UNKNOWN'}.pdf`
+                         )}
+                       >
+                         <Download className="h-4 w-4 mr-2" />
+                         Download Policy
+                       </Button>
+                     </div>
                   </div>
                   
                   {/* Compliance Check */}
@@ -249,68 +438,50 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-600">Client:</span>
-              <p className="font-semibold">{clientData.name}</p>
+              <p className="font-semibold">{clientData?.name || quote?.client?.name || 'Unknown Client'}</p>
             </div>
             <div>
               <span className="text-gray-600">Insurer:</span>
-              <p className="font-semibold">{selectedQuote?.insurer_name || 'Unknown Insurer'}</p>
+              <p className="font-semibold">{insurerInfo?.insurer_name || selectedQuote?.insurer_name || 'Unknown Insurer'}</p>
             </div>
             <div>
               <span className="text-gray-600">Premium:</span>
-              <p className="font-semibold">₦{(selectedQuote?.premium_quoted || selectedQuote?.premium || 0).toLocaleString()}</p>
+              <p className="font-semibold">₦{(
+                insurerInfo?.premium_quoted || 
+                selectedQuote?.premium_quoted || 
+                selectedQuote?.premium || 
+                quote?.premium || 
+                0
+              ).toLocaleString()}</p>
             </div>
             <div>
               <span className="text-gray-600">Sum Insured:</span>
-              <p className="font-semibold">₦{(selectedQuote?.sum_insured || 0).toLocaleString()}</p>
+              <p className="font-semibold">₦{(quote?.sum_insured || selectedQuote?.sum_insured || 0).toLocaleString()}</p>
             </div>
             <div>
               <span className="text-gray-600">Payment Status:</span>
-              <Badge variant="secondary">Paid</Badge>
+              <Badge variant={paymentTransaction?.status === 'completed' ? 'default' : 'secondary'}>
+                {paymentTransaction?.status === 'completed' ? 'Paid' : paymentTransaction?.status || 'Pending'}
+              </Badge>
             </div>
             <div>
               <span className="text-gray-600">Transaction ID:</span>
-              <p className="font-mono text-xs">{paymentData?.transactionId || 'N/A'}</p>
+              <p className="font-mono text-xs">{paymentTransaction?.id?.slice(0, 8) || paymentData?.transactionId || 'N/A'}</p>
+            </div>
+            <div>
+              <span className="text-gray-600">Quote Number:</span>
+              <p className="font-semibold">{quote?.quote_number || 'N/A'}</p>
+            </div>
+            <div>
+              <span className="text-gray-600">Policy Type:</span>
+              <p className="font-semibold">{quote?.policy_type || 'N/A'}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Notifications & Audit Trail */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Audit Trail</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>Quote created</span>
-              <span className="text-gray-500">2 hours ago</span>
-            </div>
-            <div className="flex justify-between">
-              <span>RFQ dispatched to insurers</span>
-              <span className="text-gray-500">1.5 hours ago</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Quotes received and evaluated</span>
-              <span className="text-gray-500">45 minutes ago</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Client selection confirmed</span>
-              <span className="text-gray-500">20 minutes ago</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Payment processed</span>
-              <span className="text-gray-500">10 minutes ago</span>
-            </div>
-            {interimGenerated && (
-              <div className="flex justify-between">
-                <span>Interim contract generated</span>
-                <span className="text-gray-500">Just now</span>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Audit Trail */}
+      {quote?.id && <QuoteAuditTrail quoteId={quote.id} />}
 
       {/* Completion Status */}
       {interimGenerated && finalReceived && complianceChecked && (
