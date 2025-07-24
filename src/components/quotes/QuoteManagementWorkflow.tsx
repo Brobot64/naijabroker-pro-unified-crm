@@ -115,17 +115,62 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete, onBa
         setCurrentStep(resumeStep);
         dispatch({ type: 'SET_STEP', payload: resumeStep });
         
-        // Mark previous steps as completed if resuming from later stage
-        const resumeIndex = steps.findIndex(step => step.id === resumeStep);
-        for (let i = 0; i < resumeIndex; i++) {
-          dispatch({ type: 'COMPLETE_STEP', payload: steps[i].id });
-        }
+        // Mark ALL previous steps as completed based on workflow stage progression
+        markCompletedStepsFromWorkflowStage(editingQuote.workflow_stage);
       }
     } else {
       // For new quotes, ensure fresh start
       handleResetWorkflow();
     }
   }, [editingQuote, editClientMode]);
+
+  // Function to mark completed steps based on workflow stage
+  const markCompletedStepsFromWorkflowStage = (workflowStage: string) => {
+    // Define the progression order of workflow stages
+    const stageProgression = [
+      'client-onboarding',
+      'quote-drafting', 
+      'clause-recommendation',
+      'rfq-generation',
+      'insurer-matching',
+      'quote-evaluation',
+      'client-selection',
+      'client_approved',
+      'payment-processing',
+      'payment_completed',
+      'contract-generation',
+      'completed'
+    ];
+
+    // Map database workflow stages to our step IDs
+    const dbStageToStepMap: Record<string, string[]> = {
+      'draft': ['client-onboarding'],
+      'client-onboarding': [],
+      'quote-drafting': ['client-onboarding'], 
+      'clause-recommendation': ['client-onboarding', 'quote-drafting'],
+      'rfq-generation': ['client-onboarding', 'quote-drafting', 'clause-recommendation'],
+      'insurer-matching': ['client-onboarding', 'quote-drafting', 'clause-recommendation', 'rfq-generation'],
+      'quote-evaluation': ['client-onboarding', 'quote-drafting', 'clause-recommendation', 'rfq-generation', 'insurer-matching'],
+      'client-selection': ['client-onboarding', 'quote-drafting', 'clause-recommendation', 'rfq-generation', 'insurer-matching', 'quote-evaluation'],
+      'client_approved': ['client-onboarding', 'quote-drafting', 'clause-recommendation', 'rfq-generation', 'insurer-matching', 'quote-evaluation', 'client-selection'],
+      'payment-processing': ['client-onboarding', 'quote-drafting', 'clause-recommendation', 'rfq-generation', 'insurer-matching', 'quote-evaluation', 'client-selection'],
+      'payment_processing': ['client-onboarding', 'quote-drafting', 'clause-recommendation', 'rfq-generation', 'insurer-matching', 'quote-evaluation', 'client-selection'],
+      'payment_completed': ['client-onboarding', 'quote-drafting', 'clause-recommendation', 'rfq-generation', 'insurer-matching', 'quote-evaluation', 'client-selection', 'payment-processing'],
+      'contract-generation': ['client-onboarding', 'quote-drafting', 'clause-recommendation', 'rfq-generation', 'insurer-matching', 'quote-evaluation', 'client-selection', 'payment-processing'],
+      'contract_generated': ['client-onboarding', 'quote-drafting', 'clause-recommendation', 'rfq-generation', 'insurer-matching', 'quote-evaluation', 'client-selection', 'payment-processing', 'contract-generation'],
+      'completed': ['client-onboarding', 'quote-drafting', 'clause-recommendation', 'rfq-generation', 'insurer-matching', 'quote-evaluation', 'client-selection', 'payment-processing', 'contract-generation']
+    };
+
+    // Get completed steps for this workflow stage
+    const completedSteps = dbStageToStepMap[workflowStage] || [];
+    
+    // Mark each completed step
+    completedSteps.forEach(stepId => {
+      dispatch({ type: 'COMPLETE_STEP', payload: stepId });
+    });
+
+    console.log(`🔄 Marked ${completedSteps.length} steps as completed for stage: ${workflowStage}`);
+  };
 
   const handleContinueQuoteEdit = () => {
     setShowEditModeSelector(false);
@@ -135,10 +180,9 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete, onBa
     setCurrentStep(resumeStep);
     dispatch({ type: 'SET_STEP', payload: resumeStep });
     
-    // Mark previous steps as completed
-    const resumeIndex = steps.findIndex(step => step.id === resumeStep);
-    for (let i = 0; i < resumeIndex; i++) {
-      dispatch({ type: 'COMPLETE_STEP', payload: steps[i].id });
+    // Mark previous steps as completed using the comprehensive mapping
+    if (editingQuote?.workflow_stage) {
+      markCompletedStepsFromWorkflowStage(editingQuote.workflow_stage);
     }
   };
 

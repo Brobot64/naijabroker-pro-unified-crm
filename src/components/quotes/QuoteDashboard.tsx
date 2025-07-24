@@ -326,15 +326,20 @@ export const QuoteDashboard = ({ onNewQuote, onEditQuote, onViewQuote }: QuoteDa
                         <Badge className={`${getStatusColor(quote.status)} text-white`}>
                           {quote.status}
                         </Badge>
+                        {quote.payment_status && quote.payment_status !== 'pending' && (
+                          <div className="text-xs text-gray-600 mt-1">
+                            Payment: {quote.payment_status.replace('_', ' ')}
+                          </div>
+                        )}
                       </td>
                        <td className="py-3 px-4">
                          <Badge variant="outline" className={`${getStageColor(quote.workflow_stage)} text-white border-0`}>
                            {quote.workflow_stage?.replace('-', ' ').replace('_', ' ')}
                          </Badge>
-                         {quote.payment_status && quote.payment_status !== 'pending' && (
-                           <Badge variant="outline" className="ml-1 text-xs">
-                             Payment: {quote.payment_status}
-                           </Badge>
+                         {quote.payment_status && quote.payment_status !== 'pending' && quote.payment_status !== 'pending_verification' && (
+                           <div className="text-xs text-gray-600 mt-1">
+                             Payment: {quote.payment_status.replace('_', ' ')}
+                           </div>
                          )}
                        </td>
                       <td className="py-3 px-4">
