@@ -37,62 +37,109 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
 
   // Load contract data on component mount
   useEffect(() => {
+    console.log('🔍 ContractGeneration: Loading contract data for selectedQuote:', selectedQuote);
+    console.log('🔍 ContractGeneration: clientData:', clientData);
+    console.log('🔍 ContractGeneration: paymentData:', paymentData);
     loadContractData();
   }, [selectedQuote]);
 
   const loadContractData = async () => {
-    if (!selectedQuote?.id) return;
+    if (!selectedQuote?.id && !selectedQuote?.quote_id) {
+      console.error('❌ ContractGeneration: No quote ID available');
+      return;
+    }
+    
+    const quoteId = selectedQuote.id || selectedQuote.quote_id;
+    console.log('🔍 ContractGeneration: Using quote ID:', quoteId);
     
     setLoading(true);
     try {
-      // Load quote details
+      // Load quote details with client information
+      console.log('🔄 ContractGeneration: Fetching quote details...');
       const { data: quoteData, error: quoteError } = await supabase
         .from('quotes')
         .select(`
           *,
           client:clients(*)
         `)
-        .eq('id', selectedQuote.id)
+        .eq('id', quoteId)
         .maybeSingle();
 
-      if (quoteError) throw quoteError;
+      if (quoteError) {
+        console.error('❌ ContractGeneration: Quote fetch error:', quoteError);
+        throw quoteError;
+      }
+      
+      console.log('✅ ContractGeneration: Quote data fetched:', quoteData);
       setQuote(quoteData);
 
       // Load evaluated quotes to get insurer information
-      const { data: evalQuotes } = await evaluatedQuotesService.getEvaluatedQuotes(selectedQuote.id);
+      console.log('🔄 ContractGeneration: Fetching evaluated quotes...');
+      const { data: evalQuotes, error: evalError } = await evaluatedQuotesService.getEvaluatedQuotes(quoteId);
+      console.log('✅ ContractGeneration: Evaluated quotes result:', { data: evalQuotes, error: evalError });
+      
       if (evalQuotes && evalQuotes.length > 0) {
         setEvaluatedQuotes(evalQuotes);
+        console.log('🔍 ContractGeneration: Looking for selected insurer:', selectedQuote);
         
-        // Find the selected insurer
-        const selectedInsurer = evalQuotes.find(eq => 
-          eq.insurer_name === selectedQuote.insurer_name || 
-          eq.id === selectedQuote.id
-        );
+        // Find the selected insurer - try multiple matching strategies
+        let selectedInsurer = null;
+        
+        // Strategy 1: Match by insurer name
+        if (selectedQuote.insurer_name) {
+          selectedInsurer = evalQuotes.find(eq => 
+            eq.insurer_name?.toLowerCase() === selectedQuote.insurer_name?.toLowerCase()
+          );
+          console.log('🔍 ContractGeneration: Insurer match by name:', selectedInsurer);
+        }
+        
+        // Strategy 2: If selectedQuote has more detailed info, use the first one or find by premium
+        if (!selectedInsurer && selectedQuote.premium_quoted) {
+          selectedInsurer = evalQuotes.find(eq => 
+            eq.premium_quoted === selectedQuote.premium_quoted
+          );
+          console.log('🔍 ContractGeneration: Insurer match by premium:', selectedInsurer);
+        }
+        
+        // Strategy 3: Use the first evaluated quote if nothing else matches
+        if (!selectedInsurer && evalQuotes.length > 0) {
+          selectedInsurer = evalQuotes[0];
+          console.log('🔍 ContractGeneration: Using first evaluated quote:', selectedInsurer);
+        }
         
         if (selectedInsurer) {
           setInsurerInfo(selectedInsurer);
+          console.log('✅ ContractGeneration: Insurer info set:', selectedInsurer);
+        } else {
+          console.warn('⚠️ ContractGeneration: No matching insurer found');
         }
+      } else {
+        console.warn('⚠️ ContractGeneration: No evaluated quotes found');
       }
 
       // Load payment transaction
+      console.log('🔄 ContractGeneration: Fetching payment transaction...');
       try {
-        const transaction = await PaymentTransactionService.getByQuoteId(selectedQuote.id);
+        const transaction = await PaymentTransactionService.getByQuoteId(quoteId);
+        console.log('✅ ContractGeneration: Payment transaction:', transaction);
         setPaymentTransaction(transaction);
       } catch (error) {
-        console.warn('No payment transaction found:', error);
+        console.warn('⚠️ ContractGeneration: No payment transaction found:', error);
       }
 
       // Check if contracts already exist
       if (quoteData?.interim_contract_url) {
+        console.log('✅ ContractGeneration: Interim contract exists');
         setInterimGenerated(true);
       }
       if (quoteData?.final_contract_url) {
+        console.log('✅ ContractGeneration: Final contract exists');
         setFinalReceived(true);
         setComplianceChecked(true);
       }
 
     } catch (error) {
-      console.error('Error loading contract data:', error);
+      console.error('❌ ContractGeneration: Error loading contract data:', error);
       toast({
         title: "Error",
         description: "Failed to load contract data",
@@ -438,43 +485,75 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-600">Client:</span>
-              <p className="font-semibold">{clientData?.name || quote?.client?.name || 'Unknown Client'}</p>
+              <p className="font-semibold">{
+                clientData?.name || 
+                quote?.client?.name || 
+                quote?.client_name || 
+                'Unknown Client'
+              }</p>
             </div>
             <div>
               <span className="text-gray-600">Insurer:</span>
-              <p className="font-semibold">{insurerInfo?.insurer_name || selectedQuote?.insurer_name || 'Unknown Insurer'}</p>
+              <p className="font-semibold">{
+                insurerInfo?.insurer_name || 
+                selectedQuote?.insurer_name || 
+                'Unknown Insurer'
+              }</p>
             </div>
             <div>
               <span className="text-gray-600">Premium:</span>
-              <p className="font-semibold">₦{(
-                insurerInfo?.premium_quoted || 
-                selectedQuote?.premium_quoted || 
-                selectedQuote?.premium || 
-                quote?.premium || 
-                0
-              ).toLocaleString()}</p>
+              <p className="font-semibold">₦{(() => {
+                const premium = insurerInfo?.premium_quoted || 
+                             selectedQuote?.premium_quoted || 
+                             selectedQuote?.premium || 
+                             quote?.premium || 
+                             0;
+                console.log('🔍 ContractGeneration: Premium calculation:', {
+                  insurerInfo_premium: insurerInfo?.premium_quoted,
+                  selectedQuote_premium: selectedQuote?.premium_quoted,
+                  selectedQuote_premium_alt: selectedQuote?.premium,
+                  quote_premium: quote?.premium,
+                  final_premium: premium
+                });
+                return Number(premium).toLocaleString();
+              })()}</p>
             </div>
             <div>
               <span className="text-gray-600">Sum Insured:</span>
-              <p className="font-semibold">₦{(quote?.sum_insured || selectedQuote?.sum_insured || 0).toLocaleString()}</p>
+              <p className="font-semibold">₦{(() => {
+                const sumInsured = quote?.sum_insured || selectedQuote?.sum_insured || 0;
+                console.log('🔍 ContractGeneration: Sum Insured calculation:', {
+                  quote_sum: quote?.sum_insured,
+                  selectedQuote_sum: selectedQuote?.sum_insured,
+                  final_sum: sumInsured
+                });
+                return Number(sumInsured).toLocaleString();
+              })()}</p>
             </div>
             <div>
               <span className="text-gray-600">Payment Status:</span>
               <Badge variant={paymentTransaction?.status === 'completed' ? 'default' : 'secondary'}>
-                {paymentTransaction?.status === 'completed' ? 'Paid' : paymentTransaction?.status || 'Pending'}
+                {paymentTransaction?.status === 'completed' ? 'Paid' : 
+                 paymentTransaction?.status?.replace('_', ' ').toUpperCase() || 
+                 'Pending'}
               </Badge>
             </div>
             <div>
               <span className="text-gray-600">Transaction ID:</span>
-              <p className="font-mono text-xs">{paymentTransaction?.id?.slice(0, 8) || paymentData?.transactionId || 'N/A'}</p>
+              <p className="font-mono text-xs">{
+                paymentTransaction?.id?.slice(0, 8) || 
+                paymentTransaction?.provider_reference || 
+                paymentData?.transactionId || 
+                'N/A'
+              }</p>
             </div>
             <div>
               <span className="text-gray-600">Quote Number:</span>
-              <p className="font-semibold">{quote?.quote_number || 'N/A'}</p>
+              <p className="font-semibold">{quote?.quote_number || selectedQuote?.quote_number || 'N/A'}</p>
             </div>
             <div>
               <span className="text-gray-600">Policy Type:</span>
-              <p className="font-semibold">{quote?.policy_type || 'N/A'}</p>
+              <p className="font-semibold">{quote?.policy_type || selectedQuote?.policy_type || 'N/A'}</p>
             </div>
           </div>
         </CardContent>
