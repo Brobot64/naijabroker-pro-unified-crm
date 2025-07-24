@@ -37,9 +37,12 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
 
   // Load contract data on component mount
   useEffect(() => {
+    console.log('🚀 ContractGeneration: Component mounted');
     console.log('🔍 ContractGeneration: Loading contract data for selectedQuote:', selectedQuote);
     console.log('🔍 ContractGeneration: clientData:', clientData);
     console.log('🔍 ContractGeneration: paymentData:', paymentData);
+    console.log('🔍 ContractGeneration: user:', user);
+    console.log('🔍 ContractGeneration: organizationId:', organizationId);
     loadContractData();
   }, [selectedQuote]);
 
