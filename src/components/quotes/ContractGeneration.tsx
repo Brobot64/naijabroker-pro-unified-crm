@@ -77,6 +77,10 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
       console.log('🔄 ContractGeneration: Fetching evaluated quotes...');
       const { data: evalQuotes, error: evalError } = await evaluatedQuotesService.getEvaluatedQuotes(quoteId);
       console.log('✅ ContractGeneration: Evaluated quotes result:', { data: evalQuotes, error: evalError });
+
+      if (evalError) {
+        console.error('❌ ContractGeneration: Evaluated quotes fetch error:', evalError);
+      }
       
       if (evalQuotes && evalQuotes.length > 0) {
         setEvaluatedQuotes(evalQuotes);
