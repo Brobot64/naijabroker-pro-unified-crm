@@ -32,6 +32,7 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
   const [paymentTransaction, setPaymentTransaction] = useState<any>(null);
   const [insurerInfo, setInsurerInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user, organizationId } = useAuth();
 
@@ -48,7 +49,14 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
 
   const loadContractData = async () => {
     if (!selectedQuote?.id && !selectedQuote?.quote_id) {
-      console.error('❌ ContractGeneration: No quote ID available');
+      console.error('❌ ContractGeneration: No quote ID available. selectedQuote:', selectedQuote);
+      setLoading(false);
+      setError('No quote ID available');
+      toast({
+        title: "Error",
+        description: "No quote ID available for contract generation",
+        variant: "destructive"
+      });
       return;
     }
     
