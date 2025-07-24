@@ -12,6 +12,8 @@ import { PaymentTransactionService } from "@/services/paymentTransactionService"
 import { evaluatedQuotesService } from "@/services/evaluatedQuotesService";
 import { logWorkflowStage } from "@/utils/auditLogger";
 
+console.log('🚀 ContractGeneration: Module loaded');
+
 interface ContractGenerationProps {
   paymentData: any;
   selectedQuote: any;
@@ -21,6 +23,15 @@ interface ContractGenerationProps {
 }
 
 export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onContractsGenerated, onBack }: ContractGenerationProps) => {
+  console.log('🚀 ContractGeneration: Component rendering started');
+  console.log('🔍 ContractGeneration: Props received:', {
+    paymentData,
+    selectedQuote,
+    clientData,
+    onContractsGenerated: !!onContractsGenerated,
+    onBack: !!onBack
+  });
+
   const [interimGenerated, setInterimGenerated] = useState(false);
   const [finalReceived, setFinalReceived] = useState(false);
   const [complianceChecked, setComplianceChecked] = useState(false);
@@ -36,14 +47,12 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
   const { toast } = useToast();
   const { user, organizationId } = useAuth();
 
+  console.log('🔍 ContractGeneration: Auth state:', { user: !!user, organizationId });
+
   // Load contract data on component mount
   useEffect(() => {
-    console.log('🚀 ContractGeneration: Component mounted');
-    console.log('🔍 ContractGeneration: Loading contract data for selectedQuote:', selectedQuote);
-    console.log('🔍 ContractGeneration: clientData:', clientData);
-    console.log('🔍 ContractGeneration: paymentData:', paymentData);
-    console.log('🔍 ContractGeneration: user:', user);
-    console.log('🔍 ContractGeneration: organizationId:', organizationId);
+    console.log('🚀 ContractGeneration: useEffect triggered');
+    console.log('🔍 ContractGeneration: selectedQuote dependency:', selectedQuote);
     loadContractData();
   }, [selectedQuote]);
 
