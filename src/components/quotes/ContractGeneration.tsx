@@ -153,13 +153,11 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
     setIsGeneratingInterim(true);
     
     try {
-      // Generate interim contract
-      
       // Generate document URL (in real implementation, this would call a document generation service)
       const documentUrl = `https://contracts.example.com/interim/${quote.id}_${Date.now()}.pdf`;
       
-      // Update quote with interim contract URL and workflow status
-      const { error: updateError } = await supabase
+      // Perform atomic database update with transaction-like behavior
+      const { data: updatedQuote, error: updateError } = await supabase
         .from('quotes')
         .update({
           interim_contract_url: documentUrl,
@@ -168,28 +166,48 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
           status: 'accepted',
           updated_at: new Date().toISOString()
         })
-        .eq('id', quote.id);
+        .eq('id', quote.id)
+        .select()
+        .single();
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('❌ Database update failed:', updateError);
+        throw new Error(`Database update failed: ${updateError.message}`);
+      }
 
-      // Log the action for audit trail
-      await logWorkflowStage(
-        quote.id,
-        organizationId,
-        'completed',
-        'interim_contract_sent',
-        {
-          document_url: documentUrl,
-          generated_at: new Date().toISOString(),
-          client_name: clientData?.name || quote.client?.name || quote.client_name,
-          insurer_name: insurerInfo?.insurer_name || selectedQuote?.insurer_name,
-          contract_type: 'interim',
-          status: 'interim_contract_sent',
-          workflow_stage_updated: 'completed',
-          payment_status_updated: 'completed'
-        },
-        user?.id
-      );
+      if (!updatedQuote) {
+        throw new Error('Quote update returned no data - possible concurrency issue');
+      }
+
+      // Verify the update was successful by checking returned data
+      if (updatedQuote.workflow_stage !== 'completed' || updatedQuote.payment_status !== 'completed') {
+        throw new Error('Database state verification failed - updates not applied correctly');
+      }
+
+      // Log the action for audit trail (only after successful DB update)
+      try {
+        await logWorkflowStage(
+          quote.id,
+          organizationId,
+          'completed',
+          'interim_contract_sent',
+          {
+            document_url: documentUrl,
+            generated_at: new Date().toISOString(),
+            client_name: clientData?.name || quote.client?.name || quote.client_name,
+            insurer_name: insurerInfo?.insurer_name || selectedQuote?.insurer_name,
+            contract_type: 'interim',
+            status: 'interim_contract_sent',
+            workflow_stage_updated: 'completed',
+            payment_status_updated: 'completed',
+            verified_state: true
+          },
+          user?.id
+        );
+      } catch (auditError) {
+        console.error('⚠️ Audit logging failed (contract generation succeeded):', auditError);
+        // Don't fail the entire operation for audit logging issues
+      }
       
       const contracts = {
         interim: {
@@ -200,14 +218,9 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
         }
       };
       
+      // Update local state with verified data from database
       setInterimGenerated(true);
-      setQuote(prev => ({ 
-        ...prev, 
-        interim_contract_url: documentUrl,
-        workflow_stage: 'completed',
-        payment_status: 'completed',
-        status: 'accepted'
-      }));
+      setQuote(updatedQuote);
       onContractsGenerated(contracts);
       
       toast({
@@ -215,13 +228,27 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
         description: "Interim contract sent to client"
       });
       
-      // Interim contract generated successfully
-      
     } catch (error) {
       console.error('❌ Error generating interim contract:', error);
+      
+      // Attempt to rollback by checking current state
+      try {
+        const { data: currentQuote } = await supabase
+          .from('quotes')
+          .select('workflow_stage, payment_status, interim_contract_url')
+          .eq('id', quote.id)
+          .single();
+          
+        if (currentQuote?.interim_contract_url) {
+          console.warn('⚠️ Partial update detected - manual cleanup may be required');
+        }
+      } catch (rollbackError) {
+        console.error('❌ State verification after error failed:', rollbackError);
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to generate interim contract",
+        description: error instanceof Error ? error.message : "Failed to generate interim contract",
         variant: "destructive"
       });
     } finally {
