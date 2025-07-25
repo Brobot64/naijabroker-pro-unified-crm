@@ -312,7 +312,14 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete, onBa
         return (
           <ContractGeneration
             paymentData={state.workflowData.payment}
-            selectedQuote={state.workflowData.clientSelection}
+            selectedQuote={{
+              ...state.workflowData.clientSelection,
+              id: state.workflowData.quote?.id,
+              quote_id: state.workflowData.quote?.id,
+              quote_number: state.workflowData.quote?.quote_number,
+              client_name: state.workflowData.quote?.client_name,
+              policy_type: state.workflowData.quote?.policy_type
+            }}
             clientData={state.workflowData.client}
             onContractsGenerated={(contracts) => 
               handleStepComplete('contract-generation', contracts)

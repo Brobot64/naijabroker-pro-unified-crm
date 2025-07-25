@@ -12,8 +12,6 @@ import { PaymentTransactionService } from "@/services/paymentTransactionService"
 import { evaluatedQuotesService } from "@/services/evaluatedQuotesService";
 import { logWorkflowStage } from "@/utils/auditLogger";
 
-console.log('🚀 ContractGeneration: Module loaded');
-
 interface ContractGenerationProps {
   paymentData: any;
   selectedQuote: any;
@@ -23,14 +21,6 @@ interface ContractGenerationProps {
 }
 
 export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onContractsGenerated, onBack }: ContractGenerationProps) => {
-  console.log('🚀 ContractGeneration: Component rendering started');
-  console.log('🔍 ContractGeneration: Props received:', {
-    paymentData,
-    selectedQuote,
-    clientData,
-    onContractsGenerated: !!onContractsGenerated,
-    onBack: !!onBack
-  });
 
   const [interimGenerated, setInterimGenerated] = useState(false);
   const [finalReceived, setFinalReceived] = useState(false);
@@ -47,12 +37,8 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
   const { toast } = useToast();
   const { user, organizationId } = useAuth();
 
-  console.log('🔍 ContractGeneration: Auth state:', { user: !!user, organizationId });
-
   // Load contract data on component mount
   useEffect(() => {
-    console.log('🚀 ContractGeneration: useEffect triggered');
-    console.log('🔍 ContractGeneration: selectedQuote dependency:', selectedQuote);
     loadContractData();
   }, [selectedQuote]);
 
@@ -70,12 +56,10 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
     }
     
     const quoteId = selectedQuote.id || selectedQuote.quote_id;
-    console.log('🔍 ContractGeneration: Using quote ID:', quoteId);
     
     setLoading(true);
     try {
       // Load quote details with client information
-      console.log('🔄 ContractGeneration: Fetching quote details...');
       const { data: quoteData, error: quoteError } = await supabase
         .from('quotes')
         .select(`
@@ -89,14 +73,10 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
         console.error('❌ ContractGeneration: Quote fetch error:', quoteError);
         throw quoteError;
       }
-      
-      console.log('✅ ContractGeneration: Quote data fetched:', quoteData);
       setQuote(quoteData);
 
       // Load evaluated quotes to get insurer information
-      console.log('🔄 ContractGeneration: Fetching evaluated quotes...');
       const { data: evalQuotes, error: evalError } = await evaluatedQuotesService.getEvaluatedQuotes(quoteId);
-      console.log('✅ ContractGeneration: Evaluated quotes result:', { data: evalQuotes, error: evalError });
 
       if (evalError) {
         console.error('❌ ContractGeneration: Evaluated quotes fetch error:', evalError);
@@ -104,7 +84,6 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
       
       if (evalQuotes && evalQuotes.length > 0) {
         setEvaluatedQuotes(evalQuotes);
-        console.log('🔍 ContractGeneration: Looking for selected insurer:', selectedQuote);
         
         // Find the selected insurer - try multiple matching strategies
         let selectedInsurer = null;
@@ -114,7 +93,6 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
           selectedInsurer = evalQuotes.find(eq => 
             eq.insurer_name?.toLowerCase() === selectedQuote.insurer_name?.toLowerCase()
           );
-          console.log('🔍 ContractGeneration: Insurer match by name:', selectedInsurer);
         }
         
         // Strategy 2: If selectedQuote has more detailed info, use the first one or find by premium
@@ -122,30 +100,21 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
           selectedInsurer = evalQuotes.find(eq => 
             eq.premium_quoted === selectedQuote.premium_quoted
           );
-          console.log('🔍 ContractGeneration: Insurer match by premium:', selectedInsurer);
         }
         
         // Strategy 3: Use the first evaluated quote if nothing else matches
         if (!selectedInsurer && evalQuotes.length > 0) {
           selectedInsurer = evalQuotes[0];
-          console.log('🔍 ContractGeneration: Using first evaluated quote:', selectedInsurer);
         }
         
         if (selectedInsurer) {
           setInsurerInfo(selectedInsurer);
-          console.log('✅ ContractGeneration: Insurer info set:', selectedInsurer);
-        } else {
-          console.warn('⚠️ ContractGeneration: No matching insurer found');
         }
-      } else {
-        console.warn('⚠️ ContractGeneration: No evaluated quotes found');
       }
 
       // Load payment transaction
-      console.log('🔄 ContractGeneration: Fetching payment transaction...');
       try {
         const transaction = await PaymentTransactionService.getByQuoteId(quoteId);
-        console.log('✅ ContractGeneration: Payment transaction:', transaction);
         setPaymentTransaction(transaction);
       } catch (error) {
         console.warn('⚠️ ContractGeneration: No payment transaction found:', error);
@@ -153,17 +122,16 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
 
       // Check if contracts already exist
       if (quoteData?.interim_contract_url) {
-        console.log('✅ ContractGeneration: Interim contract exists');
         setInterimGenerated(true);
       }
       if (quoteData?.final_contract_url) {
-        console.log('✅ ContractGeneration: Final contract exists');
         setFinalReceived(true);
         setComplianceChecked(true);
       }
 
     } catch (error) {
       console.error('❌ ContractGeneration: Error loading contract data:', error);
+      setError('Failed to load contract data');
       toast({
         title: "Error",
         description: "Failed to load contract data",
@@ -180,7 +148,7 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
     setIsGeneratingInterim(true);
     
     try {
-      console.log('🔄 Generating interim contract...');
+      // Generate interim contract
       
       // Generate document URL (in real implementation, this would call a document generation service)
       const documentUrl = `https://contracts.example.com/interim/${quote.id}_${Date.now()}.pdf`;
@@ -229,7 +197,7 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
         description: "Interim contract generated and downloadable"
       });
       
-      console.log('✅ Interim contract generated successfully');
+      // Interim contract generated successfully
       
     } catch (error) {
       console.error('❌ Error generating interim contract:', error);
@@ -249,7 +217,7 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
     setIsSimulatingFinal(true);
     
     try {
-      console.log('🔄 Simulating final contract receipt...');
+      // Simulate final contract receipt
       
       // Generate final contract URL
       const finalDocumentUrl = `https://contracts.example.com/final/${quote.id}_${Date.now()}.pdf`;
@@ -300,7 +268,7 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
         description: "Final contract received and compliance check completed"
       });
       
-      console.log('✅ Final contract simulation completed');
+      // Final contract simulation completed
       
     } catch (error) {
       console.error('❌ Error simulating final contract:', error);
@@ -532,13 +500,6 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
                              selectedQuote?.premium || 
                              quote?.premium || 
                              0;
-                console.log('🔍 ContractGeneration: Premium calculation:', {
-                  insurerInfo_premium: insurerInfo?.premium_quoted,
-                  selectedQuote_premium: selectedQuote?.premium_quoted,
-                  selectedQuote_premium_alt: selectedQuote?.premium,
-                  quote_premium: quote?.premium,
-                  final_premium: premium
-                });
                 return Number(premium).toLocaleString();
               })()}</p>
             </div>
@@ -546,11 +507,6 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
               <span className="text-gray-600">Sum Insured:</span>
               <p className="font-semibold">₦{(() => {
                 const sumInsured = quote?.sum_insured || selectedQuote?.sum_insured || 0;
-                console.log('🔍 ContractGeneration: Sum Insured calculation:', {
-                  quote_sum: quote?.sum_insured,
-                  selectedQuote_sum: selectedQuote?.sum_insured,
-                  final_sum: sumInsured
-                });
                 return Number(sumInsured).toLocaleString();
               })()}</p>
             </div>
