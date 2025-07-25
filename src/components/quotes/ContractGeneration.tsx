@@ -28,6 +28,7 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
   const [deviations, setDeviations] = useState<string[]>([]);
   const [isGeneratingInterim, setIsGeneratingInterim] = useState(false);
   const [isSimulatingFinal, setIsSimulatingFinal] = useState(false);
+  const [isGeneratingFinal, setIsGeneratingFinal] = useState(false);
   const [quote, setQuote] = useState<any>(null);
   const [evaluatedQuotes, setEvaluatedQuotes] = useState<any[]>([]);
   const [paymentTransaction, setPaymentTransaction] = useState<any>(null);
@@ -157,11 +158,14 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
       // Generate document URL (in real implementation, this would call a document generation service)
       const documentUrl = `https://contracts.example.com/interim/${quote.id}_${Date.now()}.pdf`;
       
-      // Update quote with interim contract URL
+      // Update quote with interim contract URL and workflow status
       const { error: updateError } = await supabase
         .from('quotes')
         .update({
           interim_contract_url: documentUrl,
+          workflow_stage: 'completed',
+          payment_status: 'completed',
+          status: 'accepted',
           updated_at: new Date().toISOString()
         })
         .eq('id', quote.id);
@@ -172,15 +176,17 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
       await logWorkflowStage(
         quote.id,
         organizationId,
-        'contract-generation',
-        'interim_contract_generated',
+        'completed',
+        'interim_contract_sent',
         {
           document_url: documentUrl,
           generated_at: new Date().toISOString(),
           client_name: clientData?.name || quote.client?.name || quote.client_name,
           insurer_name: insurerInfo?.insurer_name || selectedQuote?.insurer_name,
           contract_type: 'interim',
-          status: 'generated'
+          status: 'interim_contract_sent',
+          workflow_stage_updated: 'completed',
+          payment_status_updated: 'completed'
         },
         user?.id
       );
@@ -195,12 +201,18 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
       };
       
       setInterimGenerated(true);
-      setQuote(prev => ({ ...prev, interim_contract_url: documentUrl }));
+      setQuote(prev => ({ 
+        ...prev, 
+        interim_contract_url: documentUrl,
+        workflow_stage: 'completed',
+        payment_status: 'completed',
+        status: 'accepted'
+      }));
       onContractsGenerated(contracts);
       
       toast({
         title: "Success",
-        description: "Interim contract generated and downloadable"
+        description: "Interim contract sent to client"
       });
       
       // Interim contract generated successfully
@@ -287,6 +299,63 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
       });
     } finally {
       setIsSimulatingFinal(false);
+    }
+  };
+
+  const generateFinalContract = async () => {
+    if (!quote?.id || !organizationId) return;
+    
+    setIsGeneratingFinal(true);
+    
+    try {
+      // Generate final contract document
+      const finalDocumentUrl = `https://contracts.example.com/final/${quote.id}_${Date.now()}.pdf`;
+      
+      // Update quote with final contract URL
+      const { error: updateError } = await supabase
+        .from('quotes')
+        .update({
+          final_contract_url: finalDocumentUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', quote.id);
+
+      if (updateError) throw updateError;
+
+      // Log the action for audit trail
+      await logWorkflowStage(
+        quote.id,
+        organizationId,
+        'completed',
+        'final_contract_generated',
+        {
+          document_url: finalDocumentUrl,
+          generated_at: new Date().toISOString(),
+          client_name: clientData?.name || quote.client?.name || quote.client_name,
+          insurer_name: insurerInfo?.insurer_name || selectedQuote?.insurer_name,
+          contract_type: 'final',
+          status: 'generated'
+        },
+        user?.id
+      );
+      
+      setFinalReceived(true);
+      setQuote(prev => ({ ...prev, final_contract_url: finalDocumentUrl }));
+      
+      toast({
+        title: "Success",
+        description: "Final contract generated successfully"
+      });
+      
+    } catch (error) {
+      console.error('❌ Error generating final contract:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate final contract",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingFinal(false);
     }
   };
 
@@ -639,20 +708,30 @@ Your Insurance Team`;
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Received
                   </Badge>
-                ) : (
-                  <div className="flex gap-2">
-                    <Badge variant="outline">Pending from Insurer</Badge>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={simulateFinalContract}
-                      disabled={isSimulatingFinal}
-                    >
-                      {isSimulatingFinal && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      {isSimulatingFinal ? "Processing..." : "Simulate Receipt"}
-                    </Button>
-                  </div>
-                )}
+                 ) : (
+                   <div className="flex gap-2">
+                     <Badge variant="outline">Pending from Insurer</Badge>
+                     {interimGenerated && (
+                       <Button 
+                         size="sm" 
+                         onClick={generateFinalContract}
+                         disabled={isGeneratingFinal}
+                       >
+                         {isGeneratingFinal && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                         {isGeneratingFinal ? "Generating..." : "Generate Final"}
+                       </Button>
+                     )}
+                     <Button 
+                       variant="outline" 
+                       size="sm" 
+                       onClick={simulateFinalContract}
+                       disabled={isSimulatingFinal}
+                     >
+                       {isSimulatingFinal && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                       {isSimulatingFinal ? "Processing..." : "Simulate Receipt"}
+                     </Button>
+                   </div>
+                 )}
               </div>
               
               {finalReceived && (
