@@ -155,6 +155,9 @@ export class QuoteService {
   static async getFinalizedQuotesForPolicy(organizationId: string): Promise<Quote[]> {
     console.log(`🔍 QuoteService: Fetching finalized quotes for organization ${organizationId}`);
     
+    // First, ensure all completed quotes have their evaluated data synced
+    await this.syncCompletedQuotesData(organizationId);
+    
     const { data, error } = await supabase
       .from('quotes')
       .select('*')
@@ -193,6 +196,69 @@ export class QuoteService {
     
     console.log(`✅ QuoteService: Found ${validQuotes.length} valid finalized quotes ready for policy conversion`);
     return validQuotes;
+  }
+
+  /**
+   * Sync completed quotes data from evaluated_quotes to main quotes table
+   */
+  static async syncCompletedQuotesData(organizationId: string): Promise<void> {
+    try {
+      console.log(`🔄 QuoteService: Syncing completed quotes data for organization ${organizationId}`);
+
+      // Get all completed quotes that still have zero premium
+      const { data: completedQuotes, error: quotesError } = await supabase
+        .from('quotes')
+        .select('id, quote_number, premium, underwriter')
+        .eq('organization_id', organizationId)
+        .eq('workflow_stage', 'completed')
+        .or('premium.eq.0,underwriter.eq.TBD');
+
+      if (quotesError || !completedQuotes) {
+        console.log('No completed quotes need syncing');
+        return;
+      }
+
+      console.log(`Found ${completedQuotes.length} completed quotes that need data syncing`);
+
+      // Process each quote
+      for (const quote of completedQuotes) {
+        // Get the best evaluated quote for this quote
+        const { data: evaluatedQuotes, error: evalError } = await supabase
+          .from('evaluated_quotes')
+          .select('*')
+          .eq('quote_id', quote.id)
+          .eq('response_received', true)
+          .order('rating_score', { ascending: false })
+          .limit(1);
+
+        if (evalError || !evaluatedQuotes || evaluatedQuotes.length === 0) {
+          console.log(`No evaluated quotes found for quote ${quote.quote_number}`);
+          continue;
+        }
+
+        const selectedQuote = evaluatedQuotes[0];
+        
+        // Update the main quotes table
+        const { error: updateError } = await supabase
+          .from('quotes')
+          .update({
+            premium: selectedQuote.premium_quoted,
+            underwriter: selectedQuote.insurer_name,
+            commission_rate: selectedQuote.commission_split,
+            terms_conditions: selectedQuote.terms_conditions || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', quote.id);
+
+        if (updateError) {
+          console.error(`❌ Failed to sync quote ${quote.quote_number}:`, updateError);
+        } else {
+          console.log(`✅ Synced quote ${quote.quote_number} with premium ₦${selectedQuote.premium_quoted.toLocaleString()}`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error syncing completed quotes data:', error);
+    }
   }
 
   static async getExpiringQuotes(daysAhead = 7): Promise<Quote[]> {

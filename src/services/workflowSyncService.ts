@@ -118,6 +118,11 @@ export class WorkflowSyncService {
       // Handle automatic requirements based on stage
       await this.handleStageRequirements(quoteId, targetStage);
 
+      // Critical: Sync evaluated quotes data to main quotes table when completing
+      if (targetStage === 'completed') {
+        await this.syncEvaluatedQuotesToMain(quoteId);
+      }
+
       // Update workflow stage, status, and payment status atomically
       await WorkflowStatusService.updateQuoteWorkflowStage(quoteId, {
         stage: targetStage,
@@ -131,6 +136,63 @@ export class WorkflowSyncService {
       console.log('✅ Workflow progression completed successfully');
     } catch (error) {
       console.error('❌ WorkflowSyncService: Failed to progress workflow:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync selected evaluated quote data back to main quotes table
+   */
+  private static async syncEvaluatedQuotesToMain(quoteId: string): Promise<void> {
+    try {
+      console.log('🔄 Syncing evaluated quotes data to main quotes table for:', quoteId);
+
+      // Get the best/selected evaluated quote
+      const { data: evaluatedQuotes, error: evalError } = await supabase
+        .from('evaluated_quotes')
+        .select('*')
+        .eq('quote_id', quoteId)
+        .eq('response_received', true)
+        .order('rating_score', { ascending: false })
+        .limit(1);
+
+      if (evalError) {
+        console.error('❌ Failed to fetch evaluated quotes:', evalError);
+        return;
+      }
+
+      if (!evaluatedQuotes || evaluatedQuotes.length === 0) {
+        console.log('⚠️ No evaluated quotes found to sync');
+        return;
+      }
+
+      const selectedQuote = evaluatedQuotes[0];
+      console.log('📊 Syncing data from selected evaluated quote:', {
+        insurer: selectedQuote.insurer_name,
+        premium: selectedQuote.premium_quoted,
+        rating: selectedQuote.rating_score
+      });
+
+      // Update the main quotes table with the selected quote data
+      const { error: updateError } = await supabase
+        .from('quotes')
+        .update({
+          premium: selectedQuote.premium_quoted,
+          underwriter: selectedQuote.insurer_name,
+          commission_rate: selectedQuote.commission_split,
+          terms_conditions: selectedQuote.terms_conditions || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', quoteId);
+
+      if (updateError) {
+        console.error('❌ Failed to update main quotes table:', updateError);
+        throw updateError;
+      }
+
+      console.log('✅ Successfully synced evaluated quote data to main quotes table');
+    } catch (error) {
+      console.error('❌ Error syncing evaluated quotes to main table:', error);
       throw error;
     }
   }
