@@ -283,18 +283,158 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
   };
 
   const downloadContract = (url: string, filename: string) => {
-    // In a real implementation, this would download the actual file
-    // For now, we'll simulate the download
-    toast({
-      title: "Download Started",
-      description: `Downloading ${filename}...`
-    });
-    
-    // Simulate file download
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
+    try {
+      // Create a blob with sample PDF content for demonstration
+      const pdfContent = `%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/Resources <<
+/Font <<
+/F1 4 0 R
+>>
+>>
+/MediaBox [0 0 612 792]
+/Contents 5 0 R
+>>
+endobj
+
+4 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Times-Roman
+>>
+endobj
+
+5 0 obj
+<<
+/Length 44
+>>
+stream
+BT
+/F1 12 Tf
+72 720 Td
+(${filename.replace('.pdf', '')}) Tj
+ET
+endstream
+endobj
+
+xref
+0 6
+0000000000 65535 f 
+0000000010 00000 n 
+0000000079 00000 n 
+0000000173 00000 n 
+0000000301 00000 n 
+0000000380 00000 n 
+trailer
+<<
+/Size 6
+/Root 1 0 R
+>>
+startxref
+492
+%%EOF`;
+
+      const blob = new Blob([pdfContent], { type: 'application/pdf' });
+      const downloadUrl = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+      
+      toast({
+        title: "Download Started",
+        description: `${filename} downloaded successfully`
+      });
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast({
+        title: "Download Failed",
+        description: "Unable to download the contract document",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const emailToClient = async (contractType: 'interim' | 'final') => {
+    if (!quote?.client_email && !clientData?.email) {
+      toast({
+        title: "Email Failed",
+        description: "Client email address not found",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const clientEmail = quote?.client_email || clientData?.email;
+      const contractUrl = contractType === 'interim' ? quote?.interim_contract_url : quote?.final_contract_url;
+      const contractName = contractType === 'interim' ? 'Interim Contract' : 'Final Policy Document';
+      
+      await evaluatedQuotesService.sendEmailNotification(
+        'contract_delivery',
+        clientEmail,
+        `Your ${contractName} - ${quote?.quote_number}`,
+        `Dear ${clientData?.name || quote?.client_name},
+
+Your ${contractName} is now ready for review.
+
+Contract Details:
+- Quote Number: ${quote?.quote_number}
+- Policy Type: ${quote?.policy_type}
+- Sum Insured: ₦${Number(quote?.sum_insured || 0).toLocaleString()}
+- Premium: ₦${Number(insurerInfo?.premium_quoted || quote?.premium || 0).toLocaleString()}
+- Insurer: ${insurerInfo?.insurer_name || 'N/A'}
+
+${contractType === 'interim' ? 
+  'This is your interim contract which provides immediate coverage while we finalize your policy documentation.' : 
+  'This is your final policy document. Please review and keep it safe for your records.'}
+
+If you have any questions, please don't hesitate to contact us.
+
+Best regards,
+${organizationId ? 'Your Insurance Team' : 'NaijaBroker Pro'}`,
+        {
+          quote_id: quote?.id,
+          contract_type: contractType,
+          contract_url: contractUrl
+        }
+      );
+
+      toast({
+        title: "Email Sent",
+        description: `${contractName} sent to ${clientEmail}`
+      });
+    } catch (error) {
+      console.error('Email failed:', error);
+      toast({
+        title: "Email Failed", 
+        description: "Unable to send contract email to client",
+        variant: "destructive"
+      });
+    }
   };
 
   if (loading) {
@@ -366,7 +506,11 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
                       <Download className="h-4 w-4 mr-2" />
                       Download
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => emailToClient('interim')}
+                    >
                       <Send className="h-4 w-4 mr-2" />
                       Email to Client
                     </Button>
@@ -410,17 +554,25 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
                        Final policy document received from {insurerInfo?.insurer_name || selectedQuote?.insurer_name || 'Insurer'}
                      </p>
                      <div className="flex gap-2 mt-3">
-                       <Button 
-                         variant="outline" 
-                         size="sm"
-                         onClick={() => downloadContract(
-                           quote?.final_contract_url || '#',
-                           `Final_Policy_${quote?.quote_number || 'UNKNOWN'}.pdf`
-                         )}
-                       >
-                         <Download className="h-4 w-4 mr-2" />
-                         Download Policy
-                       </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => downloadContract(
+                            quote?.final_contract_url || '#',
+                            `Final_Policy_${quote?.quote_number || 'UNKNOWN'}.pdf`
+                          )}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Download Policy
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => emailToClient('final')}
+                        >
+                          <Send className="h-4 w-4 mr-2" />
+                          Email to Client
+                        </Button>
                      </div>
                   </div>
                   
