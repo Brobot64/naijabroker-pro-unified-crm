@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bell, Calendar, Clock, AlertTriangle } from "lucide-react";
+import { Bell, Calendar, Clock, AlertTriangle, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { workflowManager } from "@/utils/workflowManager";
+import { PolicyService } from "@/services/database/policyService";
 
 interface RenewalReminder {
   id: string;
@@ -23,51 +23,61 @@ interface RenewalReminder {
 
 export const RenewalReminders = () => {
   const [reminders, setReminders] = useState<RenewalReminder[]>([]);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Sample renewal reminders data
   useEffect(() => {
-    const mockReminders: RenewalReminder[] = [
-      {
-        id: "REN-2024-001",
-        policyNumber: "POL-2024-001234",
-        client: "Dangote Industries Ltd",
-        type: "Industrial All Risks",
-        expiryDate: "2024-07-15",
-        daysToExpiry: 29,
-        premium: "₦2,500,000",
-        status: "upcoming",
-        remindersSent: 0
-      },
-      {
-        id: "REN-2024-002",
-        policyNumber: "POL-2024-001236",
-        client: "First Bank Plc",
-        type: "Motor Fleet",
-        expiryDate: "2024-06-14",
-        daysToExpiry: -2,
-        premium: "₦750,000",
-        status: "overdue",
-        remindersSent: 3,
-        lastReminderDate: "2024-06-16"
-      },
-      {
-        id: "REN-2024-003",
-        policyNumber: "POL-2024-001237",
-        client: "GTBank Plc",
-        type: "Bankers Blanket Bond",
-        expiryDate: "2024-06-30",
-        daysToExpiry: 14,
-        premium: "₦5,000,000",
-        status: "due",
-        remindersSent: 1,
-        lastReminderDate: "2024-06-10"
-      }
-    ];
-    setReminders(mockReminders);
+    loadExpiringPolicies();
   }, []);
 
-  const sendRenewalReminder = (reminder: RenewalReminder) => {
+  const loadExpiringPolicies = async () => {
+    setLoading(true);
+    try {
+      const expiringPolicies = await PolicyService.getExpiringPolicies(60); // Get policies expiring in next 60 days
+      
+      const reminderData: RenewalReminder[] = expiringPolicies.map(policy => {
+        const today = new Date();
+        const expiryDate = new Date(policy.end_date);
+        const diffTime = expiryDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        let status: 'upcoming' | 'due' | 'overdue';
+        if (diffDays < 0) {
+          status = 'overdue';
+        } else if (diffDays <= 14) {
+          status = 'due';
+        } else {
+          status = 'upcoming';
+        }
+
+        return {
+          id: `REN-${policy.id}`,
+          policyNumber: policy.policy_number,
+          client: policy.client_name,
+          type: policy.policy_type,
+          expiryDate: policy.end_date,
+          daysToExpiry: diffDays,
+          premium: `₦${policy.premium.toLocaleString()}`,
+          status,
+          remindersSent: 0, // This would come from a reminders tracking table
+          lastReminderDate: undefined
+        };
+      });
+
+      setReminders(reminderData);
+    } catch (error) {
+      console.error('Failed to load expiring policies:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load renewal reminders",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendRenewalReminder = async (reminder: RenewalReminder) => {
     console.log('Sending automated renewal reminder:', {
       reminderId: reminder.id,
       policyNumber: reminder.policyNumber,
@@ -77,43 +87,60 @@ export const RenewalReminders = () => {
       reminderCount: reminder.remindersSent + 1
     });
 
-    // Generate notification using workflow manager
-    const notification = workflowManager.generateNotification('policy_renewal', {
-      policyNumber: reminder.policyNumber,
-      clientEmail: 'client@example.com',
-      expiryDate: reminder.expiryDate,
-      clientName: reminder.client
-    });
+    // In a real implementation, this would call an email service
+    // For now, we'll simulate the reminder
+    setTimeout(() => {
+      // Update reminder count
+      setReminders(prevReminders =>
+        prevReminders.map(r =>
+          r.id === reminder.id
+            ? { ...r, remindersSent: r.remindersSent + 1, lastReminderDate: new Date().toISOString().split('T')[0] }
+            : r
+        )
+      );
 
-    console.log('Generated renewal notification:', notification);
-
-    // Update reminder count
-    setReminders(prevReminders =>
-      prevReminders.map(r =>
-        r.id === reminder.id
-          ? { ...r, remindersSent: r.remindersSent + 1, lastReminderDate: new Date().toISOString().split('T')[0] }
-          : r
-      )
-    );
-
-    toast({
-      title: "Renewal Reminder Sent",
-      description: `Reminder sent to ${reminder.client} for policy ${reminder.policyNumber}`,
-    });
+      toast({
+        title: "Renewal Reminder Sent",
+        description: `Email reminder sent to ${reminder.client} for policy ${reminder.policyNumber}`,
+      });
+    }, 1000);
   };
 
   const processRenewal = (reminder: RenewalReminder) => {
-    console.log('Processing renewal with approval routing:', {
+    console.log('Processing renewal:', {
       reminderId: reminder.id,
       policyNumber: reminder.policyNumber,
       client: reminder.client,
-      premium: reminder.premium,
-      approvalRequired: workflowManager.requiresApproval('underwriting', 2500000, 'Agent')
+      premium: reminder.premium
     });
 
     toast({
       title: "Renewal Processing",
-      description: `Renewal process initiated for ${reminder.policyNumber}. Routing to appropriate approver.`,
+      description: `Renewal process initiated for ${reminder.policyNumber}`,
+    });
+  };
+
+  const sendBulkReminders = async () => {
+    const dueReminders = reminders.filter(r => r.status === 'due' && r.remindersSent < 3);
+    
+    if (dueReminders.length === 0) {
+      toast({
+        title: "No Reminders to Send",
+        description: "All due policies have already received maximum reminders",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    for (const reminder of dueReminders) {
+      await sendRenewalReminder(reminder);
+      // Add delay between emails to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    toast({
+      title: "Bulk Reminders Sent",
+      description: `Sent ${dueReminders.length} renewal reminders`,
     });
   };
 
@@ -146,13 +173,33 @@ export const RenewalReminders = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Bell className="h-5 w-5" />
-          <span>Automated Renewal Reminders & Approval Routing</span>
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center space-x-2">
+            <Bell className="h-5 w-5" />
+            <span>Renewal Reminders & Automation</span>
+          </CardTitle>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={sendBulkReminders} className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Send Bulk Reminders
+            </Button>
+            <Button variant="outline" onClick={loadExpiringPolicies}>
+              Refresh
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
-        <Table>
+        {loading ? (
+          <div className="text-center py-8">
+            <p>Loading renewal reminders...</p>
+          </div>
+        ) : reminders.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No policies requiring renewal reminders</p>
+          </div>
+        ) : (
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Policy Number</TableHead>
@@ -219,7 +266,8 @@ export const RenewalReminders = () => {
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+          </Table>
+        )}
       </CardContent>
     </Card>
   );

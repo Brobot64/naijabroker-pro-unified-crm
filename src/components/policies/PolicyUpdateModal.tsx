@@ -12,18 +12,9 @@ import { CheckCircle, AlertTriangle, Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { validateSplits } from "@/utils/financialCalculations";
 
-interface Policy {
-  id: string;
-  client: string;
-  type: string;
-  sumInsured: string;
-  premium: string;
-  status: string;
-  startDate: string;
-  endDate: string;
-  underwriter: string;
-  commission: string;
-}
+import { Policy as DatabasePolicy } from "@/services/database/types";
+
+type Policy = DatabasePolicy;
 
 interface CoInsurerSplit {
   insurerId: string;
@@ -36,9 +27,10 @@ interface PolicyUpdateModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   policy: Policy | null;
+  onSuccess?: () => void;
 }
 
-export const PolicyUpdateModal = ({ open, onOpenChange, policy }: PolicyUpdateModalProps) => {
+export const PolicyUpdateModal = ({ open, onOpenChange, policy, onSuccess }: PolicyUpdateModalProps) => {
   const [updateType, setUpdateType] = useState<'renewal' | 'endorsement'>('renewal');
   const [newSumInsured, setNewSumInsured] = useState('');
   const [newPremium, setNewPremium] = useState('');
@@ -115,15 +107,15 @@ export const PolicyUpdateModal = ({ open, onOpenChange, policy }: PolicyUpdateMo
       policyId: policy.id,
       updateType,
       originalTerms: {
-        client: policy.client,
-        type: policy.type,
-        sumInsured: policy.sumInsured,
+        client: policy.client_name,
+        type: policy.policy_type,
+        sumInsured: policy.sum_insured,
         premium: policy.premium,
         underwriter: policy.underwriter
       },
       newTerms: {
-        sumInsured: newSumInsured || policy.sumInsured,
-        premium: newPremium || policy.premium,
+        sumInsured: newSumInsured || policy.sum_insured.toString(),
+        premium: newPremium || policy.premium.toString(),
         endorsementReason: updateType === 'endorsement' ? endorsementReason : null
       },
       coInsurerSplits,
@@ -138,9 +130,10 @@ export const PolicyUpdateModal = ({ open, onOpenChange, policy }: PolicyUpdateMo
 
     toast({
       title: `Policy ${updateType} Processed`,
-      description: `Policy ${policy.id} has been successfully ${updateType === 'renewal' ? 'renewed' : 'endorsed'}.`,
+      description: `Policy ${policy.policy_number} has been successfully ${updateType === 'renewal' ? 'renewed' : 'endorsed'}.`,
     });
 
+    if (onSuccess) onSuccess();
     onOpenChange(false);
   };
 
@@ -152,7 +145,7 @@ export const PolicyUpdateModal = ({ open, onOpenChange, policy }: PolicyUpdateMo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Policy Updates & Renewals - {policy.id}</DialogTitle>
+          <DialogTitle>Policy Updates & Renewals - {policy.policy_number}</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-6">
@@ -167,11 +160,11 @@ export const PolicyUpdateModal = ({ open, onOpenChange, policy }: PolicyUpdateMo
           <div className="bg-gray-50 p-4 rounded-lg">
             <h4 className="font-semibold mb-2">Original Policy Terms</h4>
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><strong>Client:</strong> {policy.client}</div>
-              <div><strong>Type:</strong> {policy.type}</div>
-              <div><strong>Sum Insured:</strong> {policy.sumInsured}</div>
-              <div><strong>Premium:</strong> {policy.premium}</div>
-              <div><strong>Period:</strong> {policy.startDate} to {policy.endDate}</div>
+              <div><strong>Client:</strong> {policy.client_name}</div>
+              <div><strong>Type:</strong> {policy.policy_type}</div>
+              <div><strong>Sum Insured:</strong> ₦{policy.sum_insured.toLocaleString()}</div>
+              <div><strong>Premium:</strong> ₦{policy.premium.toLocaleString()}</div>
+              <div><strong>Period:</strong> {policy.start_date} to {policy.end_date}</div>
               <div><strong>Underwriter:</strong> {policy.underwriter}</div>
             </div>
           </div>
@@ -196,7 +189,7 @@ export const PolicyUpdateModal = ({ open, onOpenChange, policy }: PolicyUpdateMo
               <Label htmlFor="newSumInsured">New Sum Insured (Optional)</Label>
               <Input 
                 id="newSumInsured" 
-                placeholder={`Current: ${policy.sumInsured}`}
+                placeholder={`Current: ₦${policy.sum_insured.toLocaleString()}`}
                 value={newSumInsured}
                 onChange={(e) => setNewSumInsured(e.target.value)}
               />
@@ -205,7 +198,7 @@ export const PolicyUpdateModal = ({ open, onOpenChange, policy }: PolicyUpdateMo
               <Label htmlFor="newPremium">New Premium (Optional)</Label>
               <Input 
                 id="newPremium" 
-                placeholder={`Current: ${policy.premium}`}
+                placeholder={`Current: ₦${policy.premium.toLocaleString()}`}
                 value={newPremium}
                 onChange={(e) => setNewPremium(e.target.value)}
               />
