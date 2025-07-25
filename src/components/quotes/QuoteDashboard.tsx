@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { QuoteService } from '@/services/database/quoteService';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   FileText, 
   Search, 
@@ -69,8 +70,22 @@ export const QuoteDashboard = ({ onNewQuote, onEditQuote, onViewQuote }: QuoteDa
       const quotesWithLatestStatus = await Promise.all(
         (quotesData || []).map(async (quote) => {
           try {
-            const latestStatus = await QuoteStatusSync.getLatestQuoteStatus(quote.id);
-            return { ...quote, ...latestStatus };
+            // Get the latest status from database
+            const { data: latestQuote } = await supabase
+              .from('quotes')
+              .select('status, workflow_stage, payment_status')
+              .eq('id', quote.id)
+              .single();
+            
+            if (latestQuote) {
+              return { 
+                ...quote, 
+                status: latestQuote.status,
+                workflow_stage: latestQuote.workflow_stage,
+                payment_status: latestQuote.payment_status 
+              };
+            }
+            return quote;
           } catch (error) {
             console.warn(`⚠️ Failed to refresh status for quote ${quote.id}:`, error);
             return quote;

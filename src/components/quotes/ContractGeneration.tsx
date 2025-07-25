@@ -164,7 +164,7 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
 
       if (updateError) throw updateError;
 
-      // Log the action
+      // Log the action for audit trail
       await logWorkflowStage(
         quote.id,
         organizationId,
@@ -173,8 +173,10 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
         {
           document_url: documentUrl,
           generated_at: new Date().toISOString(),
-          client_name: clientData?.name || quote.client?.name,
-          insurer_name: insurerInfo?.insurer_name || selectedQuote?.insurer_name
+          client_name: clientData?.name || quote.client?.name || quote.client_name,
+          insurer_name: insurerInfo?.insurer_name || selectedQuote?.insurer_name,
+          contract_type: 'interim',
+          status: 'generated'
         },
         user?.id
       );
@@ -234,7 +236,7 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
 
       if (updateError) throw updateError;
 
-      // Log the action
+      // Log the action for audit trail
       await logWorkflowStage(
         quote.id,
         organizationId,
@@ -243,7 +245,9 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
         {
           document_url: finalDocumentUrl,
           received_at: new Date().toISOString(),
-          compliance_status: 'approved'
+          compliance_status: 'approved',
+          contract_type: 'final',
+          workflow_stage_updated: 'completed'
         },
         user?.id
       );
@@ -460,11 +464,13 @@ startxref
       const contractBuffer = await pdfBlob.arrayBuffer();
       const contractBase64 = btoa(String.fromCharCode(...new Uint8Array(contractBuffer)));
       
-      await evaluatedQuotesService.sendEmailNotification(
-        'contract_delivery',
-        clientEmail,
-        `Your ${contractName} - ${quote?.quote_number}`,
-        `Dear ${clientData?.name || quote?.client_name},
+      // Use Supabase edge function directly for better attachment handling
+      const { data, error } = await supabase.functions.invoke('send-email-notification', {
+        body: {
+          type: 'contract_delivery',
+          recipientEmail: clientEmail,
+          subject: `Your ${contractName} - ${quote?.quote_number}`,
+          message: `Dear ${clientData?.name || quote?.client_name},
 
 Your ${contractName} is now ready for review and is attached to this email.
 
@@ -484,16 +490,38 @@ The contract document is attached as a PDF file for your records.
 If you have any questions, please don't hesitate to contact us.
 
 Best regards,
-${organizationId ? 'Your Insurance Team' : 'NaijaBroker Pro'}`,
-        {
-          quote_id: quote?.id,
-          contract_type: contractType,
-          contract_attachment: {
-            filename: `${contractType === 'interim' ? 'Interim_Contract' : 'Final_Policy'}_${quote?.quote_number || 'UNKNOWN'}.pdf`,
-            content: contractBase64,
-            contentType: 'application/pdf'
+Your Insurance Team`,
+          metadata: {
+            quote_id: quote?.id,
+            contract_type: contractType,
+            contract_attachment: {
+              filename: `${contractType === 'interim' ? 'Interim_Contract' : 'Final_Policy'}_${quote?.quote_number || 'UNKNOWN'}.pdf`,
+              content: contractBase64,
+              contentType: 'application/pdf'
+            }
           }
         }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Log the email action for audit trail
+      await logWorkflowStage(
+        quote?.id!,
+        organizationId!,
+        'contract-generation',
+        `${contractType}_contract_emailed`,
+        {
+          recipient: clientEmail,
+          contract_type: contractType,
+          contract_filename: `${contractType === 'interim' ? 'Interim_Contract' : 'Final_Policy'}_${quote?.quote_number || 'UNKNOWN'}.pdf`,
+          email_subject: `Your ${contractName} - ${quote?.quote_number}`,
+          sent_at: new Date().toISOString(),
+          email_response: data
+        },
+        user?.id
       );
 
       toast({
