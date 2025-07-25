@@ -282,10 +282,12 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
     }
   };
 
-  const downloadContract = (url: string, filename: string) => {
-    try {
-      // Create a blob with sample PDF content for demonstration
-      const pdfContent = `%PDF-1.4
+  const generateContractPDF = (contractType: 'interim' | 'final') => {
+    const contractTitle = contractType === 'interim' ? 'INTERIM CONTRACT' : 'FINAL POLICY DOCUMENT';
+    const currentDate = new Date().toLocaleDateString();
+    
+    // Create comprehensive PDF content with actual contract details
+    const pdfContent = `%PDF-1.4
 1 0 obj
 <<
 /Type /Catalog
@@ -308,10 +310,11 @@ endobj
 /Resources <<
 /Font <<
 /F1 4 0 R
+/F2 5 0 R
 >>
 >>
 /MediaBox [0 0 612 792]
-/Contents 5 0 R
+/Contents 6 0 R
 >>
 endobj
 
@@ -325,36 +328,96 @@ endobj
 
 5 0 obj
 <<
-/Length 44
+/Type /Font
+/Subtype /Type1
+/BaseFont /Times-Bold
+>>
+endobj
+
+6 0 obj
+<<
+/Length 1200
 >>
 stream
 BT
+/F2 16 Tf
+50 750 Td
+(${contractTitle}) Tj
+0 -30 Td
 /F1 12 Tf
-72 720 Td
-(${filename.replace('.pdf', '')}) Tj
+(Date: ${currentDate}) Tj
+0 -40 Td
+/F2 14 Tf
+(CONTRACT DETAILS) Tj
+0 -25 Td
+/F1 11 Tf
+(Quote Number: ${quote?.quote_number || 'N/A'}) Tj
+0 -15 Td
+(Client Name: ${clientData?.name || quote?.client?.name || quote?.client_name || 'Unknown'}) Tj
+0 -15 Td
+(Policy Type: ${quote?.policy_type || 'N/A'}) Tj
+0 -15 Td
+(Sum Insured: ₦${Number(quote?.sum_insured || 0).toLocaleString()}) Tj
+0 -15 Td
+(Premium: ₦${Number(insurerInfo?.premium_quoted || quote?.premium || 0).toLocaleString()}) Tj
+0 -15 Td
+(Insurer: ${insurerInfo?.insurer_name || 'Unknown Insurer'}) Tj
+0 -30 Td
+/F2 14 Tf
+(TERMS AND CONDITIONS) Tj
+0 -20 Td
+/F1 11 Tf
+(1. Coverage Period: From policy inception date to expiry date) Tj
+0 -15 Td
+(2. Premium Payment: Premium must be paid before coverage begins) Tj
+0 -15 Td
+(3. Claims Process: All claims must be reported within 30 days) Tj
+0 -15 Td
+(4. Policy Renewal: Subject to annual review and agreement) Tj
+0 -30 Td
+/F2 12 Tf
+(PAYMENT INFORMATION) Tj
+0 -20 Td
+/F1 11 Tf
+(Payment Status: ${paymentTransaction?.status === 'completed' ? 'PAID' : 'PENDING'}) Tj
+0 -15 Td
+(Transaction ID: ${paymentTransaction?.id?.slice(0, 12) || 'N/A'}) Tj
+0 -30 Td
+/F1 10 Tf
+(This document serves as ${contractType === 'interim' ? 'temporary coverage until final policy issuance' : 'your official policy document'}) Tj
+0 -20 Td
+(Generated on: ${currentDate}) Tj
 ET
 endstream
 endobj
 
 xref
-0 6
+0 7
 0000000000 65535 f 
 0000000010 00000 n 
 0000000079 00000 n 
 0000000173 00000 n 
 0000000301 00000 n 
 0000000380 00000 n 
+0000000459 00000 n 
 trailer
 <<
-/Size 6
+/Size 7
 /Root 1 0 R
 >>
 startxref
-492
+1690
 %%EOF`;
 
-      const blob = new Blob([pdfContent], { type: 'application/pdf' });
-      const downloadUrl = URL.createObjectURL(blob);
+    return new Blob([pdfContent], { type: 'application/pdf' });
+  };
+
+  const downloadContract = (url: string, filename: string) => {
+    try {
+      // Generate PDF with actual contract content
+      const contractType = filename.includes('Interim') ? 'interim' : 'final';
+      const pdfBlob = generateContractPDF(contractType);
+      const downloadUrl = URL.createObjectURL(pdfBlob);
       
       const link = document.createElement('a');
       link.href = downloadUrl;
@@ -390,8 +453,12 @@ startxref
 
     try {
       const clientEmail = quote?.client_email || clientData?.email;
-      const contractUrl = contractType === 'interim' ? quote?.interim_contract_url : quote?.final_contract_url;
       const contractName = contractType === 'interim' ? 'Interim Contract' : 'Final Policy Document';
+      
+      // Generate the PDF contract content for attachment
+      const pdfBlob = generateContractPDF(contractType);
+      const contractBuffer = await pdfBlob.arrayBuffer();
+      const contractBase64 = btoa(String.fromCharCode(...new Uint8Array(contractBuffer)));
       
       await evaluatedQuotesService.sendEmailNotification(
         'contract_delivery',
@@ -399,7 +466,7 @@ startxref
         `Your ${contractName} - ${quote?.quote_number}`,
         `Dear ${clientData?.name || quote?.client_name},
 
-Your ${contractName} is now ready for review.
+Your ${contractName} is now ready for review and is attached to this email.
 
 Contract Details:
 - Quote Number: ${quote?.quote_number}
@@ -412,6 +479,8 @@ ${contractType === 'interim' ?
   'This is your interim contract which provides immediate coverage while we finalize your policy documentation.' : 
   'This is your final policy document. Please review and keep it safe for your records.'}
 
+The contract document is attached as a PDF file for your records.
+
 If you have any questions, please don't hesitate to contact us.
 
 Best regards,
@@ -419,19 +488,23 @@ ${organizationId ? 'Your Insurance Team' : 'NaijaBroker Pro'}`,
         {
           quote_id: quote?.id,
           contract_type: contractType,
-          contract_url: contractUrl
+          contract_attachment: {
+            filename: `${contractType === 'interim' ? 'Interim_Contract' : 'Final_Policy'}_${quote?.quote_number || 'UNKNOWN'}.pdf`,
+            content: contractBase64,
+            contentType: 'application/pdf'
+          }
         }
       );
 
       toast({
         title: "Email Sent",
-        description: `${contractName} sent to ${clientEmail}`
+        description: `${contractName} with attachment sent to ${clientEmail}`
       });
     } catch (error) {
       console.error('Email failed:', error);
       toast({
         title: "Email Failed", 
-        description: "Unable to send contract email to client",
+        description: "Unable to send contract email with attachment",
         variant: "destructive"
       });
     }
