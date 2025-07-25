@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { PolicyService } from "@/services/database/policyService";
 import { AuditService } from "@/services/database/auditService";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { FileText, Calendar, User, DollarSign } from "lucide-react";
 
 interface Quote {
@@ -115,7 +116,10 @@ export const PolicyIssuanceModal = ({ open, onOpenChange, quote, onSuccess }: Po
       const newPolicy = await PolicyService.create(policyData);
 
       // Update quote to mark as converted to policy
-      // This would be handled by a quote service method if available
+      await supabase
+        .from('quotes')
+        .update({ converted_to_policy: newPolicy.id })
+        .eq('id', quote.id);
 
       // Log audit trail
       await AuditService.log({

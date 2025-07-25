@@ -56,6 +56,7 @@ export const QuoteSelectionModal = ({ open, onOpenChange, onQuoteSelected }: Quo
         .select('*')
         .eq('organization_id', organizationId)
         .not('final_contract_url', 'is', null)
+        .eq('workflow_stage', 'completed')
         .is('converted_to_policy', null)
         .order('created_at', { ascending: false });
 
@@ -154,14 +155,23 @@ export const QuoteSelectionModal = ({ open, onOpenChange, onQuoteSelected }: Quo
                       <TableCell>{quote.underwriter}</TableCell>
                       <TableCell>{quote.valid_until}</TableCell>
                       <TableCell>
-                        <Button 
-                          size="sm"
-                          onClick={() => handleQuoteSelect(quote)}
-                          className="flex items-center gap-1"
-                        >
-                          <FileText className="h-3 w-3" />
-                          Select
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant={quote.workflow_stage === 'completed' ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {quote.workflow_stage === 'completed' ? 'Finalized' : quote.workflow_stage}
+                          </Badge>
+                          <Button 
+                            size="sm"
+                            onClick={() => handleQuoteSelect(quote)}
+                            className="flex items-center gap-1"
+                            disabled={!quote.final_contract_url || quote.workflow_stage !== 'completed'}
+                          >
+                            <FileText className="h-3 w-3" />
+                            Select
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
