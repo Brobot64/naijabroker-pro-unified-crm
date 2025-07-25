@@ -12,6 +12,7 @@ import { AuditService } from "@/services/database/auditService";
 import { QuoteService } from "@/services/database/quoteService";
 import { useAuth } from "@/contexts/AuthContext";
 import { PolicyConfirmationModal } from "./PolicyConfirmationModal";
+import { QuoteDataValidator } from "./QuoteDataValidator";
 import { FileText, Calendar, User, DollarSign } from "lucide-react";
 
 interface Quote {
@@ -49,6 +50,8 @@ export const PolicyIssuanceModal = ({ open, onOpenChange, quote, onSuccess }: Po
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isQuoteValid, setIsQuoteValid] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const { toast } = useToast();
   const { user, organizationId } = useAuth();
 
@@ -118,7 +121,21 @@ export const PolicyIssuanceModal = ({ open, onOpenChange, quote, onSuccess }: Po
     return true;
   };
 
+  const handleValidationResult = (isValid: boolean, errors: string[]) => {
+    setIsQuoteValid(isValid);
+    setValidationErrors(errors);
+  };
+
   const handleShowConfirmation = () => {
+    if (!isQuoteValid) {
+      toast({
+        title: "Quote Data Invalid",
+        description: "Please resolve quote data issues before proceeding",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (validateFormData()) {
       setShowConfirmation(true);
     }
@@ -207,6 +224,12 @@ export const PolicyIssuanceModal = ({ open, onOpenChange, quote, onSuccess }: Po
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Quote Data Validation */}
+          <QuoteDataValidator 
+            quote={quote} 
+            onValidationResult={handleValidationResult}
+          />
+
           {/* Quote Summary */}
           <Card>
             <CardHeader>
@@ -334,8 +357,12 @@ export const PolicyIssuanceModal = ({ open, onOpenChange, quote, onSuccess }: Po
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleShowConfirmation} disabled={isSubmitting}>
-            Review & Create Policy
+          <Button 
+            onClick={handleShowConfirmation} 
+            disabled={isSubmitting || !isQuoteValid}
+            className={!isQuoteValid ? "opacity-50 cursor-not-allowed" : ""}
+          >
+            {!isQuoteValid ? "Invalid Quote Data" : "Review & Create Policy"}
           </Button>
         </div>
 

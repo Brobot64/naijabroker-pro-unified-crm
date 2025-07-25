@@ -115,10 +115,15 @@ export const QuoteSelectionModal = ({ open, onOpenChange, onQuoteSelected, onPol
             <Card className="border-dashed">
               <CardContent className="pt-6 text-center">
                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="font-semibold mb-2">No finalized quotes available</h3>
+                <h3 className="font-semibold mb-2">No valid quotes available</h3>
                 <p className="text-muted-foreground">
-                  Only quotes with finalized contracts that haven't been converted to policies can be selected.
+                  Only quotes with finalized contracts, valid premium amounts, and complete data that haven't been converted to policies can be selected.
                 </p>
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Note:</strong> Quotes with ₦0 premium, missing underwriter information, or incomplete data are filtered out.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           ) : (
@@ -150,7 +155,11 @@ export const QuoteSelectionModal = ({ open, onOpenChange, onQuoteSelected, onPol
                       </TableCell>
                       <TableCell>{quote.policy_type}</TableCell>
                       <TableCell className="font-semibold">₦{quote.sum_insured.toLocaleString()}</TableCell>
-                      <TableCell className="font-semibold text-green-600">₦{quote.premium.toLocaleString()}</TableCell>
+                       <TableCell className="font-semibold text-green-600">
+                         {quote.premium > 0 ? `₦${quote.premium.toLocaleString()}` : (
+                           <span className="text-red-500">₦0 (Invalid)</span>
+                         )}
+                       </TableCell>
                       <TableCell>{quote.underwriter}</TableCell>
                       <TableCell>{quote.valid_until}</TableCell>
                       <TableCell>
@@ -161,15 +170,22 @@ export const QuoteSelectionModal = ({ open, onOpenChange, onQuoteSelected, onPol
                           >
                             {quote.workflow_stage === 'completed' ? 'Finalized' : quote.workflow_stage}
                           </Badge>
-                          <Button 
-                            size="sm"
-                            onClick={() => handleQuoteSelect(quote)}
-                            className="flex items-center gap-1"
-                            disabled={!quote.final_contract_url || quote.workflow_stage !== 'completed'}
-                          >
-                            <FileText className="h-3 w-3" />
-                            Select
-                          </Button>
+                           <Button 
+                             size="sm"
+                             onClick={() => handleQuoteSelect(quote)}
+                             className="flex items-center gap-1"
+                             disabled={
+                               !quote.final_contract_url || 
+                               quote.workflow_stage !== 'completed' ||
+                               quote.premium <= 0 ||
+                               quote.sum_insured <= 0 ||
+                               !quote.underwriter ||
+                               quote.underwriter === 'TBD'
+                             }
+                           >
+                             <FileText className="h-3 w-3" />
+                             {quote.premium <= 0 || quote.underwriter === 'TBD' ? 'Invalid Data' : 'Select'}
+                           </Button>
                         </div>
                       </TableCell>
                     </TableRow>

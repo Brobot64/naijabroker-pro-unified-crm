@@ -162,6 +162,8 @@ export class QuoteService {
       .not('final_contract_url', 'is', null)
       .eq('workflow_stage', 'completed')
       .is('converted_to_policy', null)
+      .gt('premium', 0) // Ensure premium is greater than 0
+      .gt('sum_insured', 0) // Ensure sum_insured is greater than 0
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -169,8 +171,28 @@ export class QuoteService {
       throw error;
     }
     
-    console.log(`✅ QuoteService: Found ${data?.length || 0} finalized quotes ready for policy conversion`);
-    return data || [];
+    const validQuotes = (data || []).filter(quote => {
+      // Additional validation to ensure data integrity
+      const isValid = quote.premium > 0 && 
+                     quote.sum_insured > 0 && 
+                     quote.underwriter && 
+                     quote.underwriter !== 'TBD' &&
+                     quote.client_name;
+      
+      if (!isValid) {
+        console.warn(`⚠️ QuoteService: Skipping invalid quote ${quote.quote_number}:`, {
+          premium: quote.premium,
+          sum_insured: quote.sum_insured,
+          underwriter: quote.underwriter,
+          client_name: quote.client_name
+        });
+      }
+      
+      return isValid;
+    });
+    
+    console.log(`✅ QuoteService: Found ${validQuotes.length} valid finalized quotes ready for policy conversion`);
+    return validQuotes;
   }
 
   static async getExpiringQuotes(daysAhead = 7): Promise<Quote[]> {
