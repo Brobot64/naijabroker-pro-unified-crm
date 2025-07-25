@@ -92,24 +92,54 @@ export const PaymentProcessing = ({ quoteId, clientData, evaluatedQuotes, select
         { verified_by: 'admin', verified_at: new Date().toISOString() }
       );
       
-      // Force refresh quote status to ensure workflow progresses
+      // CRITICAL: Update quote payment status and workflow stage
+      const { data: updatedQuote, error: updateError } = await supabase
+        .from('quotes')
+        .update({
+          payment_status: 'completed',
+          workflow_stage: 'contract-generation',
+          status: 'accepted',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', quoteId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('❌ Failed to update quote workflow stage:', updateError);
+        throw new Error(`Failed to update quote: ${updateError.message}`);
+      }
+
+      console.log('✅ Quote updated to contract-generation stage:', updatedQuote);
+      
+      // Force refresh quote status to ensure consistency
       const { QuoteStatusSync } = await import('@/utils/quoteStatusSync');
       await QuoteStatusSync.refreshQuoteStatus(quoteId);
+      
+      // Auto-transition using workflow sync service
+      const { WorkflowSyncService } = await import('@/services/workflowSyncService');
+      const nextStage = await WorkflowSyncService.autoTransitionWorkflow(quoteId);
+      
+      if (nextStage) {
+        console.log('🎯 Auto-transitioned to stage:', nextStage);
+      }
       
       // Reload payment status
       await loadPaymentStatus();
       
       toast({
         title: "Payment Verified",
-        description: "Payment has been successfully verified and marked as completed"
+        description: "Payment verified and workflow advanced to Contract Generation stage"
       });
       
-      // Trigger payment completion callback
+      // Trigger payment completion callback with updated quote data
       if (onPaymentComplete) {
         onPaymentComplete({ 
           transaction: paymentTransaction, 
           status: 'completed',
-          verified_at: new Date().toISOString()
+          verified_at: new Date().toISOString(),
+          quote: updatedQuote,
+          nextStage: 'contract-generation'
         });
       }
       
@@ -117,7 +147,7 @@ export const PaymentProcessing = ({ quoteId, clientData, evaluatedQuotes, select
       console.error('❌ Error verifying payment:', error);
       toast({
         title: "Error",
-        description: "Failed to verify payment",
+        description: error instanceof Error ? error.message : "Failed to verify payment",
         variant: "destructive"
       });
     } finally {
@@ -184,8 +214,8 @@ export const PaymentProcessing = ({ quoteId, clientData, evaluatedQuotes, select
             <div className="grid grid-cols-2 gap-4">
               <div><strong>Client:</strong> {clientData?.name}</div>
               <div><strong>Client ID:</strong> {clientData?.client_code}</div>
-              <div><strong>Selected Insurer:</strong> {selectedQuote?.insurer_name || 'N/A'}</div>
-              <div><strong>Total Premium:</strong> ₦{selectedQuote?.premium_quoted?.toLocaleString() || '0'}</div>
+              <div><strong>Selected Insurer:</strong> {selectedQuote?.insurer_name || evaluatedQuotes?.[0]?.insurer_name || 'N/A'}</div>
+              <div><strong>Total Premium:</strong> ₦{(selectedQuote?.premium_quoted || evaluatedQuotes?.[0]?.premium_quoted || 0).toLocaleString()}</div>
             </div>
           </CardContent>
         </Card>
