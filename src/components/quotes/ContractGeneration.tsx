@@ -464,17 +464,11 @@ startxref
       const contractName = contractType === 'interim' ? 'Interim Contract' : 'Final Policy Document';
       
       // Generate the PDF contract content for attachment
-      const pdfBlob = generateContractPDF(contractType);
-      const contractBuffer = await pdfBlob.arrayBuffer();
+      const contractPdfBlob = generateContractPDF(contractType);
+      const contractBuffer = await contractPdfBlob.arrayBuffer();
       const contractBase64 = btoa(String.fromCharCode(...new Uint8Array(contractBuffer)));
       
-      // Use Supabase edge function directly for better attachment handling
-      const { data, error } = await supabase.functions.invoke('send-email-notification', {
-        body: {
-          type: 'contract_delivery',
-          recipientEmail: clientEmail,
-          subject: `Your ${contractName} - ${quote?.quote_number}`,
-          message: `Dear ${clientData?.name || quote?.client_name},
+      const emailMessage = `Dear ${clientData?.name || quote?.client_name},
 
 Your ${contractName} is now ready for review and is attached to this email.
 
@@ -494,7 +488,15 @@ The contract document is attached as a PDF file for your records.
 If you have any questions, please don't hesitate to contact us.
 
 Best regards,
-Your Insurance Team`,
+Your Insurance Team`;
+
+      // Send email with contract attachment using updated function
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email-notification', {
+        body: {
+          type: 'contract_delivery',
+          recipientEmail: clientEmail,
+          subject: `Your ${contractName} - ${quote?.quote_number}`,
+          message: emailMessage,
           metadata: {
             quote_id: quote?.id,
             contract_type: contractType,
@@ -507,23 +509,24 @@ Your Insurance Team`,
         }
       });
 
-      if (error) {
-        throw new Error(error.message);
+      if (emailError) {
+        throw new Error(emailError.message);
       }
 
-      // Log the email action for audit trail
+      // Log the email action with attachment info for audit trail
       await logWorkflowStage(
         quote?.id!,
         organizationId!,
         'contract-generation',
-        `${contractType}_contract_emailed`,
+        `${contractType}_contract_emailed_with_attachment`,
         {
           recipient: clientEmail,
           contract_type: contractType,
           contract_filename: `${contractType === 'interim' ? 'Interim_Contract' : 'Final_Policy'}_${quote?.quote_number || 'UNKNOWN'}.pdf`,
           email_subject: `Your ${contractName} - ${quote?.quote_number}`,
+          attachment_included: true,
           sent_at: new Date().toISOString(),
-          email_response: data
+          email_response: emailData
         },
         user?.id
       );

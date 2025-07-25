@@ -89,7 +89,9 @@ serve(async (req) => {
       try {
         // Use the actual recipient email - no testing mode
         const actualRecipient = recipientEmail;
-        const emailResponse = await resend.emails.send({
+        
+        // Prepare email options
+        const emailOptions: any = {
           from: "NaijaBroker Pro <onboarding@resend.dev>", // Using default Resend domain
           to: [actualRecipient],
           subject: subject,
@@ -104,7 +106,21 @@ serve(async (req) => {
               </p>
             </div>
           `,
-        });
+        };
+
+        // Handle contract attachments for contract delivery emails
+        if (type === 'contract_delivery' && metadata?.contract_attachment) {
+          const attachment = metadata.contract_attachment;
+          console.log('📎 Adding contract attachment:', attachment.filename);
+          
+          emailOptions.attachments = [{
+            filename: attachment.filename,
+            content: attachment.content,
+            contentType: attachment.contentType || 'application/pdf'
+          }];
+        }
+
+        const emailResponse = await resend.emails.send(emailOptions);
 
         console.log(`Email sent successfully to ${actualRecipient}:`, emailResponse);
       } catch (emailError) {

@@ -183,11 +183,28 @@ export const QuoteDashboard = ({ onNewQuote, onEditQuote, onViewQuote }: QuoteDa
       case 'insurer-matching': return 'bg-cyan-500';
       case 'quote-evaluation': return 'bg-indigo-500';
       case 'client-selection': return 'bg-teal-500';
-      case 'client_approved': return 'bg-green-600';
+      case 'client_approved': return 'bg-emerald-600';
       case 'payment-processing': return 'bg-emerald-500';
-      case 'contract-generation': return 'bg-green-500';
+      case 'contract-generation': return 'bg-green-600';
+      case 'completed': return 'bg-green-700';
       default: return 'bg-gray-500';
     }
+  };
+
+  const formatStageDisplay = (stage: string) => {
+    const stageMap: Record<string, string> = {
+      'client-onboarding': 'Client Onboarding',
+      'quote-drafting': 'Quote Drafting', 
+      'rfq-generation': 'RFQ Generation',
+      'insurer-matching': 'Insurer Matching',
+      'quote-evaluation': 'Quote Evaluation',
+      'client-selection': 'Client Selection',
+      'client_approved': 'Contract Generation',
+      'payment-processing': 'Payment Processing',
+      'contract-generation': 'Contract Generation',
+      'completed': 'Completed'
+    };
+    return stageMap[stage] || stage?.replace('-', ' ').replace('_', ' ');
   };
 
   const filteredQuotes = quotes.filter(quote => {
@@ -344,7 +361,7 @@ export const QuoteDashboard = ({ onNewQuote, onEditQuote, onViewQuote }: QuoteDa
                       </td>
                        <td className="py-3 px-4">
                          <Badge variant="outline" className={`${getStageColor(quote.workflow_stage)} text-white border-0`}>
-                           {quote.workflow_stage?.replace('-', ' ').replace('_', ' ')}
+                           {formatStageDisplay(quote.workflow_stage)}
                          </Badge>
                          {quote.payment_status && quote.payment_status !== 'pending' && (
                            <Badge variant="outline" className="ml-1 text-xs">
