@@ -20,6 +20,7 @@ import { Policy as DatabasePolicy } from "@/services/database/types";
 import { PolicyUpdateModal } from "./PolicyUpdateModal";
 import { PolicyDetailsModal } from "./PolicyDetailsModal";
 import { PolicyIssuanceModal } from "./PolicyIssuanceModal";
+import { QuoteSelectionModal } from "./QuoteSelectionModal";
 import { RenewalReminders } from "./RenewalReminders";
 import { AlertCircle, Plus, Eye, Edit, Filter, Download } from "lucide-react";
 
@@ -34,7 +35,9 @@ export const PolicyManagement = () => {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showIssuanceModal, setShowIssuanceModal] = useState(false);
+  const [showQuoteSelection, setShowQuoteSelection] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null);
+  const [selectedQuote, setSelectedQuote] = useState<any>(null);
   const [stats, setStats] = useState({
     activePolicies: 0,
     expiringThisMonth: 0,
@@ -132,8 +135,11 @@ export const PolicyManagement = () => {
   };
 
   const handleIssueNewPolicy = () => {
-    // In a real implementation, this would open a quote selection modal
-    // For now, we'll just show the issuance modal
+    setShowQuoteSelection(true);
+  };
+
+  const handleQuoteSelected = (quote: any) => {
+    setSelectedQuote(quote);
     setShowIssuanceModal(true);
   };
 
@@ -336,10 +342,16 @@ export const PolicyManagement = () => {
         }}
       />
 
+      <QuoteSelectionModal
+        open={showQuoteSelection}
+        onOpenChange={setShowQuoteSelection}
+        onQuoteSelected={handleQuoteSelected}
+      />
+
       <PolicyIssuanceModal
         open={showIssuanceModal}
         onOpenChange={setShowIssuanceModal}
-        quote={null} // In real implementation, this would come from quote selection
+        quote={selectedQuote}
         onSuccess={loadPolicies}
       />
     </div>
