@@ -302,9 +302,17 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete, onBa
             clientData={state.workflowData.client}
             evaluatedQuotes={(state.workflowData as any).quoteevaluation || state.workflowData.quotes || []}
             selectedQuote={state.workflowData.clientSelection || (state.workflowData as any).clientselection}
-            onPaymentComplete={(paymentData) => 
-              handleStepComplete('payment-processing', paymentData)
-            }
+            onPaymentComplete={(paymentData) => {
+              console.log('🎯 Payment completed, triggering workflow completion...', paymentData);
+              handleStepComplete('payment-processing', paymentData);
+              // If payment is completed and we're at final stage, trigger workflow completion
+              if (paymentData.status === 'completed' && onWorkflowComplete) {
+                setTimeout(() => {
+                  console.log('🏁 Triggering workflow completion callback');
+                  onWorkflowComplete();
+                }, 1000);
+              }
+            }}
             onBack={() => navigateToStep('client-selection')}
           />
         );

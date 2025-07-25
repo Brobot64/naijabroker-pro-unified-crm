@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileText, Download, Send, CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, FileText, Download, Send, CheckCircle, AlertTriangle, Loader2, Upload, File } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QuoteAuditTrail } from "./QuoteAuditTrail";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +36,8 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
   const [insurerInfo, setInsurerInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingFinal, setUploadingFinal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
   const { user, organizationId } = useAuth();
 
@@ -545,6 +548,118 @@ startxref
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type (allow PDF, DOC, DOCX)
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload a PDF, DOC, or DOCX file",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please upload a file smaller than 10MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSelectedFile(file);
+  };
+
+  const uploadFinalContract = async () => {
+    if (!selectedFile || !quote?.id) return;
+
+    setUploadingFinal(true);
+    try {
+      console.log('📤 Uploading final contract file:', selectedFile.name);
+
+      // Convert file to base64 for storage
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64Content = reader.result as string;
+          const contractUrl = `data:${selectedFile.type};base64,${base64Content.split(',')[1]}`;
+
+          // Update database with uploaded contract URL
+          const { data: updatedQuote, error: updateError } = await supabase
+            .from('quotes')
+            .update({
+              final_contract_url: contractUrl,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', quote.id)
+            .select()
+            .single();
+
+          if (updateError) {
+            throw new Error(`Database update failed: ${updateError.message}`);
+          }
+
+          console.log('✅ Final contract uploaded and database updated:', updatedQuote);
+
+          // Log the upload action
+          if (quote.id && organizationId) {
+            await logWorkflowStage(
+              quote.id,
+              organizationId,
+              'contract-generation',
+              'upload_final_contract',
+              {
+                filename: selectedFile.name,
+                file_size: selectedFile.size,
+                file_type: selectedFile.type,
+                upload_method: 'file_upload'
+              },
+              user?.id
+            );
+          }
+
+          setFinalReceived(true);
+          setSelectedFile(null);
+          
+          toast({
+            title: "Final Contract Uploaded",
+            description: "Final contract file has been uploaded successfully"
+          });
+
+          // Reload contract data to reflect changes
+          await loadContractData();
+
+        } catch (error) {
+          console.error('❌ Error uploading final contract:', error);
+          toast({
+            title: "Upload Failed",
+            description: error instanceof Error ? error.message : "Failed to upload final contract",
+            variant: "destructive"
+          });
+        } finally {
+          setUploadingFinal(false);
+        }
+      };
+
+      reader.readAsDataURL(selectedFile);
+
+    } catch (error) {
+      console.error('❌ Error processing file upload:', error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to process file upload",
+        variant: "destructive"
+      });
+      setUploadingFinal(false);
+    }
+  };
+
   const emailToClient = async (contractType: 'interim' | 'final') => {
     if (!quote?.client_email && !clientData?.email) {
       toast({
@@ -736,27 +851,84 @@ Your Insurance Team`;
                     Received
                   </Badge>
                  ) : (
-                   <div className="flex gap-2">
-                     <Badge variant="outline">Pending from Insurer</Badge>
-                     {interimGenerated && (
+                   <div className="space-y-3">
+                     <div className="flex gap-2">
+                       <Badge variant="outline">Pending from Insurer</Badge>
+                       {interimGenerated && (
+                         <Button 
+                           size="sm" 
+                           onClick={generateFinalContract}
+                           disabled={isGeneratingFinal}
+                         >
+                           {isGeneratingFinal && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                           {isGeneratingFinal ? "Generating..." : "Generate Final"}
+                         </Button>
+                       )}
                        <Button 
+                         variant="outline" 
                          size="sm" 
-                         onClick={generateFinalContract}
-                         disabled={isGeneratingFinal}
+                         onClick={simulateFinalContract}
+                         disabled={isSimulatingFinal}
                        >
-                         {isGeneratingFinal && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                         {isGeneratingFinal ? "Generating..." : "Generate Final"}
+                         {isSimulatingFinal && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                         {isSimulatingFinal ? "Processing..." : "Simulate Receipt"}
                        </Button>
-                     )}
-                     <Button 
-                       variant="outline" 
-                       size="sm" 
-                       onClick={simulateFinalContract}
-                       disabled={isSimulatingFinal}
-                     >
-                       {isSimulatingFinal && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                       {isSimulatingFinal ? "Processing..." : "Simulate Receipt"}
-                     </Button>
+                     </div>
+                     
+                     {/* File Upload Section */}
+                     <div className="border-t pt-3">
+                       <p className="text-sm text-gray-600 mb-3">Or upload final contract from insurer:</p>
+                       <div className="flex items-center gap-3">
+                         <Input
+                           type="file"
+                           accept=".pdf,.doc,.docx"
+                           onChange={handleFileUpload}
+                           className="hidden"
+                           id="final-contract-upload"
+                         />
+                         <label htmlFor="final-contract-upload">
+                           <Button 
+                             variant="outline"
+                             size="sm"
+                             disabled={uploadingFinal}
+                             className="cursor-pointer"
+                             asChild
+                           >
+                             <span>
+                               <Upload className="h-4 w-4 mr-2" />
+                               Choose File
+                             </span>
+                           </Button>
+                         </label>
+                         
+                         {selectedFile && (
+                           <div className="flex items-center gap-2">
+                             <div className="flex items-center gap-1 text-sm">
+                               <File className="h-4 w-4" />
+                               <span className="max-w-32 truncate">{selectedFile.name}</span>
+                             </div>
+                             <Button
+                               size="sm"
+                               onClick={uploadFinalContract}
+                               disabled={uploadingFinal}
+                               className="bg-green-600 hover:bg-green-700"
+                             >
+                               {uploadingFinal ? (
+                                 <>
+                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                   Uploading...
+                                 </>
+                               ) : (
+                                 <>
+                                   <Upload className="h-4 w-4 mr-2" />
+                                   Upload
+                                 </>
+                               )}
+                             </Button>
+                           </div>
+                         )}
+                       </div>
+                     </div>
                    </div>
                  )}
               </div>

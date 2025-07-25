@@ -45,6 +45,12 @@ export const QuoteManagement = () => {
   const handleBackToDashboard = () => {
     setSelectedQuote(null);
     setViewMode('dashboard');
+    // Force dashboard to refresh when returning from workflow
+    setTimeout(() => {
+      if (viewMode === 'dashboard') {
+        window.location.reload();
+      }
+    }, 100);
   };
 
   const renderContent = () => {
@@ -75,7 +81,10 @@ export const QuoteManagement = () => {
               </div>
               <QuoteManagementWorkflow 
                 editingQuote={selectedQuote}
-                onWorkflowComplete={handleBackToDashboard}
+                onWorkflowComplete={() => {
+                  console.log('🔄 Workflow completed, refreshing dashboard...');
+                  handleBackToDashboard();
+                }}
                 onBack={handleBackToDashboard}
               />
             </div>
