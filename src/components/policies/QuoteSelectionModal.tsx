@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { QuoteService } from "@/services/database/quoteService";
 import { useAuth } from "@/contexts/AuthContext";
 import { Search, FileText, User, DollarSign } from "lucide-react";
 
@@ -33,9 +33,10 @@ interface QuoteSelectionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onQuoteSelected: (quote: Quote) => void;
+  onPolicyCreated?: () => void;
 }
 
-export const QuoteSelectionModal = ({ open, onOpenChange, onQuoteSelected }: QuoteSelectionModalProps) => {
+export const QuoteSelectionModal = ({ open, onOpenChange, onQuoteSelected, onPolicyCreated }: QuoteSelectionModalProps) => {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -48,20 +49,18 @@ export const QuoteSelectionModal = ({ open, onOpenChange, onQuoteSelected }: Quo
     }
   }, [open, organizationId]);
 
+  // Refresh quotes when a policy is created
+  useEffect(() => {
+    if (onPolicyCreated && open && organizationId) {
+      loadFinalizedQuotes();
+    }
+  }, [onPolicyCreated, open, organizationId]);
+
   const loadFinalizedQuotes = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('quotes')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .not('final_contract_url', 'is', null)
-        .eq('workflow_stage', 'completed')
-        .is('converted_to_policy', null)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setQuotes(data || []);
+      const data = await QuoteService.getFinalizedQuotesForPolicy(organizationId);
+      setQuotes(data);
     } catch (error) {
       console.error('Failed to load finalized quotes:', error);
       toast({

@@ -38,6 +38,7 @@ export const PolicyManagement = () => {
   const [showQuoteSelection, setShowQuoteSelection] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null);
   const [selectedQuote, setSelectedQuote] = useState<any>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [stats, setStats] = useState({
     activePolicies: 0,
     expiringThisMonth: 0,
@@ -141,6 +142,14 @@ export const PolicyManagement = () => {
   const handleQuoteSelected = (quote: any) => {
     setSelectedQuote(quote);
     setShowIssuanceModal(true);
+  };
+
+  const handlePolicySuccess = () => {
+    setSelectedQuote(null);
+    setShowIssuanceModal(false);
+    setShowQuoteSelection(false);
+    setRefreshKey(prev => prev + 1); // Force refresh of quote selection
+    loadPolicies();
   };
 
   const filteredPolicies = policies.filter(policy => {
@@ -342,17 +351,19 @@ export const PolicyManagement = () => {
         }}
       />
 
-      <QuoteSelectionModal
-        open={showQuoteSelection}
-        onOpenChange={setShowQuoteSelection}
-        onQuoteSelected={handleQuoteSelected}
-      />
+        <QuoteSelectionModal
+          key={refreshKey}
+          open={showQuoteSelection}
+          onOpenChange={setShowQuoteSelection}
+          onQuoteSelected={handleQuoteSelected}
+          onPolicyCreated={handlePolicySuccess}
+        />
 
       <PolicyIssuanceModal
         open={showIssuanceModal}
         onOpenChange={setShowIssuanceModal}
         quote={selectedQuote}
-        onSuccess={loadPolicies}
+        onSuccess={handlePolicySuccess}
       />
     </div>
   );

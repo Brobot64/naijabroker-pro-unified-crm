@@ -134,11 +134,43 @@ export class QuoteService {
   }
 
   static async convertToPolicy(id: string, policyId: string): Promise<Quote> {
-    return this.update(id, { 
-      status: 'accepted',
-      converted_to_policy: policyId,
-      workflow_stage: 'converted'
-    });
+    console.log(`🔄 QuoteService: Converting quote ${id} to policy ${policyId}`);
+    
+    try {
+      const result = await this.update(id, { 
+        status: 'accepted',
+        converted_to_policy: policyId,
+        workflow_stage: 'converted',
+        updated_at: new Date().toISOString()
+      });
+      
+      console.log(`✅ QuoteService: Quote ${id} successfully converted to policy ${policyId}`);
+      return result;
+    } catch (error) {
+      console.error(`❌ QuoteService: Failed to convert quote ${id} to policy:`, error);
+      throw new Error(`Failed to convert quote to policy: ${error.message}`);
+    }
+  }
+
+  static async getFinalizedQuotesForPolicy(organizationId: string): Promise<Quote[]> {
+    console.log(`🔍 QuoteService: Fetching finalized quotes for organization ${organizationId}`);
+    
+    const { data, error } = await supabase
+      .from('quotes')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .not('final_contract_url', 'is', null)
+      .eq('workflow_stage', 'completed')
+      .is('converted_to_policy', null)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ QuoteService: Failed to fetch finalized quotes:', error);
+      throw error;
+    }
+    
+    console.log(`✅ QuoteService: Found ${data?.length || 0} finalized quotes ready for policy conversion`);
+    return data || [];
   }
 
   static async getExpiringQuotes(daysAhead = 7): Promise<Quote[]> {

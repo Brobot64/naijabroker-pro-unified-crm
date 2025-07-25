@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { PolicyService } from "@/services/database/policyService";
 import { AuditService } from "@/services/database/auditService";
+import { QuoteService } from "@/services/database/quoteService";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { PolicyConfirmationModal } from "./PolicyConfirmationModal";
 import { FileText, Calendar, User, DollarSign } from "lucide-react";
 
 interface Quote {
@@ -47,6 +48,7 @@ export const PolicyIssuanceModal = ({ open, onOpenChange, quote, onSuccess }: Po
     notes: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const { toast } = useToast();
   const { user, organizationId } = useAuth();
 
@@ -66,14 +68,14 @@ export const PolicyIssuanceModal = ({ open, onOpenChange, quote, onSuccess }: Po
     }
   }, [quote, open]);
 
-  const handleIssuePolicy = async () => {
+  const validateFormData = () => {
     if (!quote || !organizationId || !user) {
       toast({
         title: "Error",
         description: "Missing required information",
         variant: "destructive"
       });
-      return;
+      return false;
     }
 
     if (!formData.policy_number || !formData.start_date || !formData.end_date) {
@@ -82,10 +84,51 @@ export const PolicyIssuanceModal = ({ open, onOpenChange, quote, onSuccess }: Po
         description: "Please fill in all required fields",
         variant: "destructive"
       });
-      return;
+      return false;
     }
 
+    // Validate quote data
+    if (!quote.premium || quote.premium <= 0) {
+      toast({
+        title: "Invalid Quote Data",
+        description: "Quote premium is invalid. Please check the quote data.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    if (!quote.sum_insured || quote.sum_insured <= 0) {
+      toast({
+        title: "Invalid Quote Data",
+        description: "Quote sum insured is invalid. Please check the quote data.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    if (!quote.final_contract_url) {
+      toast({
+        title: "Contract Missing",
+        description: "This quote does not have a finalized contract. Cannot create policy.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleShowConfirmation = () => {
+    if (validateFormData()) {
+      setShowConfirmation(true);
+    }
+  };
+
+  const handleConfirmedIssuePolicy = async () => {
+    if (!validateFormData()) return;
+    
     setIsSubmitting(true);
+    setShowConfirmation(false);
 
     try {
       // Calculate commission amount
@@ -113,13 +156,11 @@ export const PolicyIssuanceModal = ({ open, onOpenChange, quote, onSuccess }: Po
         co_insurers: []
       };
 
+      // Create policy first
       const newPolicy = await PolicyService.create(policyData);
 
-      // Update quote to mark as converted to policy
-      await supabase
-        .from('quotes')
-        .update({ converted_to_policy: newPolicy.id })
-        .eq('id', quote.id);
+      // Then update quote using the service method (more reliable)
+      await QuoteService.convertToPolicy(quote.id, newPolicy.id);
 
       // Log audit trail
       await AuditService.log({
@@ -148,7 +189,7 @@ export const PolicyIssuanceModal = ({ open, onOpenChange, quote, onSuccess }: Po
       console.error('Policy issuance error:', error);
       toast({
         title: "Issuance Failed",
-        description: "Failed to issue policy. Please try again.",
+        description: error.message || "Failed to issue policy. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -293,10 +334,20 @@ export const PolicyIssuanceModal = ({ open, onOpenChange, quote, onSuccess }: Po
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleIssuePolicy} disabled={isSubmitting}>
-            {isSubmitting ? "Issuing Policy..." : "Issue Policy"}
+          <Button onClick={handleShowConfirmation} disabled={isSubmitting}>
+            Review & Create Policy
           </Button>
         </div>
+
+        <PolicyConfirmationModal
+          open={showConfirmation}
+          onOpenChange={setShowConfirmation}
+          quote={quote}
+          onConfirm={handleConfirmedIssuePolicy}
+          policyNumber={formData.policy_number}
+          startDate={formData.start_date}
+          endDate={formData.end_date}
+        />
       </DialogContent>
     </Dialog>
   );
