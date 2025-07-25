@@ -521,23 +521,40 @@ startxref
 
   const downloadContract = (url: string, filename: string) => {
     try {
-      // Generate PDF with actual contract content
       const contractType = filename.includes('Interim') ? 'interim' : 'final';
-      const pdfBlob = generateContractPDF(contractType);
-      const downloadUrl = URL.createObjectURL(pdfBlob);
       
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(downloadUrl);
-      
-      toast({
-        title: "Download Started",
-        description: `${filename} downloaded successfully`
-      });
+      // Check if this is an uploaded file (base64 data URL) or generated contract
+      if (url.startsWith('data:')) {
+        // This is an uploaded file - download the actual uploaded content
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast({
+          title: "Download Started",
+          description: `${filename} (uploaded file) downloaded successfully`
+        });
+      } else {
+        // This is a generated contract - create PDF content
+        const pdfBlob = generateContractPDF(contractType);
+        const downloadUrl = URL.createObjectURL(pdfBlob);
+        
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(downloadUrl);
+        
+        toast({
+          title: "Download Started",
+          description: `${filename} (generated contract) downloaded successfully`
+        });
+      }
     } catch (error) {
       console.error('Download failed:', error);
       toast({
@@ -674,10 +691,20 @@ startxref
       const clientEmail = quote?.client_email || clientData?.email;
       const contractName = contractType === 'interim' ? 'Interim Contract' : 'Final Policy Document';
       
-      // Generate the PDF contract content for attachment
-      const contractPdfBlob = generateContractPDF(contractType);
-      const contractBuffer = await contractPdfBlob.arrayBuffer();
-      const contractBase64 = btoa(String.fromCharCode(...new Uint8Array(contractBuffer)));
+      let contractBase64: string;
+      
+      // Check if we have an uploaded file (base64 data URL) or need to generate PDF
+      const contractUrl = contractType === 'interim' ? quote?.interim_contract_url : quote?.final_contract_url;
+      
+      if (contractUrl && contractUrl.startsWith('data:')) {
+        // This is an uploaded file - extract the base64 content
+        contractBase64 = contractUrl.split(',')[1];
+      } else {
+        // This is a generated contract - create PDF content
+        const contractPdfBlob = generateContractPDF(contractType);
+        const contractBuffer = await contractPdfBlob.arrayBuffer();
+        contractBase64 = btoa(String.fromCharCode(...new Uint8Array(contractBuffer)));
+      }
       
       const emailMessage = `Dear ${clientData?.name || quote?.client_name},
 
