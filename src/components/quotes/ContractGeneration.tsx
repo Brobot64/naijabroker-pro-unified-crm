@@ -59,6 +59,8 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
     
     setLoading(true);
     try {
+      console.log('🔄 ContractGeneration: Loading quote data for ID:', quoteId);
+      
       // Load quote details with client information
       const { data: quoteData, error: quoteError } = await supabase
         .from('quotes')
@@ -73,6 +75,8 @@ export const ContractGeneration = ({ paymentData, selectedQuote, clientData, onC
         console.error('❌ ContractGeneration: Quote fetch error:', quoteError);
         throw quoteError;
       }
+      
+      console.log('✅ ContractGeneration: Quote data loaded:', quoteData);
       setQuote(quoteData);
 
       // Load evaluated quotes to get insurer information

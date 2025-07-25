@@ -88,10 +88,11 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete, onBa
     'client-selection': 'client-selection',
     'payment-processing': 'payment-processing',
     'contract-generation': 'contract-generation',
-    'client_approved': 'payment-processing',
+    'client_approved': 'contract-generation', // Fixed: client_approved should go to contract generation
     'payment_processing': 'payment-processing',
     'payment_completed': 'contract-generation',
-    'contract_generated': 'contract-generation'
+    'contract_generated': 'contract-generation',
+    'completed': 'contract-generation' // Added: completed stage should show contract generation
   };
 
   // Initialize workflow based on editing mode
@@ -309,17 +310,29 @@ export const QuoteManagementWorkflow = ({ editingQuote, onWorkflowComplete, onBa
         );
       
       case 'contract-generation':
+        console.log('🏗️ Contract Generation - Workflow data:', state.workflowData);
+        console.log('🏗️ Contract Generation - Editing quote:', editingQuote);
+        
+        // If editing an existing quote, prioritize the actual quote data
+        const contractQuoteData = editingQuote || state.workflowData.quote;
+        const selectedQuoteData = {
+          ...state.workflowData.clientSelection,
+          id: contractQuoteData?.id,
+          quote_id: contractQuoteData?.id,
+          quote_number: contractQuoteData?.quote_number,
+          client_name: contractQuoteData?.client_name,
+          policy_type: contractQuoteData?.policy_type,
+          workflow_stage: contractQuoteData?.workflow_stage,
+          // Include payment and insurer info from selections if available
+          ...state.workflowData.clientSelection
+        };
+        
+        console.log('🏗️ Contract Generation - Final quote data passed:', selectedQuoteData);
+        
         return (
           <ContractGeneration
             paymentData={state.workflowData.payment}
-            selectedQuote={{
-              ...state.workflowData.clientSelection,
-              id: state.workflowData.quote?.id,
-              quote_id: state.workflowData.quote?.id,
-              quote_number: state.workflowData.quote?.quote_number,
-              client_name: state.workflowData.quote?.client_name,
-              policy_type: state.workflowData.quote?.policy_type
-            }}
+            selectedQuote={selectedQuoteData}
             clientData={state.workflowData.client}
             onContractsGenerated={(contracts) => 
               handleStepComplete('contract-generation', contracts)
