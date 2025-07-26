@@ -3,26 +3,42 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+import { useDashboardData } from "@/hooks/useDashboardData";
 
 export const InsightsCards = () => {
+  const { 
+    totalPremiumYTD, 
+    claimsRatio, 
+    pendingRenewals, 
+    loading, 
+    refreshData 
+  } = useDashboardData();
+
+  const formatCurrency = (amount: number) => {
+    if (amount >= 1000000) {
+      return `₦${(amount / 1000000).toFixed(1)}M`;
+    }
+    return `₦${amount.toLocaleString()}`;
+  };
+
   const insights = [
     {
       title: "Total Premium",
-      value: "₦2,437,650,000",
+      value: loading ? "Loading..." : formatCurrency(totalPremiumYTD),
       subtitle: "YTD",
       color: "border-l-green-500",
       bgColor: "bg-green-50"
     },
     {
       title: "Claims Ratio",
-      value: "37.0%",
+      value: loading ? "Loading..." : `${claimsRatio.toFixed(1)}%`,
       subtitle: "Target: <40%",
       color: "border-l-blue-500",
       bgColor: "bg-blue-50"
     },
     {
       title: "Pending Renewals",
-      value: "126",
+      value: loading ? "Loading..." : pendingRenewals.toString(),
       subtitle: "Next 60 days",
       color: "border-l-orange-500",
       bgColor: "bg-orange-50"
@@ -40,8 +56,14 @@ export const InsightsCards = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">Insurance Insights Dashboard</h2>
-        <Button variant="outline" size="sm" className="flex items-center space-x-2">
-          <RefreshCw className="w-4 h-4" />
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center space-x-2"
+          onClick={refreshData}
+          disabled={loading}
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           <span>Refresh Data</span>
         </Button>
       </div>

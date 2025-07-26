@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   LucideIcon
 } from "lucide-react";
+import { useDashboardData } from "@/hooks/useDashboardData";
 
 interface StatItem {
   title: string;
@@ -18,24 +19,38 @@ interface StatItem {
 }
 
 export const DashboardStats = () => {
+  const { 
+    activePolicies, 
+    monthlyPremium, 
+    pendingClaims, 
+    loading 
+  } = useDashboardData();
+
+  const formatCurrency = (amount: number) => {
+    if (amount >= 1000000) {
+      return `₦${(amount / 1000000).toFixed(1)}M`;
+    }
+    return `₦${amount.toLocaleString()}`;
+  };
+
   const stats: StatItem[] = [
     {
       title: "Active Policies",
-      value: "1,234",
+      value: loading ? "Loading..." : activePolicies.toLocaleString(),
       change: "+12%",
       icon: FileText,
       color: "text-blue-600",
     },
     {
       title: "Monthly Premium",
-      value: "₦45.2M",
+      value: loading ? "Loading..." : formatCurrency(monthlyPremium),
       change: "+8%",
       icon: DollarSign,
       color: "text-green-600",
     },
     {
       title: "Pending Claims",
-      value: "23",
+      value: loading ? "Loading..." : pendingClaims.toString(),
       change: "-5%",
       icon: AlertTriangle,
       color: "text-orange-600",

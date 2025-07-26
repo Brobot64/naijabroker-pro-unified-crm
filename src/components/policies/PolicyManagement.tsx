@@ -22,7 +22,7 @@ import { PolicyDetailsModal } from "./PolicyDetailsModal";
 import { PolicyIssuanceModal } from "./PolicyIssuanceModal";
 import { QuoteSelectionModal } from "./QuoteSelectionModal";
 import { RenewalReminders } from "./RenewalReminders";
-import { AlertCircle, Plus, Eye, Edit, Filter, Download } from "lucide-react";
+import { AlertCircle, Plus, Eye, Edit, Filter, Download, Ban, CheckCircle } from "lucide-react";
 
 type Policy = DatabasePolicy;
 
@@ -103,7 +103,7 @@ export const PolicyManagement = () => {
       case "expired":
         return "bg-red-100 text-red-800";
       case "cancelled":
-        return "bg-gray-100 text-gray-800";
+        return "bg-orange-100 text-orange-800";
       case "draft":
         return "bg-blue-100 text-blue-800";
       default:
@@ -150,6 +150,46 @@ export const PolicyManagement = () => {
     setShowQuoteSelection(false);
     setRefreshKey(prev => prev + 1); // Force refresh of quote selection
     loadPolicies();
+  };
+
+  const handleDeactivatePolicy = async (policy: Policy) => {
+    if (!confirm(`Are you sure you want to deactivate policy ${policy.policy_number}?`)) return;
+    
+    try {
+      await PolicyService.deactivatePolicy(policy.id);
+      toast({
+        title: "Success",
+        description: "Policy has been deactivated successfully"
+      });
+      loadPolicies();
+    } catch (error) {
+      console.error('Error deactivating policy:', error);
+      toast({
+        title: "Error",
+        description: "Failed to deactivate policy",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleReactivatePolicy = async (policy: Policy) => {
+    if (!confirm(`Are you sure you want to reactivate policy ${policy.policy_number}?`)) return;
+    
+    try {
+      await PolicyService.reactivatePolicy(policy.id);
+      toast({
+        title: "Success",
+        description: "Policy has been reactivated successfully"
+      });
+      loadPolicies();
+    } catch (error) {
+      console.error('Error reactivating policy:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reactivate policy",
+        variant: "destructive"
+      });
+    }
   };
 
   const filteredPolicies = policies.filter(policy => {
@@ -227,8 +267,8 @@ export const PolicyManagement = () => {
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="expired">Expired</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
                       <SelectItem value="draft">Draft</SelectItem>
                     </SelectContent>
                   </Select>
@@ -310,14 +350,38 @@ export const PolicyManagement = () => {
                               <Eye className="h-3 w-3" />
                               View
                             </Button>
-                            <Button 
-                              size="sm"
-                              onClick={() => handlePolicyUpdate(policy)}
-                              className="flex items-center gap-1"
-                            >
-                              <Edit className="h-3 w-3" />
-                              Update/Renew
-                            </Button>
+                            {policy.status === 'active' && (
+                              <>
+                                <Button 
+                                  size="sm"
+                                  onClick={() => handlePolicyUpdate(policy)}
+                                  className="flex items-center gap-1"
+                                >
+                                  <Edit className="h-3 w-3" />
+                                  Update/Renew
+                                </Button>
+                                <Button 
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeactivatePolicy(policy)}
+                                  className="flex items-center gap-1 text-orange-600 border-orange-300 hover:bg-orange-50"
+                                >
+                                  <Ban className="h-3 w-3" />
+                                  Deactivate
+                                </Button>
+                              </>
+                            )}
+                            {policy.status === 'cancelled' && (
+                              <Button 
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleReactivatePolicy(policy)}
+                                className="flex items-center gap-1 text-green-600 border-green-300 hover:bg-green-50"
+                              >
+                                <CheckCircle className="h-3 w-3" />
+                                Reactivate
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
