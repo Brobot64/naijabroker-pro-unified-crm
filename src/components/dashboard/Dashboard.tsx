@@ -8,6 +8,7 @@ import { CriticalAlertsTable } from "./CriticalAlertsTable";
 import { ChartsSection } from "./ChartsSection";
 import { QuickActions } from "./QuickActions";
 import { ComplianceAlerts } from "./ComplianceAlerts";
+import { QuoteFinancialSocialKPIs } from "./QuoteFinancialSocialKPIs";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
 interface DashboardProps {
@@ -32,6 +33,10 @@ export const Dashboard = ({ userRole }: DashboardProps) => {
 
       <ErrorBoundary>
         <ChartsSection />
+      </ErrorBoundary>
+
+      <ErrorBoundary>
+        <QuoteFinancialSocialKPIs />
       </ErrorBoundary>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

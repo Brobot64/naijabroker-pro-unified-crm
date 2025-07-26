@@ -43,7 +43,8 @@ export const PolicyManagement = () => {
     activePolicies: 0,
     expiringThisMonth: 0,
     totalSumInsured: 0,
-    totalPremium: 0
+    totalPremium: 0,
+    cancelledPolicies: 0
   });
   const { toast } = useToast();
 
@@ -75,6 +76,7 @@ export const PolicyManagement = () => {
     nextMonth.setMonth(nextMonth.getMonth() + 1);
 
     const activePolicies = policiesList.filter(p => p.status === 'active').length;
+    const cancelledPolicies = policiesList.filter(p => p.status === 'cancelled').length;
     const expiringThisMonth = policiesList.filter(p => {
       const expiryDate = new Date(p.end_date);
       return p.status === 'active' && expiryDate <= nextMonth && expiryDate >= today;
@@ -92,7 +94,8 @@ export const PolicyManagement = () => {
       activePolicies,
       expiringThisMonth,
       totalSumInsured,
-      totalPremium
+      totalPremium,
+      cancelledPolicies
     });
   };
 
@@ -215,7 +218,7 @@ export const PolicyManagement = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">{stats.activePolicies.toLocaleString()}</div>
@@ -226,6 +229,12 @@ export const PolicyManagement = () => {
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-yellow-600">{stats.expiringThisMonth}</div>
             <p className="text-xs text-muted-foreground">Expiring This Month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-orange-600">{stats.cancelledPolicies}</div>
+            <p className="text-xs text-muted-foreground">Cancelled Policies</p>
           </CardContent>
         </Card>
         <Card>
