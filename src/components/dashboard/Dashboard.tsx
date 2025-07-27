@@ -1,14 +1,14 @@
 
 import { DashboardHeader } from "./DashboardHeader";
 import { DashboardStats } from "./DashboardStats";
-import { RecentActivityCard } from "./RecentActivityCard";
+import { RecentActivity } from "./RecentActivity";
 import { InsightsCards } from "./InsightsCards";
 import { TopClientsTable } from "./TopClientsTable";
 import { CriticalAlertsTable } from "./CriticalAlertsTable";
 import { ChartsSection } from "./ChartsSection";
 import { QuickActions } from "./QuickActions";
 import { ComplianceAlerts } from "./ComplianceAlerts";
-import { QuoteFinancialSocialKPIs } from "./QuoteFinancialSocialKPIs";
+import { ActionableKPIs } from "./ActionableKPIs";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
 interface DashboardProps {
@@ -36,13 +36,13 @@ export const Dashboard = ({ userRole }: DashboardProps) => {
       </ErrorBoundary>
 
       <ErrorBoundary>
-        <QuoteFinancialSocialKPIs />
+        <ActionableKPIs />
       </ErrorBoundary>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <ErrorBoundary>
-            <RecentActivityCard />
+            <RecentActivity />
           </ErrorBoundary>
         </div>
         <div>
