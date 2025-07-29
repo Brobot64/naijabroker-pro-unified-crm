@@ -12,6 +12,7 @@ import { ClaimService } from "@/services/database/claimService";
 import { SettlementVoucherModal } from "./SettlementVoucherModal";
 import { DischargeVoucherModal } from "./DischargeVoucherModal";
 import { ClaimsWorkflowTracker } from "./ClaimsWorkflowTracker";
+import { ClaimEditModal } from "./ClaimEditModal";
 import { Claim } from "@/services/database/types";
 import { Plus, Search, FileText, CheckCircle, AlertCircle, Activity, Eye, Edit, Trash2, Filter, RefreshCw } from "lucide-react";
 
@@ -21,6 +22,7 @@ export const ClaimsManagement = () => {
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [showDischargeModal, setShowDischargeModal] = useState(false);
   const [selectedClaimForWorkflow, setSelectedClaimForWorkflow] = useState<Claim | null>(null);
+  const [selectedClaimForEdit, setSelectedClaimForEdit] = useState<Claim | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [stageFilter, setStageFilter] = useState("all");
@@ -264,7 +266,12 @@ export const ClaimsManagement = () => {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0"
+                        onClick={() => setSelectedClaimForEdit(claim)}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                       {canCreateSettlement(claim) && (
@@ -332,6 +339,13 @@ export const ClaimsManagement = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <ClaimEditModal
+        open={!!selectedClaimForEdit}
+        onOpenChange={(open) => !open && setSelectedClaimForEdit(null)}
+        claim={selectedClaimForEdit}
+        onSuccess={loadClaims}
+      />
     </div>
   );
 };

@@ -65,4 +65,13 @@ export class ClaimService {
     if (error) throw error;
     return data || [];
   }
+
+  static async delete(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('claims')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  }
 }
