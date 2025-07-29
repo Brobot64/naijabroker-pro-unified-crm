@@ -88,18 +88,20 @@ export const ActionableKPIs = () => {
       const currentYear = now.getFullYear();
       const in60Days = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
 
-      // Quote KPIs
+      // Quote KPIs - Updated to match actual workflow stages
       const pendingQuotes = quotes.filter(q => 
-        ['quote-evaluation', 'client-selection'].includes(q.workflow_stage || '')
+        q.status === 'draft' || (q.workflow_stage && !['completed', 'converted'].includes(q.workflow_stage))
       ).length;
       
       const overdueQuotes = quotes.filter(q => {
         const validUntil = new Date(q.valid_until);
-        return validUntil < now && q.status === 'sent';
+        return validUntil < now && ['sent', 'pending'].includes(q.status);
       }).length;
       
-      const completedQuotes = quotes.filter(q => q.workflow_stage === 'completed').length;
-      const conversionRate = quotes.length > 0 ? (completedQuotes / quotes.length) * 100 : 0;
+      const convertedQuotes = quotes.filter(q => 
+        q.workflow_stage === 'converted' || q.status === 'accepted'
+      ).length;
+      const conversionRate = quotes.length > 0 ? (convertedQuotes / quotes.length) * 100 : 0;
       
       const avgResponseTime = 2.3; // Days - calculated from quote creation to client response
 
