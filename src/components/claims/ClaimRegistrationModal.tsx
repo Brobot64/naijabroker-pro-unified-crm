@@ -39,7 +39,11 @@ export const ClaimRegistrationModal = ({ open, onOpenChange, onClaimCreated }: C
     reportedDate: new Date().toISOString().split('T')[0],
     estimatedLoss: "",
     description: "",
-    location: ""
+    location: "",
+    policyType: "",
+    underwriter: "",
+    startDate: "",
+    endDate: ""
   });
   const [documents, setDocuments] = useState<ClaimDocument[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -79,7 +83,11 @@ export const ClaimRegistrationModal = ({ open, onOpenChange, onClaimCreated }: C
       ...formData,
       policyId: policy.id,
       policyNumber: policy.policy_number,
-      clientName: policy.client_name
+      clientName: policy.client_name,
+      policyType: policy.policy_type,
+      underwriter: policy.underwriter,
+      startDate: policy.start_date,
+      endDate: policy.end_date
     });
     setSearchTerm(policy.policy_number);
     setIsDropdownOpen(false);
@@ -187,7 +195,11 @@ export const ClaimRegistrationModal = ({ open, onOpenChange, onClaimCreated }: C
         reportedDate: new Date().toISOString().split('T')[0],
         estimatedLoss: "",
         description: "",
-        location: ""
+        location: "",
+        policyType: "",
+        underwriter: "",
+        startDate: "",
+        endDate: ""
       });
       setDocuments([]);
       setSearchTerm("");
@@ -270,7 +282,17 @@ export const ClaimRegistrationModal = ({ open, onOpenChange, onClaimCreated }: C
                 </PopoverContent>
               </Popover>
               {formData.clientName && (
-                <p className="text-sm text-gray-600 mt-1">Client: {formData.clientName}</p>
+                <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm font-medium text-gray-700">Policy Details:</p>
+                  <p className="text-sm text-gray-600">Client: {formData.clientName}</p>
+                  {formData.policyType && <p className="text-sm text-gray-600">Type: {formData.policyType}</p>}
+                  {formData.underwriter && <p className="text-sm text-gray-600">Underwriter: {formData.underwriter}</p>}
+                  {formData.startDate && formData.endDate && (
+                    <p className="text-sm text-gray-600">
+                      Period: {new Date(formData.startDate).toLocaleDateString()} - {new Date(formData.endDate).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 

@@ -24,6 +24,18 @@ export class ClaimWorkflowService {
 
     if (!profile?.organization_id) throw new Error('User organization not found');
 
+    // Find the policy by policy number to get the policy_id
+    const { data: policy, error: policyError } = await supabase
+      .from('policies')
+      .select('id, client_name, policy_type, underwriter, start_date, end_date')
+      .eq('policy_number', claimData.policy_number)
+      .eq('organization_id', profile.organization_id)
+      .single();
+
+    if (policyError || !policy) {
+      throw new Error(`Policy ${claimData.policy_number} not found`);
+    }
+
     // Generate claim number using SQL function (direct query)
     const { data: claimNumberResult, error: numberError } = await supabase
       .from('organizations')
@@ -38,7 +50,7 @@ export class ClaimWorkflowService {
     const timestamp = Date.now().toString().slice(-4);
     const claimNumber = `${orgPrefix}C${timestamp}`;
 
-    // Create claim with generated number
+    // Create claim with generated number and actual policy_id
     const claim = await ClaimService.create({
       ...claimData,
       claim_number: claimNumber,
@@ -46,7 +58,7 @@ export class ClaimWorkflowService {
       created_by: user.id,
       status: 'registered',
       reported_date: new Date().toISOString().split('T')[0],
-      policy_id: 'temp-policy-id' // Will be updated when policy integration is complete
+      policy_id: policy.id
     });
 
     // Log claim creation
