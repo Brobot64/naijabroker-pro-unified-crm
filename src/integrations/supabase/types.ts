@@ -2138,8 +2138,16 @@ export type Database = {
         Args: { quote_id_param: string }
         Returns: Json
       }
+      can_update_claim_status: {
+        Args: { _user_id: string; _claim_id: string; _new_status: string }
+        Returns: boolean
+      }
       generate_client_code: {
         Args: { org_id: string } | { org_id: string; client_type?: string }
+        Returns: string
+      }
+      get_user_claims_access_level: {
+        Args: { _user_id: string; _organization_id: string }
         Returns: string
       }
       get_user_organization: {
@@ -2173,6 +2181,10 @@ export type Database = {
           new_payment_status?: string
         }
         Returns: Json
+      }
+      validate_claim_workflow_transition: {
+        Args: { _claim_id: string; _from_status: string; _to_status: string }
+        Returns: boolean
       }
     }
     Enums: {
