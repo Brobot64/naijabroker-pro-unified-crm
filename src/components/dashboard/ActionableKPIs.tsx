@@ -248,7 +248,7 @@ export const ActionableKPIs = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold text-orange-600">{metrics.quotes.quotesAwaitingClientSelection} quotes idle</div>
+                  <div className="text-2xl font-bold text-orange-600">{metrics.quotes.quotesAwaitingClientSelection}</div>
                   <p className="text-sm text-muted-foreground">Quotes Pending Client Selection</p>
                   <p className="text-xs text-orange-600 font-medium mt-1">Client decision pending; idle quotes risk drop-off</p>
                   <p className="text-xs text-orange-500 font-normal mt-1">➤ Trigger auto-reminders to client, and copy broker agent for follow-up coordination</p>
@@ -262,7 +262,7 @@ export const ActionableKPIs = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold text-red-600">{metrics.quotes.quoteDropoffsPostRFQ} quotes without insurer match</div>
+                  <div className="text-2xl font-bold text-red-600">{metrics.quotes.quoteDropoffsPostRFQ}</div>
                   <p className="text-sm text-muted-foreground">Quote Drop-offs Post-RFQ</p>
                   <p className="text-xs text-red-600 font-medium mt-1">No insurer match; possible clause or pricing gap</p>
                 </div>
