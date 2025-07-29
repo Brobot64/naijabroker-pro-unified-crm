@@ -20,8 +20,8 @@ import {
 
 interface ActionableKPIs {
   quotes: {
-    pendingQuotes: number;
-    overdueQuotes: number;
+    quotesAwaitingClientSelection: number;
+    quoteDropoffsPostRFQ: number;
     conversionRate: number;
     avgResponseTime: number;
   };
@@ -48,8 +48,8 @@ interface ActionableKPIs {
 export const ActionableKPIs = () => {
   const [metrics, setMetrics] = useState<ActionableKPIs>({
     quotes: {
-      pendingQuotes: 0,
-      overdueQuotes: 0,
+      quotesAwaitingClientSelection: 0,
+      quoteDropoffsPostRFQ: 0,
       conversionRate: 0,
       avgResponseTime: 0
     },
@@ -88,14 +88,21 @@ export const ActionableKPIs = () => {
       const currentYear = now.getFullYear();
       const in60Days = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
 
-      // Quote KPIs - Updated to match actual workflow stages
-      const pendingQuotes = quotes.filter(q => 
-        q.status === 'draft' || (q.workflow_stage && !['completed', 'converted'].includes(q.workflow_stage))
+      // Quote KPIs - Updated for new metrics
+      // 1. Quotes Pending Client Selection - quotes where insurer responses exist but client hasn't selected
+      const quotesAwaitingClientSelection = quotes.filter(q => 
+        q.workflow_stage === 'client-selection' || 
+        (q.workflow_stage === 'quote-evaluation' && q.status === 'sent')
       ).length;
       
-      const overdueQuotes = quotes.filter(q => {
-        const validUntil = new Date(q.valid_until);
-        return validUntil < now && ['sent', 'pending'].includes(q.status);
+      // 2. Quote Drop-offs Post-RFQ - quotes where RFQs sent but no insurer match/response within 3-5 days
+      const quotesWithRFQ = quotes.filter(q => 
+        q.workflow_stage === 'rfq-generation' || q.rfq_document_url
+      );
+      const quoteDropoffsPostRFQ = quotesWithRFQ.filter(q => {
+        const createdDate = new Date(q.created_at);
+        const daysSinceRFQ = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+        return daysSinceRFQ > 3 && q.workflow_stage === 'rfq-generation';
       }).length;
       
       const convertedQuotes = quotes.filter(q => 
@@ -153,8 +160,8 @@ export const ActionableKPIs = () => {
 
       setMetrics({
         quotes: {
-          pendingQuotes,
-          overdueQuotes,
+          quotesAwaitingClientSelection,
+          quoteDropoffsPostRFQ,
           conversionRate,
           avgResponseTime
         },
@@ -241,9 +248,10 @@ export const ActionableKPIs = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold text-orange-600">{metrics.quotes.pendingQuotes}</div>
-                  <p className="text-sm text-muted-foreground">Pending Quotes</p>
-                  <p className="text-xs text-orange-600 font-medium mt-1">Action: Follow up</p>
+                  <div className="text-2xl font-bold text-orange-600">{metrics.quotes.quotesAwaitingClientSelection} quotes idle</div>
+                  <p className="text-sm text-muted-foreground">Quotes Pending Client Selection</p>
+                  <p className="text-xs text-orange-600 font-medium mt-1">Client decision pending; idle quotes risk drop-off</p>
+                  <p className="text-xs text-orange-500 font-normal mt-1">➤ Trigger auto-reminders to client, and copy broker agent for follow-up coordination</p>
                 </div>
                 <Clock className="h-8 w-8 text-orange-500" />
               </div>
@@ -254,9 +262,9 @@ export const ActionableKPIs = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold text-red-600">{metrics.quotes.overdueQuotes}</div>
-                  <p className="text-sm text-muted-foreground">Overdue Quotes</p>
-                  <p className="text-xs text-red-600 font-medium mt-1">Action: Urgent review</p>
+                  <div className="text-2xl font-bold text-red-600">{metrics.quotes.quoteDropoffsPostRFQ} quotes without insurer match</div>
+                  <p className="text-sm text-muted-foreground">Quote Drop-offs Post-RFQ</p>
+                  <p className="text-xs text-red-600 font-medium mt-1">No insurer match; possible clause or pricing gap</p>
                 </div>
                 <AlertTriangle className="h-8 w-8 text-red-500" />
               </div>
