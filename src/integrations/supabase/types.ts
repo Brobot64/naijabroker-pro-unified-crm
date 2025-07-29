@@ -2130,6 +2130,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_assign_claim: {
+        Args: { _claim_id: string; _organization_id: string }
+        Returns: string
+      }
       auto_progress_quote_workflow: {
         Args: { quote_id_param: string }
         Returns: Json
@@ -2141,6 +2145,10 @@ export type Database = {
       can_update_claim_status: {
         Args: { _user_id: string; _claim_id: string; _new_status: string }
         Returns: boolean
+      }
+      generate_claim_number: {
+        Args: { _organization_id: string }
+        Returns: string
       }
       generate_client_code: {
         Args: { org_id: string } | { org_id: string; client_type?: string }
