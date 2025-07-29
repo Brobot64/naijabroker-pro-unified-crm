@@ -23,8 +23,7 @@ export const logClaimAction = async (entry: ClaimAuditLogEntry) => {
       .from('claim_audit_trail')
       .insert({
         ...entry,
-        ...clientInfo,
-        created_at: new Date().toISOString()
+        ...clientInfo
       });
 
     if (error) {

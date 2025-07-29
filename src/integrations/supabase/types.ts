@@ -172,6 +172,48 @@ export type Database = {
           },
         ]
       }
+      claim_audit_trail: {
+        Row: {
+          action: string
+          claim_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          ip_address: string | null
+          organization_id: string
+          stage: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          claim_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          organization_id: string
+          stage: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          claim_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          organization_id?: string
+          stage?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       claims: {
         Row: {
           assigned_adjuster: string | null

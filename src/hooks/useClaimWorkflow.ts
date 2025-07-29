@@ -3,6 +3,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ClaimWorkflowService } from '@/services/database/claimWorkflowService';
 import { ClaimService } from '@/services/database/claimService';
 import { Claim } from '@/services/database/types';
+import { logClaimStatusTransition, logClaimDeletion, logClaimAssignment } from '@/utils/claimAuditLogger';
 
 interface ClaimTransition {
   from: string;
@@ -93,7 +94,23 @@ export const useClaimWorkflow = () => {
     try {
       console.log('🔄 useClaimWorkflow: Transitioning claim:', claimId, 'to status:', newStatus);
 
+      // Get current claim to log transition
+      const currentClaim = await ClaimService.getById(claimId);
+      const oldStatus = currentClaim?.status || 'unknown';
+
       const updatedClaim = await ClaimWorkflowService.updateStatus(claimId, newStatus, notes);
+
+      // Log the status transition with audit trail
+      if (updatedClaim) {
+        await logClaimStatusTransition(
+          claimId,
+          updatedClaim.organization_id,
+          oldStatus,
+          newStatus,
+          undefined, // TODO: Get current user ID
+          notes
+        );
+      }
 
       console.log('✅ Claim transition completed successfully');
       
@@ -123,6 +140,16 @@ export const useClaimWorkflow = () => {
     try {
       const updatedClaim = await ClaimWorkflowService.assignAdjuster(claimId, adjusterId);
       
+      // Log the assignment
+      if (updatedClaim) {
+        await logClaimAssignment(
+          claimId,
+          updatedClaim.organization_id,
+          adjusterId,
+          undefined // TODO: Get current user ID
+        );
+      }
+      
       toast({
         title: "Adjuster Assigned",
         description: "Claim has been assigned to an adjuster",
@@ -147,8 +174,22 @@ export const useClaimWorkflow = () => {
   const deleteClaim = async (claimId: string): Promise<boolean> => {
     setLoading(true);
     try {
+      // Get claim details before deletion for audit log
+      const claim = await ClaimService.getById(claimId);
+      
       // Delete the claim - note: this should check permissions
       await ClaimService.delete(claimId);
+
+      // Log the deletion
+      if (claim) {
+        await logClaimDeletion(
+          claimId,
+          claim.organization_id,
+          claim.claim_number,
+          undefined, // TODO: Get current user ID
+          'User initiated deletion'
+        );
+      }
 
       toast({
         title: "Claim Deleted",
