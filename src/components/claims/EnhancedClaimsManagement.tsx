@@ -68,6 +68,10 @@ export const EnhancedClaimsManagement = () => {
       <ClaimRegistrationModal 
         open={showRegistrationModal}
         onOpenChange={setShowRegistrationModal}
+        onClaimCreated={() => {
+          // This will trigger a refresh in the ClaimsManagement component
+          window.dispatchEvent(new CustomEvent('claimCreated'));
+        }}
       />
     </div>
   );

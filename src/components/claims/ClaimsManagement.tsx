@@ -4,18 +4,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { ClaimService } from "@/services/database/claimService";
 import { SettlementVoucherModal } from "./SettlementVoucherModal";
 import { DischargeVoucherModal } from "./DischargeVoucherModal";
+import { ClaimsWorkflowTracker } from "./ClaimsWorkflowTracker";
 import { Claim } from "@/services/database/types";
-import { Plus, Search, FileText, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, Search, FileText, CheckCircle, AlertCircle, Activity } from "lucide-react";
 
 export const ClaimsManagement = () => {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [showDischargeModal, setShowDischargeModal] = useState(false);
+  const [selectedClaimForWorkflow, setSelectedClaimForWorkflow] = useState<Claim | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -39,6 +42,14 @@ export const ClaimsManagement = () => {
 
   useEffect(() => {
     loadClaims();
+    
+    // Listen for new claims created
+    const handleClaimCreated = () => {
+      loadClaims();
+    };
+    
+    window.addEventListener('claimCreated', handleClaimCreated);
+    return () => window.removeEventListener('claimCreated', handleClaimCreated);
   }, []);
 
   const filteredClaims = claims.filter(
@@ -186,7 +197,17 @@ export const ClaimsManagement = () => {
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSelectedClaimForWorkflow(claim)}
+                  className="flex items-center gap-1"
+                >
+                  <Activity className="h-4 w-4" />
+                  Workflow
+                </Button>
+                
                 {canCreateSettlement(claim) && (
                   <Button
                     size="sm"
@@ -241,6 +262,23 @@ export const ClaimsManagement = () => {
         claim={selectedClaim}
         onSuccess={handleDischargeSuccess}
       />
+
+      <Dialog open={!!selectedClaimForWorkflow} onOpenChange={(open) => !open && setSelectedClaimForWorkflow(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Claims Workflow Progress</DialogTitle>
+          </DialogHeader>
+          {selectedClaimForWorkflow && (
+            <ClaimsWorkflowTracker
+              currentStatus={selectedClaimForWorkflow.status}
+              claimNumber={selectedClaimForWorkflow.claim_number}
+              clientName={selectedClaimForWorkflow.client_name}
+              estimatedLoss={Number(selectedClaimForWorkflow.estimated_loss)}
+              createdAt={selectedClaimForWorkflow.created_at}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

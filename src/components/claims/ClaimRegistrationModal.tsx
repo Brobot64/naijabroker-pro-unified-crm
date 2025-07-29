@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,13 +8,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, X } from "lucide-react";
+import { Upload, FileText, X, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { adminService } from "@/services/adminService";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { PolicyService } from "@/services/database/policyService";
+import { ClaimWorkflowService } from "@/services/database/claimWorkflowService";
 
 interface ClaimRegistrationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onClaimCreated?: () => void;
 }
 
 interface ClaimDocument {
@@ -25,9 +29,11 @@ interface ClaimDocument {
   uploadDate: string;
 }
 
-export const ClaimRegistrationModal = ({ open, onOpenChange }: ClaimRegistrationModalProps) => {
+export const ClaimRegistrationModal = ({ open, onOpenChange, onClaimCreated }: ClaimRegistrationModalProps) => {
   const [formData, setFormData] = useState({
+    policyId: "",
     policyNumber: "",
+    clientName: "",
     claimType: "",
     lossDate: "",
     reportedDate: new Date().toISOString().split('T')[0],
@@ -37,27 +43,94 @@ export const ClaimRegistrationModal = ({ open, onOpenChange }: ClaimRegistration
   });
   const [documents, setDocuments] = useState<ClaimDocument[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [policies, setPolicies] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    if (open) {
+      loadPolicies();
+    }
+  }, [open]);
+
+  const loadPolicies = async () => {
+    try {
+      const policiesData = await PolicyService.getAll();
+      setPolicies(policiesData.filter(p => p.status === 'active'));
+    } catch (error) {
+      console.error('Error loading policies:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load policies",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const filteredPolicies = policies.filter(policy => 
+    policy.policy_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    policy.client_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const selectPolicy = (policy: any) => {
+    setFormData({
+      ...formData,
+      policyId: policy.id,
+      policyNumber: policy.policy_number,
+      clientName: policy.client_name
+    });
+    setSearchTerm(policy.policy_number);
+    setIsDropdownOpen(false);
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
 
-    Array.from(files).forEach(file => {
-      const newDoc: ClaimDocument = {
-        id: `doc-${Date.now()}-${Math.random()}`,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        uploadDate: new Date().toISOString()
-      };
-      setDocuments(prev => [...prev, newDoc]);
-    });
+    setIsUploading(true);
+    try {
+      const uploadedDocs: ClaimDocument[] = [];
+      
+      for (const file of Array.from(files)) {
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          toast({
+            title: "File Too Large",
+            description: `${file.name} exceeds 10MB limit`,
+            variant: "destructive"
+          });
+          continue;
+        }
 
-    toast({
-      title: "Documents Uploaded",
-      description: `${files.length} document(s) uploaded successfully`,
-    });
+        const newDoc: ClaimDocument = {
+          id: `doc-${Date.now()}-${Math.random()}`,
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          uploadDate: new Date().toISOString()
+        };
+        uploadedDocs.push(newDoc);
+      }
+
+      setDocuments(prev => [...prev, ...uploadedDocs]);
+      
+      if (uploadedDocs.length > 0) {
+        toast({
+          title: "Documents Uploaded",
+          description: `${uploadedDocs.length} document(s) uploaded successfully`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Upload Failed",
+        description: "Some files failed to upload",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const removeDocument = (docId: string) => {
@@ -65,10 +138,20 @@ export const ClaimRegistrationModal = ({ open, onOpenChange }: ClaimRegistration
   };
 
   const handleSubmit = async () => {
-    if (!formData.policyNumber || !formData.claimType || !formData.estimatedLoss) {
+    // Validation
+    if (!formData.policyId || !formData.claimType || !formData.estimatedLoss || !formData.lossDate) {
+      toast({
+        title: "Validation Error", 
+        description: "Please fill in all required fields: Policy, Claim Type, Loss Date, and Estimated Loss",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (parseFloat(formData.estimatedLoss) <= 0) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields",
+        description: "Estimated loss must be greater than 0",
         variant: "destructive"
       });
       return;
@@ -77,39 +160,28 @@ export const ClaimRegistrationModal = ({ open, onOpenChange }: ClaimRegistration
     setIsSubmitting(true);
 
     try {
-      console.log('Registering new claim with full audit trail:', {
-        claimData: formData,
-        documentsCount: documents.length,
-        estimatedLoss: parseFloat(formData.estimatedLoss),
-        timestamp: new Date().toISOString()
-      });
+      // Create claim using ClaimWorkflowService
+      const claimData = {
+        client_name: formData.clientName,
+        policy_number: formData.policyNumber,
+        claim_type: formData.claimType,
+        incident_date: formData.lossDate,
+        description: formData.description || undefined,
+        estimated_loss: parseFloat(formData.estimatedLoss)
+      };
 
-      // Log claim registration for compliance audit
-      adminService.logAction(
-        'CLAIM_REGISTERED',
-        'Claims Management',
-        `New claim registered for policy ${formData.policyNumber}. Estimated loss: ₦${parseFloat(formData.estimatedLoss).toLocaleString()}`,
-        'high'
-      );
-
-      // Log document uploads for audit trail
-      if (documents.length > 0) {
-        adminService.logAction(
-          'CLAIM_DOCUMENTS_UPLOADED',
-          'Claims Management',
-          `${documents.length} supporting documents uploaded for claim registration`,
-          'medium'
-        );
-      }
+      const newClaim = await ClaimWorkflowService.createWithWorkflow(claimData);
 
       toast({
         title: "Claim Registered Successfully",
-        description: `Claim has been registered and assigned for investigation. Reference: CLM-${Date.now()}`,
+        description: `Claim ${newClaim.claim_number} has been registered and assigned for investigation.`,
       });
 
       // Reset form
       setFormData({
+        policyId: "",
         policyNumber: "",
+        clientName: "",
         claimType: "",
         lossDate: "",
         reportedDate: new Date().toISOString().split('T')[0],
@@ -118,9 +190,16 @@ export const ClaimRegistrationModal = ({ open, onOpenChange }: ClaimRegistration
         location: ""
       });
       setDocuments([]);
+      setSearchTerm("");
       onOpenChange(false);
+      
+      // Notify parent to refresh claims list
+      if (onClaimCreated) {
+        onClaimCreated();
+      }
 
     } catch (error) {
+      console.error('Error creating claim:', error);
       toast({
         title: "Registration Failed",
         description: "Failed to register claim. Please try again.",
@@ -150,12 +229,49 @@ export const ClaimRegistrationModal = ({ open, onOpenChange }: ClaimRegistration
           <div className="space-y-4">
             <div>
               <Label htmlFor="policyNumber">Policy Number *</Label>
-              <Input
-                id="policyNumber"
-                value={formData.policyNumber}
-                onChange={(e) => setFormData({...formData, policyNumber: e.target.value})}
-                placeholder="POL-2024-XXXXXX"
-              />
+              <Popover open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={isDropdownOpen}
+                    className="w-full justify-between"
+                  >
+                    {formData.policyNumber || "Select policy..."}
+                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Search policies..." 
+                      value={searchTerm}
+                      onValueChange={setSearchTerm}
+                    />
+                    <CommandList>
+                      <CommandEmpty>No policies found.</CommandEmpty>
+                      <CommandGroup>
+                        {filteredPolicies.map((policy) => (
+                          <CommandItem
+                            key={policy.id}
+                            value={policy.policy_number}
+                            onSelect={() => selectPolicy(policy)}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium">{policy.policy_number}</span>
+                              <span className="text-sm text-gray-500">{policy.client_name}</span>
+                              <span className="text-xs text-gray-400">{policy.policy_type}</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {formData.clientName && (
+                <p className="text-sm text-gray-600 mt-1">Client: {formData.clientName}</p>
+              )}
             </div>
 
             <div>
@@ -177,12 +293,13 @@ export const ClaimRegistrationModal = ({ open, onOpenChange }: ClaimRegistration
             </div>
 
             <div>
-              <Label htmlFor="lossDate">Date of Loss</Label>
+              <Label htmlFor="lossDate">Date of Loss *</Label>
               <Input
                 id="lossDate"
                 type="date"
                 value={formData.lossDate}
                 onChange={(e) => setFormData({...formData, lossDate: e.target.value})}
+                max={new Date().toISOString().split('T')[0]}
               />
             </div>
 
@@ -253,10 +370,11 @@ export const ClaimRegistrationModal = ({ open, onOpenChange }: ClaimRegistration
                     className="hidden"
                     id="file-upload"
                     accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    disabled={isUploading}
                   />
                   <Label htmlFor="file-upload" className="cursor-pointer">
-                    <Button type="button" variant="outline">
-                      Choose Files
+                    <Button type="button" variant="outline" disabled={isUploading}>
+                      {isUploading ? "Uploading..." : "Choose Files"}
                     </Button>
                   </Label>
                 </div>
@@ -304,7 +422,10 @@ export const ClaimRegistrationModal = ({ open, onOpenChange }: ClaimRegistration
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={isSubmitting || isUploading || !formData.policyId}
+          >
             {isSubmitting ? "Registering..." : "Register Claim"}
           </Button>
         </div>
