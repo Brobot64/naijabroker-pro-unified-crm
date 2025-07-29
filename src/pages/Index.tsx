@@ -12,7 +12,7 @@ const AdminControls = React.lazy(() => import("../components/developer/AdminCont
 const UserManagement = React.lazy(() => import("../components/admin/UserManagement").then(module => ({ default: module.UserManagement })));
 const QuoteManagement = React.lazy(() => import("../components/quotes/QuoteManagement").then(module => ({ default: module.QuoteManagement })));
 const PolicyManagement = React.lazy(() => import("../components/policies/PolicyManagement").then(module => ({ default: module.PolicyManagement })));
-const ClaimsManagement = React.lazy(() => import("../components/claims/ClaimsManagement").then(module => ({ default: module.ClaimsManagement })));
+const EnhancedClaimsManagement = React.lazy(() => import("../components/claims/EnhancedClaimsManagement").then(module => ({ default: module.EnhancedClaimsManagement })));
 const FinancialManagement = React.lazy(() => import("../components/financial/FinancialManagement").then(module => ({ default: module.FinancialManagement })));
 const SocialMediaDashboard = React.lazy(() => import("../components/social/SocialMediaDashboard").then(module => ({ default: module.SocialMediaDashboard })));
 const DeveloperDashboard = React.lazy(() => import("../components/developer/DeveloperDashboard").then(module => ({ default: module.DeveloperDashboard })));
@@ -43,7 +43,7 @@ const Index = () => {
       case "claims":
         return (
           <Suspense fallback={<LoadingSpinner size="lg" text="Loading..." className="py-12" />}>
-            <ClaimsManagement />
+            <EnhancedClaimsManagement />
           </Suspense>
         );
       case "financial":

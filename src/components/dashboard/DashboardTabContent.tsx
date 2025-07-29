@@ -14,7 +14,7 @@ import { ComplianceAlerts } from "./ComplianceAlerts";
 // Lazy load components for better performance
 const PolicyManagement = React.lazy(() => import("@/components/policies/PolicyManagement").then(module => ({ default: module.PolicyManagement })));
 const QuoteManagement = React.lazy(() => import("@/components/quotes/QuoteManagement").then(module => ({ default: module.QuoteManagement })));
-const ClaimsManagement = React.lazy(() => import("@/components/claims/ClaimsManagement").then(module => ({ default: module.ClaimsManagement })));
+const EnhancedClaimsManagement = React.lazy(() => import("@/components/claims/EnhancedClaimsManagement").then(module => ({ default: module.EnhancedClaimsManagement })));
 const FinancialManagement = React.lazy(() => import("@/components/financial/FinancialManagement").then(module => ({ default: module.FinancialManagement })));
 const WorkflowManager = React.lazy(() => import("@/components/workflow/WorkflowManager").then(module => ({ default: module.WorkflowManager })));
 const SocialMediaDashboard = React.lazy(() => import("@/components/social/SocialMediaDashboard").then(module => ({ default: module.SocialMediaDashboard })));
@@ -90,7 +90,7 @@ export const DashboardTabContent = ({ userRole }: DashboardTabContentProps) => {
 
       <TabsContent value="claims">
         <ComponentWrapper>
-          <ClaimsManagement />
+          <EnhancedClaimsManagement />
         </ComponentWrapper>
       </TabsContent>
 
