@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -149,13 +150,27 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
         setPortalLink(data.portalUrl);
         setPortalLinkGenerated(true);
         
+        // Get client email from policy (need to fetch policy data)
+        const { data: policyData } = await supabase
+          .from('policies')
+          .select('client_email')
+          .eq('id', claim.policy_id)
+          .single();
+        
+        const clientEmail = policyData?.client_email || 'no-email@example.com';
+        
         // Send email notification
         await ClaimPortalLinkService.sendEmailNotification(
           'claim_portal_link',
-          'client@example.com', // In real app, use claim.client_email
+          clientEmail,
           `Claim Portal Access - ${claim.claim_number}`,
           `Dear ${claim.client_name},\n\nPlease use the following link to access your claim portal and complete your claim registration:\n\n${data.portalUrl}\n\nThis link will expire in 72 hours.\n\nBest regards,\nYour Insurance Team`,
-          { claim_id: claim.id, portal_link_id: data.portalLinkId }
+          { 
+            claim_id: claim.id, 
+            portal_link_id: data.portalLinkId,
+            portalUrl: data.portalUrl,
+            clientEmail: clientEmail
+          }
         );
         
         toast({
@@ -340,7 +355,7 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
                       </div>
                       
                       <div className="text-xs text-muted-foreground space-y-1">
-                        <p>✓ Link sent to client@example.com</p>
+                        <p>✓ Link sent to {claim.policy_number} client email</p>
                         <p>✓ Copy sent to broker</p>
                         <p>✓ Expires in 72 hours</p>
                       </div>
