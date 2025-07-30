@@ -121,9 +121,12 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
   const handleGeneratePortalLink = async () => {
     setIsGeneratingLink(true);
     try {
+      // Generate a temporary UUID for client_id (in real app, get from policy/client relationship)
+      const tempClientId = crypto.randomUUID();
+      
       const { data, error } = await ClaimPortalLinkService.generateClaimPortalLink(
         claim.id,
-        'mock-client-id', // In real app, would get from claim.policy.client_id
+        tempClientId,
         {
           claim_number: claim.claim_number,
           client_name: claim.client_name,
