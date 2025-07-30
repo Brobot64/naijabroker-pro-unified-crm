@@ -54,6 +54,8 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
   const [existingDocuments, setExistingDocuments] = useState<string[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [portalLinkStatus, setPortalLinkStatus] = useState<'none' | 'generated' | 'used'>('none');
+  const [existingPortalLink, setExistingPortalLink] = useState<string>('');
 
   const steps = [
     { id: 'notification', name: 'Claim Notification', icon: AlertCircle, description: 'Initial claim notification and client contact' },
@@ -84,7 +86,45 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
     
     // Load existing documents from claim notes
     loadExistingDocuments();
+    // Check existing portal links
+    checkExistingPortalLink();
   }, [claim.status, claim.id]);
+
+  const checkExistingPortalLink = async () => {
+    try {
+      const { data: existingLink, error } = await supabase
+        .from('claim_portal_links')
+        .select('token, is_used, expires_at')
+        .eq('claim_id', claim.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('Error checking portal link:', error);
+        return;
+      }
+
+      if (existingLink && existingLink.length > 0) {
+        const link = existingLink[0];
+        const portalUrl = ClaimPortalLinkService.generateClaimPortalUrl(link.token);
+        setExistingPortalLink(portalUrl);
+        
+        if (link.is_used) {
+          setPortalLinkStatus('used');
+          setPortalLinkGenerated(true);
+          setPortalLink(portalUrl);
+        } else if (new Date(link.expires_at) > new Date()) {
+          setPortalLinkStatus('generated');
+          setPortalLinkGenerated(true);
+          setPortalLink(portalUrl);
+        } else {
+          setPortalLinkStatus('none');
+        }
+      }
+    } catch (error) {
+      console.error('Error checking portal link:', error);
+    }
+  };
 
   const loadExistingDocuments = () => {
     if (claim.notes) {
@@ -398,45 +438,52 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-blue-800">
+                      For the manual process, no fields are editable. You can only continue to next stage or cancel.
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="policy_number">Policy Number</Label>
-                    <Select defaultValue={claim.policy_number}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select policy" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={claim.policy_number}>{claim.policy_number} - Active Policy</SelectItem>
-                        <SelectItem value="POL002">POL002 - Motor Insurance</SelectItem>
-                        <SelectItem value="POL003">POL003 - Property Insurance</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Input value={claim.policy_number} disabled className="bg-muted" />
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="client_name">Client Name</Label>
-                    <Input defaultValue={claim.client_name} />
+                    <Input value={claim.client_name} disabled className="bg-muted" />
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="incident_date">Date of Loss</Label>
-                    <Input type="date" defaultValue={claim.incident_date} />
+                    <Input type="date" value={claim.incident_date} disabled className="bg-muted" />
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="description">Description</Label>
                     <Textarea 
-                      placeholder="Describe the incident..." 
-                      defaultValue={claim.description}
+                      value={claim.description || ''}
+                      disabled
+                      className="bg-muted"
                       rows={3}
                     />
                   </div>
                   
-                  <Button 
-                    className="w-full" 
-                    onClick={() => handleStepComplete('registration')}
-                  >
-                    Register Claim
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline"
+                      className="flex-1" 
+                      onClick={onBack}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      className="flex-1" 
+                      onClick={() => handleStepComplete('registration')}
+                    >
+                      Continue to Next Stage
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -472,7 +519,7 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
                     </div>
                   </div>
                   
-                  {!portalLinkGenerated ? (
+                  {portalLinkStatus === 'none' ? (
                     <Button 
                       onClick={handleGeneratePortalLink}
                       disabled={isGeneratingLink}
@@ -480,6 +527,36 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
                     >
                       {isGeneratingLink ? 'Generating...' : 'Generate Portal Link'}
                     </Button>
+                  ) : portalLinkStatus === 'used' ? (
+                    <div className="space-y-3">
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm font-medium text-green-800 mb-1">✓ Client Submission Completed</p>
+                        <p className="text-xs text-green-700">Client has already submitted their claim details using the portal link.</p>
+                      </div>
+                      
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <p>✓ Portal link was used by client</p>
+                        <p>✓ Documents may have been uploaded</p>
+                        <p>✓ Status updated to 'investigating'</p>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline"
+                          className="flex-1" 
+                          onClick={handleGeneratePortalLink}
+                          disabled={isGeneratingLink}
+                        >
+                          {isGeneratingLink ? 'Generating...' : 'Regenerate New Link'}
+                        </Button>
+                        <Button 
+                          className="flex-1" 
+                          onClick={() => handleStepComplete('registration')}
+                        >
+                          Continue to Next Stage
+                        </Button>
+                      </div>
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       <div className="p-3 bg-muted rounded-lg">
@@ -504,12 +581,22 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
                         <p>✓ Expires in 72 hours</p>
                       </div>
                       
-                      <Button 
-                        className="w-full mt-3" 
-                        onClick={() => handleStepComplete('registration')}
-                      >
-                        Continue to Document Upload
-                      </Button>
+                      <div className="flex gap-2 mt-3">
+                        <Button 
+                          variant="outline"
+                          className="flex-1" 
+                          onClick={handleGeneratePortalLink}
+                          disabled={isGeneratingLink}
+                        >
+                          {isGeneratingLink ? 'Generating...' : 'Regenerate Link'}
+                        </Button>
+                        <Button 
+                          className="flex-1" 
+                          onClick={() => handleStepComplete('registration')}
+                        >
+                          Continue to Document Upload
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </CardContent>
