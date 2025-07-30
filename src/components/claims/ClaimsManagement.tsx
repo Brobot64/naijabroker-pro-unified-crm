@@ -12,9 +12,11 @@ import { ClaimService } from "@/services/database/claimService";
 import { SettlementVoucherModal } from "./SettlementVoucherModal";
 import { DischargeVoucherModal } from "./DischargeVoucherModal";
 import { ClaimsWorkflowTracker } from "./ClaimsWorkflowTracker";
-import { ClaimEditModal } from "./ClaimEditModal";
+import { ClaimWorkflowPage } from "./ClaimWorkflowPage";
 import { Claim } from "@/services/database/types";
 import { Plus, Search, FileText, CheckCircle, AlertCircle, Activity, Eye, Edit, Trash2, Filter, RefreshCw } from "lucide-react";
+
+type ViewMode = 'dashboard' | 'workflow';
 
 export const ClaimsManagement = () => {
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -27,6 +29,8 @@ export const ClaimsManagement = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [stageFilter, setStageFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
+  const [editingClaim, setEditingClaim] = useState<Claim | null>(null);
   const { toast } = useToast();
 
   const statusOptions = ["registered", "investigating", "assessed", "approved", "settled", "rejected", "closed"];
@@ -109,6 +113,36 @@ export const ClaimsManagement = () => {
       description: "Discharge voucher created successfully",
     });
   };
+
+  const handleEditClaim = (claim: Claim) => {
+    setEditingClaim(claim);
+    setViewMode('workflow');
+  };
+
+  const handleBackToDashboard = () => {
+    setViewMode('dashboard');
+    setEditingClaim(null);
+    loadClaims(); // Refresh data when returning to dashboard
+  };
+
+  const handleWorkflowSuccess = () => {
+    loadClaims();
+    toast({
+      title: "Success",
+      description: "Claim updated successfully",
+    });
+  };
+
+  // Render workflow page when in workflow mode
+  if (viewMode === 'workflow' && editingClaim) {
+    return (
+      <ClaimWorkflowPage
+        claim={editingClaim}
+        onBack={handleBackToDashboard}
+        onSuccess={handleWorkflowSuccess}
+      />
+    );
+  }
 
   if (loading) {
     return (
@@ -270,7 +304,7 @@ export const ClaimsManagement = () => {
                         variant="ghost" 
                         size="sm" 
                         className="h-8 w-8 p-0"
-                        onClick={() => setSelectedClaimForEdit(claim)}
+                        onClick={() => handleEditClaim(claim)}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -300,11 +334,17 @@ export const ClaimsManagement = () => {
                           <CheckCircle className="h-4 w-4" />
                         </Button>
                       )}
-                      <Button
+                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
-                        onClick={() => setSelectedClaimForEdit(claim)}
+                        onClick={() => {
+                          // TODO: Implement delete functionality
+                          toast({
+                            title: "Delete Claim",
+                            description: "Delete functionality coming soon",
+                          });
+                        }}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -348,12 +388,6 @@ export const ClaimsManagement = () => {
         </DialogContent>
       </Dialog>
 
-      <ClaimEditModal
-        open={!!selectedClaimForEdit}
-        onOpenChange={(open) => !open && setSelectedClaimForEdit(null)}
-        claim={selectedClaimForEdit}
-        onSuccess={loadClaims}
-      />
     </div>
   );
 };
