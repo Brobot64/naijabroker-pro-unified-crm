@@ -14,6 +14,8 @@ import { DischargeVoucherModal } from "./DischargeVoucherModal";
 import { ClaimsWorkflowTracker } from "./ClaimsWorkflowTracker";
 import { ClaimWorkflowPage } from "./ClaimWorkflowPage";
 import { Claim } from "@/services/database/types";
+import { useClaimWorkflow } from "@/hooks/useClaimWorkflow";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Search, FileText, CheckCircle, AlertCircle, Activity, Eye, Edit, Trash2, Filter, RefreshCw } from "lucide-react";
 
 type ViewMode = 'dashboard' | 'workflow';
@@ -31,7 +33,9 @@ export const ClaimsManagement = () => {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
   const [editingClaim, setEditingClaim] = useState<Claim | null>(null);
+  const [claimToDelete, setClaimToDelete] = useState<Claim | null>(null);
   const { toast } = useToast();
+  const { deleteClaim } = useClaimWorkflow();
 
   const statusOptions = ["registered", "investigating", "assessed", "approved", "settled", "rejected", "closed"];
   const stageOptions = ["registered", "investigation", "documents", "approval", "settled"];
@@ -131,6 +135,33 @@ export const ClaimsManagement = () => {
       title: "Success",
       description: "Claim updated successfully",
     });
+  };
+
+  const handleDeleteClaim = (claim: Claim) => {
+    setClaimToDelete(claim);
+  };
+
+  const confirmDeleteClaim = async () => {
+    if (!claimToDelete) return;
+    
+    try {
+      const success = await deleteClaim(claimToDelete.id);
+      if (success) {
+        loadClaims(); // Refresh the list
+        toast({
+          title: "Success",
+          description: `Claim ${claimToDelete.claim_number} deleted successfully`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete claim",
+        variant: "destructive"
+      });
+    } finally {
+      setClaimToDelete(null);
+    }
   };
 
   // Render workflow page when in workflow mode
@@ -338,13 +369,7 @@ export const ClaimsManagement = () => {
                         variant="ghost"
                         size="sm"
                         className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
-                        onClick={() => {
-                          // TODO: Implement delete functionality
-                          toast({
-                            title: "Delete Claim",
-                            description: "Delete functionality coming soon",
-                          });
-                        }}
+                        onClick={() => handleDeleteClaim(claim)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -387,6 +412,25 @@ export const ClaimsManagement = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!claimToDelete} onOpenChange={(open) => !open && setClaimToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Claim</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete claim {claimToDelete?.claim_number}? 
+              This action cannot be undone and will remove all associated data including audit logs.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteClaim} className="bg-red-600 hover:bg-red-700">
+              Delete Claim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );

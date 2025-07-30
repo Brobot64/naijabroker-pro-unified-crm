@@ -14,6 +14,7 @@ interface ClaimPortalData {
   id: string;
   claim_id: string;
   client_id: string;
+  organization_id: string;
   claim_data: any;
   expires_at: string;
   is_used: boolean;
@@ -124,12 +125,14 @@ export default function ClaimPortal() {
         fileUrls = await Promise.all(uploadPromises);
       }
 
-      // Update the claim with additional information
+      // Update the claim with additional information and status
       const { error: updateError } = await supabase
         .from('claims')
         .update({
           description: formData.description || portalData.claim_data.description,
           notes: `Client Portal Submission:\n\nAdditional Details: ${formData.additionalInfo}\nWitness: ${formData.witnessName} (${formData.witnessPhone})\nPolice Report: ${formData.policeReport}\n\n${fileUrls.length > 0 ? `Uploaded Documents:\n${fileUrls.join('\n')}\n\n` : ''}Submitted via client portal.`,
+          status: 'investigating', // Update status to show client has submitted information
+          documents_complete: fileUrls.length > 0, // Mark documents as complete if files uploaded
           updated_at: new Date().toISOString()
         })
         .eq('id', portalData.claim_id);
@@ -143,6 +146,34 @@ export default function ClaimPortal() {
         .eq('id', portalData.id);
 
       if (markUsedError) throw markUsedError;
+
+      // Log the client portal submission in audit trail
+      // First get the organization_id from the claim
+      const { data: claimData } = await supabase
+        .from('claims')
+        .select('organization_id')
+        .eq('id', portalData.claim_id)
+        .single();
+
+      if (claimData?.organization_id) {
+        const { error: auditError } = await supabase
+          .from('claim_audit_trail')
+          .insert({
+            claim_id: portalData.claim_id,
+            organization_id: claimData.organization_id,
+            action: 'client_portal_submission',
+            stage: 'investigating',
+            details: {
+              submission_type: 'client_portal',
+              documents_count: fileUrls.length,
+              form_data: formData,
+              uploaded_files: fileUrls,
+              submission_timestamp: new Date().toISOString()
+            }
+          });
+
+        if (auditError) console.error('Audit log error:', auditError);
+      }
 
       toast.success('Claim information submitted successfully!');
       

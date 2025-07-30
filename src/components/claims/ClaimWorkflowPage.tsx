@@ -51,6 +51,9 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
   const [portalLink, setPortalLink] = useState<string>('');
   const [portalLinkGenerated, setPortalLinkGenerated] = useState(false);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [existingDocuments, setExistingDocuments] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const steps = [
     { id: 'notification', name: 'Claim Notification', icon: AlertCircle, description: 'Initial claim notification and client contact' },
@@ -78,7 +81,19 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
     // Set current step based on claim status
     const step = statusToStepMap[claim.status] || 'notification';
     setCurrentStep(step);
-  }, [claim.status]);
+    
+    // Load existing documents from claim notes
+    loadExistingDocuments();
+  }, [claim.status, claim.id]);
+
+  const loadExistingDocuments = () => {
+    if (claim.notes) {
+      // Extract document URLs from claim notes
+      const urlRegex = /https:\/\/[^\s]+\.(?:pdf|jpg|jpeg|png|docx|doc)/gi;
+      const matches = claim.notes.match(urlRegex) || [];
+      setExistingDocuments(matches);
+    }
+  };
 
   const getCurrentStepIndex = () => steps.findIndex(step => step.id === currentStep);
 
@@ -232,6 +247,103 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
 
   const openPortalLink = () => {
     window.open(portalLink, '_blank');
+  };
+
+  const handleFileUpload = async (files: FileList) => {
+    if (!files || files.length === 0) return;
+    
+    setUploading(true);
+    const newFiles = Array.from(files);
+    
+    // Validate file sizes (max 10MB per file)
+    const maxSize = 10 * 1024 * 1024;
+    const invalidFiles = newFiles.filter(file => file.size > maxSize);
+    
+    if (invalidFiles.length > 0) {
+      toast({
+        title: "Error",
+        description: `Files too large: ${invalidFiles.map(f => f.name).join(', ')}. Max size: 10MB`,
+        variant: "destructive"
+      });
+      setUploading(false);
+      return;
+    }
+    
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    setUploading(false);
+    toast({
+      title: "Success",
+      description: `${newFiles.length} file(s) added`
+    });
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const submitAdditionalDocuments = async () => {
+    if (uploadedFiles.length === 0) {
+      toast({
+        title: "No Files",
+        description: "Please select files to upload",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const uploadPromises = uploadedFiles.map(async (file, index) => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${claim.id}/additional_${Date.now()}_${index}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('claim-documents')
+          .upload(fileName, file);
+          
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('claim-documents')
+          .getPublicUrl(fileName);
+          
+        return publicUrl;
+      });
+      
+      const fileUrls = await Promise.all(uploadPromises);
+      
+      // Update claim notes with new documents
+      const additionalNotes = `\n\nAdditional Documents Uploaded (${new Date().toLocaleDateString()}):\n${fileUrls.join('\n')}`;
+      
+      const { error: updateError } = await supabase
+        .from('claims')
+        .update({
+          notes: (claim.notes || '') + additionalNotes,
+          documents_complete: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', claim.id);
+
+      if (updateError) throw updateError;
+
+      // Refresh existing documents
+      loadExistingDocuments();
+      setUploadedFiles([]);
+      
+      toast({
+        title: "Success",
+        description: "Documents uploaded successfully"
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload documents",
+        variant: "destructive"
+      });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const renderStepContent = () => {
@@ -404,6 +516,126 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
               </Card>
             </div>
           </div>
+        );
+
+      case 'documents':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5" />
+                Document Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Existing Documents */}
+              {existingDocuments.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-3">Client Submitted Documents</h4>
+                  <div className="space-y-2">
+                    {existingDocuments.map((docUrl, index) => (
+                      <div key={index} className="flex items-center justify-between bg-green-50 border border-green-200 p-3 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-green-600" />
+                          <span className="text-sm text-green-800">
+                            Document {index + 1} (from client portal)
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => window.open(docUrl, '_blank')}
+                          className="text-green-600 hover:text-green-700"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Status Message */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  {existingDocuments.length > 0 
+                    ? `✓ Client has submitted ${existingDocuments.length} document(s) via portal. You can upload additional documents below if needed.`
+                    : "Client has not yet submitted documents via portal. You can upload documents on their behalf or generate a portal link."
+                  }
+                </p>
+              </div>
+
+              {/* Additional Document Upload */}
+              <div>
+                <Label className="text-base font-medium">Upload Additional Documents</Label>
+                <div className="space-y-4 mt-2">
+                  <div 
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors cursor-pointer"
+                    onClick={() => document.getElementById('additional-file-upload')?.click()}
+                  >
+                    <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600 mb-1">
+                      Click to upload additional files
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      PDF, PNG, JPG, DOCX up to 10MB each
+                    </p>
+                    <input
+                      id="additional-file-upload"
+                      type="file"
+                      multiple
+                      className="hidden"
+                      accept=".pdf,.png,.jpg,.jpeg,.docx,.doc"
+                      onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+                      disabled={uploading}
+                    />
+                  </div>
+                  
+                  {uploadedFiles.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Files to Upload:</p>
+                      {uploadedFiles.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-gray-500" />
+                            <span className="text-sm">{file.name}</span>
+                            <span className="text-xs text-gray-500">
+                              ({(file.size / 1024 / 1024).toFixed(1)} MB)
+                            </span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFile(index)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                      
+                      <Button 
+                        onClick={submitAdditionalDocuments}
+                        disabled={uploading}
+                        className="w-full mt-3"
+                      >
+                        {uploading ? 'Uploading...' : 'Upload Documents'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Button 
+                className="w-full" 
+                onClick={() => handleStepComplete('documents')}
+                disabled={existingDocuments.length === 0 && uploadedFiles.length === 0}
+              >
+                Continue to Assignment
+              </Button>
+            </CardContent>
+          </Card>
         );
 
       default:
