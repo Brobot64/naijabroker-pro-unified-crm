@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Claim } from "@/services/database/types";
 import { ClaimsWorkflowProgress } from "./ClaimsWorkflowProgress";
 import { ClaimPortalLinkService } from "@/services/claimPortalLinkService";
+import { UnderwriterAssignment } from "./UnderwriterAssignment";
 import { 
   AlertCircle, 
   FileText, 
@@ -126,12 +127,45 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
     }
   };
 
-  const loadExistingDocuments = () => {
-    if (claim.notes) {
-      // Extract document URLs from claim notes
-      const urlRegex = /https:\/\/[^\s]+\.(?:pdf|jpg|jpeg|png|docx|doc)/gi;
-      const matches = claim.notes.match(urlRegex) || [];
-      setExistingDocuments(matches);
+  const loadExistingDocuments = async () => {
+    try {
+      // Check if documents were uploaded via portal by checking documents_complete status
+      // and parsing documents from the claim notes
+      if (claim.notes) {
+        // Extract document URLs from claim notes - updated regex to catch storage URLs
+        const urlRegex = /https:\/\/[^\s\n]+/gi;
+        const allUrls = claim.notes.match(urlRegex) || [];
+        
+        // Filter for document URLs (storage URLs or file extensions)
+        const documentUrls = allUrls.filter(url => 
+          url.includes('claim-documents') || 
+          /\.(pdf|jpg|jpeg|png|docx|doc)(\?|$)/i.test(url)
+        );
+        
+        console.log('Found document URLs:', documentUrls);
+        setExistingDocuments(documentUrls);
+      }
+      
+      // Also check for documents uploaded through other means
+      const { data: documentRecords, error } = await supabase
+        .from('claim_audit_trail')
+        .select('details')
+        .eq('claim_id', claim.id)
+        .eq('action', 'client_portal_submission')
+        .order('created_at', { ascending: false })
+        .limit(1);
+        
+      if (!error && documentRecords && documentRecords.length > 0) {
+        const submission = documentRecords[0];
+        if (submission.details && typeof submission.details === 'object') {
+          const details = submission.details as { uploaded_files?: string[] };
+          if (details.uploaded_files && Array.isArray(details.uploaded_files)) {
+            setExistingDocuments(prev => [...new Set([...prev, ...details.uploaded_files])]);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading existing documents:', error);
     }
   };
 
@@ -740,6 +774,21 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
               >
                 Continue to Assignment
               </Button>
+            </CardContent>
+          </Card>
+        );
+
+      case 'assignment':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserCheck className="h-5 w-5" />
+                Underwriter Assignment
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <UnderwriterAssignment claim={claim} onAssignmentComplete={() => handleStepComplete('assignment')} />
             </CardContent>
           </Card>
         );
