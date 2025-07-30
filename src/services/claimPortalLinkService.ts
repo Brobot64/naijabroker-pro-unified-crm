@@ -1,17 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
-type ClaimPortalLink = {
-  id: string;
-  organization_id: string;
-  claim_id: string;
-  client_id: string;
-  token: string;
-  expires_at: string;
-  is_used: boolean;
-  created_at: string;
-  claim_data: any;
-};
+type ClaimPortalLink = Database['public']['Tables']['claim_portal_links']['Row'];
 
 /**
  * Service for managing claim portal links

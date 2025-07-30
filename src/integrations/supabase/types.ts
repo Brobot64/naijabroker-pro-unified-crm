@@ -214,6 +214,42 @@ export type Database = {
         }
         Relationships: []
       }
+      claim_portal_links: {
+        Row: {
+          claim_data: Json
+          claim_id: string
+          client_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          is_used: boolean
+          organization_id: string
+          token: string
+        }
+        Insert: {
+          claim_data?: Json
+          claim_id: string
+          client_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          is_used?: boolean
+          organization_id: string
+          token: string
+        }
+        Update: {
+          claim_data?: Json
+          claim_id?: string
+          client_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          is_used?: boolean
+          organization_id?: string
+          token?: string
+        }
+        Relationships: []
+      }
       claims: {
         Row: {
           assigned_adjuster: string | null

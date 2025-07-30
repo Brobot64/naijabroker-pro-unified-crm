@@ -2,9 +2,14 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Claim } from "@/services/database/types";
 import { ClaimsWorkflowProgress } from "./ClaimsWorkflowProgress";
+import { ClaimPortalLinkService } from "@/services/claimPortalLinkService";
 import { 
   AlertCircle, 
   FileText, 
@@ -16,7 +21,10 @@ import {
   MessageSquare, 
   Archive,
   ArrowLeft,
-  RefreshCw
+  RefreshCw,
+  Link,
+  Copy,
+  ExternalLink
 } from "lucide-react";
 
 type ClaimWorkflowStep = 
@@ -39,6 +47,9 @@ interface ClaimWorkflowPageProps {
 export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPageProps) => {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<ClaimWorkflowStep>('notification');
+  const [portalLink, setPortalLink] = useState<string>('');
+  const [portalLinkGenerated, setPortalLinkGenerated] = useState(false);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
 
   const steps = [
     { id: 'notification', name: 'Claim Notification', icon: AlertCircle, description: 'Initial claim notification and client contact' },
@@ -107,6 +118,72 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
     return 'pending';
   };
 
+  const handleGeneratePortalLink = async () => {
+    setIsGeneratingLink(true);
+    try {
+      const { data, error } = await ClaimPortalLinkService.generateClaimPortalLink(
+        claim.id,
+        'mock-client-id', // In real app, would get from claim.policy.client_id
+        {
+          claim_number: claim.claim_number,
+          client_name: claim.client_name,
+          claim_type: claim.claim_type,
+          incident_date: claim.incident_date,
+          description: claim.description
+        }
+      );
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to generate portal link",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (data) {
+        setPortalLink(data.portalUrl);
+        setPortalLinkGenerated(true);
+        
+        // Send email notification
+        await ClaimPortalLinkService.sendEmailNotification(
+          'claim_portal_link',
+          'client@example.com', // In real app, use claim.client_email
+          `Claim Portal Access - ${claim.claim_number}`,
+          `Dear ${claim.client_name},\n\nPlease use the following link to access your claim portal and complete your claim registration:\n\n${data.portalUrl}\n\nThis link will expire in 72 hours.\n\nBest regards,\nYour Insurance Team`,
+          { claim_id: claim.id, portal_link_id: data.portalLinkId }
+        );
+        
+        toast({
+          title: "Success",
+          description: "Portal link generated and sent to client"
+        });
+      }
+    } catch (error) {
+      console.error('Error generating portal link:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate portal link",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
+
+  const copyPortalLink = () => {
+    navigator.clipboard.writeText(portalLink);
+    toast({
+      title: "Copied",
+      description: "Portal link copied to clipboard"
+    });
+  };
+
+  const openPortalLink = () => {
+    window.open(portalLink, '_blank');
+  };
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 'notification':
@@ -148,53 +225,135 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
 
       case 'registration':
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Claim Registration
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Claim Number</label>
-                    <p className="text-sm text-muted-foreground">{claim.claim_number}</p>
+          <div className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Manual Registration Form */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Manual Registration
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="policy_number">Policy Number</Label>
+                    <Select defaultValue={claim.policy_number}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select policy" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={claim.policy_number}>{claim.policy_number} - Active Policy</SelectItem>
+                        <SelectItem value="POL002">POL002 - Motor Insurance</SelectItem>
+                        <SelectItem value="POL003">POL003 - Property Insurance</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium">Policy Number</label>
-                    <p className="text-sm text-muted-foreground">{claim.policy_number}</p>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="client_name">Client Name</Label>
+                    <Input defaultValue={claim.client_name} />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium">Client Name</label>
-                    <p className="text-sm text-muted-foreground">{claim.client_name}</p>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="incident_date">Date of Loss</Label>
+                    <Input type="date" defaultValue={claim.incident_date} />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium">Claim Type</label>
-                    <p className="text-sm text-muted-foreground">{claim.claim_type}</p>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea 
+                      placeholder="Describe the incident..." 
+                      defaultValue={claim.description}
+                      rows={3}
+                    />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium">Date of Loss</label>
-                    <p className="text-sm text-muted-foreground">{new Date(claim.incident_date).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Estimated Loss</label>
-                    <p className="text-sm text-muted-foreground">₦{claim.estimated_loss?.toLocaleString() || '0'}</p>
-                  </div>
-                </div>
+                  
+                  <Button 
+                    className="w-full" 
+                    onClick={() => handleStepComplete('registration')}
+                  >
+                    Register Claim
+                  </Button>
+                </CardContent>
+              </Card>
 
-                <div>
-                  <label className="text-sm font-medium">Description</label>
-                  <p className="text-sm text-muted-foreground">{claim.description}</p>
-                </div>
-
-                <Button onClick={() => handleStepComplete('registration')}>
-                  Proceed to Document Upload
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              {/* Client Portal Access */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Link className="h-5 w-5" />
+                    Client Portal Access
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Generate a secure portal link for the client to complete their claim registration online.
+                  </p>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <label className="font-medium">Claim #:</label>
+                      <p className="text-muted-foreground">{claim.claim_number}</p>
+                    </div>
+                    <div>
+                      <label className="font-medium">Client:</label>
+                      <p className="text-muted-foreground">{claim.client_name}</p>
+                    </div>
+                    <div>
+                      <label className="font-medium">Type:</label>
+                      <p className="text-muted-foreground">{claim.claim_type}</p>
+                    </div>
+                    <div>
+                      <label className="font-medium">Loss Date:</label>
+                      <p className="text-muted-foreground">{new Date(claim.incident_date).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  
+                  {!portalLinkGenerated ? (
+                    <Button 
+                      onClick={handleGeneratePortalLink}
+                      disabled={isGeneratingLink}
+                      className="w-full"
+                    >
+                      {isGeneratingLink ? 'Generating...' : 'Generate Portal Link'}
+                    </Button>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-1">Portal Link Generated</p>
+                        <p className="text-xs font-mono break-all">{portalLink}</p>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={copyPortalLink}>
+                          <Copy className="h-3 w-3 mr-1" />
+                          Copy
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={openPortalLink}>
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          Open
+                        </Button>
+                      </div>
+                      
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <p>✓ Link sent to client@example.com</p>
+                        <p>✓ Copy sent to broker</p>
+                        <p>✓ Expires in 72 hours</p>
+                      </div>
+                      
+                      <Button 
+                        className="w-full mt-3" 
+                        onClick={() => handleStepComplete('registration')}
+                      >
+                        Continue to Document Upload
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         );
 
       default:
