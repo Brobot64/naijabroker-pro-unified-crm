@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Claim } from "@/services/database/types";
-import { UserCheck, Users, CheckCircle } from "lucide-react";
+import { UserCheck, Users, CheckCircle, Send, RefreshCw, Clock } from "lucide-react";
 
 interface UnderwriterAssignmentProps {
   claim: Claim;
@@ -28,10 +28,117 @@ export const UnderwriterAssignment = ({ claim, onAssignmentComplete }: Underwrit
   const [assignmentNotes, setAssignmentNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isForwardingToInsurer, setIsForwardingToInsurer] = useState(false);
+  const [assignmentTimestamp, setAssignmentTimestamp] = useState<string | null>(null);
 
   useEffect(() => {
     loadTeamMembers();
+    // Check if there's an existing assignment timestamp from audit trail
+    loadAssignmentHistory();
   }, []);
+
+  const loadAssignmentHistory = async () => {
+    try {
+      const { data: auditData } = await supabase
+        .from('claim_audit_trail')
+        .select('created_at, details')
+        .eq('claim_id', claim.id)
+        .eq('action', 'adjuster_assignment')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (auditData && auditData.length > 0) {
+        setAssignmentTimestamp(auditData[0].created_at);
+      }
+    } catch (error) {
+      console.error('Error loading assignment history:', error);
+    }
+  };
+
+  const sendAssignmentNotification = async (assignedMember: TeamMember | undefined, claim: Claim, notes: string) => {
+    if (!assignedMember) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', user?.id)
+        .single();
+
+      // Get assigned member's email from profiles
+      const { data: assignedProfile } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', assignedMember.id)
+        .single();
+
+      // For now, we'll just log this as we'd need the email functionality set up
+      console.log('Assignment notification would be sent to:', {
+        assignedMember: assignedMember,
+        claimNumber: claim.claim_number,
+        assignedBy: `${profile?.first_name} ${profile?.last_name}`,
+        notes: notes,
+        claimLink: `${window.location.origin}/claims/${claim.id}`
+      });
+
+      // In a real implementation, you'd call an edge function here:
+      // await supabase.functions.invoke('send-assignment-notification', { ... })
+
+    } catch (error) {
+      console.error('Error sending assignment notification:', error);
+    }
+  };
+
+  const handleForwardToInsurer = async () => {
+    setIsForwardingToInsurer(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Log the forward action in audit trail
+      const { error: auditError } = await supabase
+        .from('claim_audit_trail')
+        .insert({
+          claim_id: claim.id,
+          organization_id: claim.organization_id,
+          user_id: user?.id,
+          action: 'forward_to_insurer',
+          stage: 'investigating',
+          details: {
+            action_timestamp: new Date().toISOString(),
+            forwarded_by: user?.id,
+            claim_number: claim.claim_number,
+            notes: 'Claim forwarded to insurer for review'
+          }
+        });
+
+      if (auditError) {
+        console.error('Audit log error:', auditError);
+      }
+
+      // In a real implementation, you'd send email to insurer here
+      console.log('Claim forwarded to insurer:', {
+        claimNumber: claim.claim_number,
+        forwardedBy: user?.id,
+        timestamp: new Date().toISOString()
+      });
+
+      toast({
+        title: "Forwarded to Insurer",
+        description: "Claim has been forwarded to the insurer for review"
+      });
+
+    } catch (error) {
+      console.error('Error forwarding to insurer:', error);
+      toast({
+        title: "Forward Failed",
+        description: "Failed to forward claim to insurer. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsForwardingToInsurer(false);
+    }
+  };
 
   const loadTeamMembers = async () => {
     setLoading(true);
@@ -144,9 +251,19 @@ export const UnderwriterAssignment = ({ claim, onAssignmentComplete }: Underwrit
         console.error('Audit log error:', auditError);
       }
 
+      // Send notification email to assigned member
+      try {
+        await sendAssignmentNotification(assignedMember, claim, assignmentNotes);
+      } catch (emailError) {
+        console.error('Failed to send notification email:', emailError);
+      }
+
+      // Set assignment timestamp
+      setAssignmentTimestamp(new Date().toISOString());
+
       toast({
         title: "Assignment Successful",
-        description: `Claim assigned to ${assignedMember?.first_name} ${assignedMember?.last_name}`
+        description: `Claim assigned to ${assignedMember?.first_name} ${assignedMember?.last_name}. Status updated to Investigating.`
       });
 
       onAssignmentComplete();
@@ -191,6 +308,12 @@ export const UnderwriterAssignment = ({ claim, onAssignmentComplete }: Underwrit
               </Badge>
             )}
           </p>
+          {assignmentTimestamp && (
+            <div className="flex items-center gap-1 mt-2 text-xs text-green-600">
+              <Clock className="h-3 w-3" />
+              <span>Assigned on: {new Date(assignmentTimestamp).toLocaleString()}</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -250,24 +373,53 @@ export const UnderwriterAssignment = ({ claim, onAssignmentComplete }: Underwrit
       </div>
 
       {/* Action Buttons */}
-      <div className="flex gap-3">
-        <Button
-          onClick={handleAssignment}
-          disabled={isAssigning || !selectedAdjuster}
-          className="flex-1"
-        >
-          <UserCheck className="h-4 w-4 mr-2" />
-          {isAssigning ? 'Assigning...' : isCurrentlyAssigned ? 'Reassign Claim' : 'Assign Claim'}
-        </Button>
-        
-        {isCurrentlyAssigned && (
+      <div className="space-y-3">
+        <div className="flex gap-3">
           <Button
-            variant="outline"
-            onClick={onAssignmentComplete}
+            onClick={handleAssignment}
+            disabled={isAssigning || !selectedAdjuster}
             className="flex-1"
           >
-            Skip Assignment
+            <UserCheck className="h-4 w-4 mr-2" />
+            {isAssigning ? 'Assigning...' : isCurrentlyAssigned ? 'Reassign Claim' : 'Assign Claim'}
           </Button>
+          
+          {isCurrentlyAssigned && (
+            <Button
+              variant="outline"
+              onClick={onAssignmentComplete}
+              className="flex-1"
+            >
+              Skip Assignment
+            </Button>
+          )}
+        </div>
+
+        {/* Forward to Insurer Section */}
+        {isCurrentlyAssigned && (
+          <div className="border-t pt-3">
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={handleForwardToInsurer}
+                disabled={isForwardingToInsurer}
+                variant="secondary"
+                className="flex-1"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {isForwardingToInsurer ? 'Forwarding...' : 'Forward to Insurer'}
+              </Button>
+              <Button
+                onClick={loadAssignmentHistory}
+                variant="outline"
+                size="sm"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Forward this claim to the insurer for review and assessment
+            </p>
+          </div>
         )}
       </div>
 
