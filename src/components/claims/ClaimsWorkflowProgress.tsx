@@ -1,6 +1,4 @@
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   AlertCircle, 
   FileText, 
@@ -23,7 +21,6 @@ interface WorkflowStage {
   id: string;
   name: string;
   icon: React.ReactNode;
-  description: string;
   requiredStatus: string[];
 }
 
@@ -31,64 +28,55 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
   {
     id: 'notification',
     name: 'Claim Notification',
-    icon: <AlertCircle className="h-5 w-5" />,
-    description: 'Client-initiated via portal; email sent to broker + client; allows file upload',
+    icon: <AlertCircle className="h-4 w-4" />,
     requiredStatus: ['registered']
   },
   {
     id: 'registration',
     name: 'Claim Registration',
-    icon: <FileText className="h-5 w-5" />,
-    description: 'Internal entry if not submitted via portal',
+    icon: <FileText className="h-4 w-4" />,
     requiredStatus: ['registered']
   },
   {
     id: 'documents',
     name: 'Document Upload',
-    icon: <Upload className="h-5 w-5" />,
-    description: 'Enforce mandatory docs before progressing',
+    icon: <Upload className="h-4 w-4" />,
     requiredStatus: ['registered', 'investigating']
   },
   {
     id: 'assignment',
     name: 'Underwriter Assignment',
-    icon: <UserCheck className="h-5 w-5" />,
-    description: 'Assign claim to underwriter or adjuster',
+    icon: <UserCheck className="h-4 w-4" />,
     requiredStatus: ['investigating']
   },
   {
     id: 'review',
     name: 'Claim Review',
-    icon: <Search className="h-5 w-5" />,
-    description: 'Investigation and assessment of claim validity',
+    icon: <Search className="h-4 w-4" />,
     requiredStatus: ['investigating', 'assessed']
   },
   {
     id: 'validation',
     name: 'Claim Validation',
-    icon: <CheckCircle className="h-5 w-5" />,
-    description: 'Final validation and approval decision',
+    icon: <CheckCircle className="h-4 w-4" />,
     requiredStatus: ['assessed', 'approved']
   },
   {
     id: 'settlement',
     name: 'Settlement Recommendation',
-    icon: <DollarSign className="h-5 w-5" />,
-    description: 'Settlement amount determination and processing',
+    icon: <DollarSign className="h-4 w-4" />,
     requiredStatus: ['approved', 'settled']
   },
   {
     id: 'feedback',
     name: 'Client Feedback',
-    icon: <MessageSquare className="h-5 w-5" />,
-    description: 'Client confirmation and feedback collection',
+    icon: <MessageSquare className="h-4 w-4" />,
     requiredStatus: ['settled']
   },
   {
     id: 'closure',
     name: 'Claim Closure',
-    icon: <Archive className="h-5 w-5" />,
-    description: 'Final closure and archival of claim',
+    icon: <Archive className="h-4 w-4" />,
     requiredStatus: ['closed']
   }
 ];
@@ -118,113 +106,73 @@ export const ClaimsWorkflowProgress: React.FC<ClaimsWorkflowProgressProps> = ({
     return 'pending';
   };
 
-  const getStageClasses = (status: 'completed' | 'active' | 'pending') => {
-    switch (status) {
-      case 'completed':
-        return {
-          container: 'bg-green-50 border-green-200',
-          icon: 'text-green-600 bg-green-100',
-          text: 'text-green-800',
-          badge: 'bg-green-100 text-green-800'
-        };
-      case 'active':
-        return {
-          container: 'bg-blue-50 border-blue-200 ring-2 ring-blue-200',
-          icon: 'text-blue-600 bg-blue-100',
-          text: 'text-blue-800',
-          badge: 'bg-blue-100 text-blue-800'
-        };
-      case 'pending':
-        return {
-          container: 'bg-gray-50 border-gray-200',
-          icon: 'text-gray-400 bg-gray-100',
-          text: 'text-gray-600',
-          badge: 'bg-gray-100 text-gray-600'
-        };
-    }
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="w-full">
       {showTitle && (
-        <div className="text-center">
-          <h3 className="text-lg font-semibold text-gray-900">Claims Workflow Progress</h3>
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-foreground">Workflow Progress</h3>
           {claimNumber && (
-            <p className="text-sm text-gray-600 mt-1">Claim: {claimNumber}</p>
+            <p className="text-sm text-muted-foreground mt-1">Claim: {claimNumber}</p>
           )}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {WORKFLOW_STAGES.map((stage, index) => {
-          const stageStatus = getStageStatus(stage);
-          const classes = getStageClasses(stageStatus);
-          
-          return (
-            <Card 
-              key={stage.id} 
-              className={`transition-all duration-200 ${classes.container}`}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-full ${classes.icon}`}>
-                      {stage.icon}
-                    </div>
-                    <div>
-                      <CardTitle className={`text-sm font-medium ${classes.text}`}>
-                        {stage.name}
-                      </CardTitle>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Step {index + 1} of {WORKFLOW_STAGES.length}
-                      </div>
-                    </div>
-                  </div>
-                  <Badge className={classes.badge} variant="secondary">
-                    {stageStatus === 'completed' && '✓'}
-                    {stageStatus === 'active' && '●'}
-                    {stageStatus === 'pending' && '○'}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className={`text-xs ${classes.text}`}>
-                  {stage.description}
-                </p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {/* Horizontal Progress Bar */}
+      <div className="relative">
+        {/* Progress Line */}
+        <div className="absolute top-6 left-8 right-8 h-0.5 bg-border">
+          <div 
+            className="h-full bg-primary transition-all duration-500"
+            style={{
+              width: `${((WORKFLOW_STAGES.findIndex(stage => getStageStatus(stage) === 'active') + 1) / WORKFLOW_STAGES.length) * 100}%`
+            }}
+          />
+        </div>
 
-      {/* Progress Summary */}
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="text-sm font-medium text-blue-900">Current Progress</h4>
-              <p className="text-xs text-blue-700 mt-1">
-                Status: {currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1)}
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-lg font-bold text-blue-900">
-                {WORKFLOW_STAGES.filter(stage => getStageStatus(stage) === 'completed').length} / {WORKFLOW_STAGES.length}
+        {/* Workflow Steps */}
+        <div className="flex justify-between items-start relative">
+          {WORKFLOW_STAGES.map((stage, index) => {
+            const stageStatus = getStageStatus(stage);
+            const isCompleted = stageStatus === 'completed';
+            const isActive = stageStatus === 'active';
+            const isPending = stageStatus === 'pending';
+            
+            return (
+              <div 
+                key={stage.id} 
+                className="flex flex-col items-center text-center max-w-[120px]"
+              >
+                {/* Step Circle */}
+                <div className={`
+                  relative z-10 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300
+                  ${isCompleted ? 'bg-primary text-primary-foreground' : ''}
+                  ${isActive ? 'bg-primary text-primary-foreground ring-4 ring-primary/20' : ''}
+                  ${isPending ? 'bg-muted text-muted-foreground border-2 border-border' : ''}
+                `}>
+                  {isCompleted ? (
+                    <CheckCircle className="h-6 w-6" />
+                  ) : (
+                    <span className="text-sm font-medium">{index + 1}</span>
+                  )}
+                </div>
+
+                {/* Step Label */}
+                <div className="mt-3">
+                  <h4 className={`
+                    text-xs font-medium leading-tight
+                    ${isCompleted || isActive ? 'text-foreground' : 'text-muted-foreground'}
+                  `}>
+                    {stage.name}
+                  </h4>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Step {index + 1}
+                  </div>
+                </div>
               </div>
-              <div className="text-xs text-blue-700">Stages Complete</div>
-            </div>
-          </div>
-          
-          <div className="mt-4 bg-blue-200 rounded-full h-2">
-            <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{
-                width: `${(WORKFLOW_STAGES.filter(stage => getStageStatus(stage) === 'completed').length / WORKFLOW_STAGES.length) * 100}%`
-              }}
-            />
-          </div>
-        </CardContent>
-      </Card>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };
