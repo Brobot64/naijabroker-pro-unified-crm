@@ -204,6 +204,7 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
       if (data) {
         setPortalLink(data.portalUrl);
         setPortalLinkGenerated(true);
+        setPortalLinkStatus('generated'); // Update status to reflect generation
         
         // Get client email from policy (need to fetch policy data)
         const { data: policyData } = await supabase
@@ -490,9 +491,20 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
               {/* Client Portal Access */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Link className="h-5 w-5" />
-                    Client Portal Access
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Link className="h-5 w-5" />
+                      Client Portal Access
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={checkExistingPortalLink}
+                      className="text-xs"
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Refresh
+                    </Button>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -533,6 +545,13 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
                         <p className="text-sm font-medium text-green-800 mb-1">✓ Client Submission Completed</p>
                         <p className="text-xs text-green-700">Client has already submitted their claim details using the portal link.</p>
                       </div>
+                      
+                      {portalLink && (
+                        <div className="p-3 bg-muted rounded-lg">
+                          <p className="text-xs text-muted-foreground mb-1">Portal Link Used</p>
+                          <p className="text-xs font-mono break-all">{portalLink}</p>
+                        </div>
+                      )}
                       
                       <div className="text-xs text-muted-foreground space-y-1">
                         <p>✓ Portal link was used by client</p>
