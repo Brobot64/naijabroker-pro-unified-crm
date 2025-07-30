@@ -34,6 +34,8 @@ export default function ClaimPortal() {
     policeReport: '',
     additionalInfo: ''
   });
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -67,18 +69,67 @@ export default function ClaimPortal() {
     }
   };
 
+  const handleFileUpload = async (files: FileList) => {
+    if (!files || files.length === 0) return;
+    
+    setUploading(true);
+    const newFiles = Array.from(files);
+    
+    // Validate file sizes (max 10MB per file)
+    const maxSize = 10 * 1024 * 1024;
+    const invalidFiles = newFiles.filter(file => file.size > maxSize);
+    
+    if (invalidFiles.length > 0) {
+      toast.error(`Files too large: ${invalidFiles.map(f => f.name).join(', ')}. Max size: 10MB`);
+      setUploading(false);
+      return;
+    }
+    
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    setUploading(false);
+    toast.success(`${newFiles.length} file(s) added`);
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!portalData) return;
 
     setSubmitting(true);
     try {
+      let fileUrls: string[] = [];
+      
+      // Upload files if any
+      if (uploadedFiles.length > 0) {
+        const uploadPromises = uploadedFiles.map(async (file, index) => {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${portalData.claim_id}/${Date.now()}_${index}.${fileExt}`;
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('claim-documents')
+            .upload(fileName, file);
+            
+          if (uploadError) throw uploadError;
+          
+          const { data: { publicUrl } } = supabase.storage
+            .from('claim-documents')
+            .getPublicUrl(fileName);
+            
+          return publicUrl;
+        });
+        
+        fileUrls = await Promise.all(uploadPromises);
+      }
+
       // Update the claim with additional information
       const { error: updateError } = await supabase
         .from('claims')
         .update({
           description: formData.description || portalData.claim_data.description,
-          notes: `Client Portal Submission:\n\nAdditional Details: ${formData.additionalInfo}\nWitness: ${formData.witnessName} (${formData.witnessPhone})\nPolice Report: ${formData.policeReport}\n\nSubmitted via client portal.`,
+          notes: `Client Portal Submission:\n\nAdditional Details: ${formData.additionalInfo}\nWitness: ${formData.witnessName} (${formData.witnessPhone})\nPolice Report: ${formData.policeReport}\n\n${fileUrls.length > 0 ? `Uploaded Documents:\n${fileUrls.join('\n')}\n\n` : ''}Submitted via client portal.`,
           updated_at: new Date().toISOString()
         })
         .eq('id', portalData.claim_id);
@@ -257,6 +308,60 @@ export default function ClaimPortal() {
                     onChange={(e) => setFormData({ ...formData, additionalInfo: e.target.value })}
                     rows={3}
                   />
+                </div>
+
+                {/* File Upload Section */}
+                <div>
+                  <Label>Supporting Documents</Label>
+                  <div className="space-y-4">
+                    <div 
+                      className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors cursor-pointer"
+                      onClick={() => document.getElementById('file-upload')?.click()}
+                    >
+                      <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600 mb-1">
+                        Click to upload files or drag and drop
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        PDF, PNG, JPG, DOCX up to 10MB each
+                      </p>
+                      <input
+                        id="file-upload"
+                        type="file"
+                        multiple
+                        className="hidden"
+                        accept=".pdf,.png,.jpg,.jpeg,.docx,.doc"
+                        onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+                        disabled={uploading}
+                      />
+                    </div>
+                    
+                    {uploadedFiles.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">Uploaded Files:</p>
+                        {uploadedFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-gray-500" />
+                              <span className="text-sm">{file.name}</span>
+                              <span className="text-xs text-gray-500">
+                                ({(file.size / 1024 / 1024).toFixed(1)} MB)
+                              </span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeFile(index)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex gap-4 pt-4">

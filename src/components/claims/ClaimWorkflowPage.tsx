@@ -173,12 +173,26 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
           }
         );
 
-        // Also send copy to broker
-        const { data: userSession } = await supabase.auth.getSession();
-        if (userSession.session?.user?.email) {
+        // Also send copy to broker (get organization email like in quote system)
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('organization_id')
+          .eq('id', user?.id)
+          .single();
+
+        if (profile?.organization_id) {
+          const { data: organization } = await supabase
+            .from('organizations')
+            .select('email, name')
+            .eq('id', profile.organization_id)
+            .single();
+
+          const brokerEmail = organization?.email || 'broker@naijabrokerpro.com';
+          
           await ClaimPortalLinkService.sendEmailNotification(
             'claim_portal_link_broker_copy',
-            userSession.session.user.email,
+            brokerEmail,
             `[BROKER COPY] Claim Portal Access - ${claim.claim_number}`,
             `Portal link has been sent to client: ${claim.client_name} (${clientEmail})\n\nClaim: ${claim.claim_number}\nPortal Link: ${data.portalUrl}\n\nThis is a copy for your records.`,
             { 
@@ -186,7 +200,7 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
               portal_link_id: data.portalLinkId,
               portalUrl: data.portalUrl,
               clientEmail: clientEmail,
-              brokerEmail: userSession.session.user.email
+              brokerEmail: brokerEmail
             }
           );
         }
