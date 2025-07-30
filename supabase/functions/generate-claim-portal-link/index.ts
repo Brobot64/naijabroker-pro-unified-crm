@@ -111,8 +111,8 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Generate portal URL
-    const portalUrl = `${supabaseUrl.replace('supabase.co', 'supabase.app')}/claim-portal?token=${token}`
+    // Generate portal URL - use the correct app domain
+    const portalUrl = `https://d1379a23-d174-4759-a616-1734b9963a0a.lovableproject.com/claim-portal?token=${token}`
 
     console.log('✅ Claim portal link created successfully:', portalLink.id)
 

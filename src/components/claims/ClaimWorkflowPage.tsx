@@ -159,7 +159,7 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
         
         const clientEmail = policyData?.client_email || 'no-email@example.com';
         
-        // Send email notification
+        // Send email notification to client
         await ClaimPortalLinkService.sendEmailNotification(
           'claim_portal_link',
           clientEmail,
@@ -172,6 +172,24 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
             clientEmail: clientEmail
           }
         );
+
+        // Also send copy to broker
+        const { data: userSession } = await supabase.auth.getSession();
+        if (userSession.session?.user?.email) {
+          await ClaimPortalLinkService.sendEmailNotification(
+            'claim_portal_link_broker_copy',
+            userSession.session.user.email,
+            `[BROKER COPY] Claim Portal Access - ${claim.claim_number}`,
+            `Portal link has been sent to client: ${claim.client_name} (${clientEmail})\n\nClaim: ${claim.claim_number}\nPortal Link: ${data.portalUrl}\n\nThis is a copy for your records.`,
+            { 
+              claim_id: claim.id, 
+              portal_link_id: data.portalLinkId,
+              portalUrl: data.portalUrl,
+              clientEmail: clientEmail,
+              brokerEmail: userSession.session.user.email
+            }
+          );
+        }
         
         toast({
           title: "Success",
