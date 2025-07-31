@@ -131,13 +131,34 @@ export const useUserManagement = () => {
 
       if (!profile?.organization_id) throw new Error('No organization found');
 
-      // Check if user role exists, update or insert
+      // Check if user role exists
       const { data: existingRole } = await supabase
         .from('user_roles')
         .select('*')
         .eq('user_id', userId)
         .eq('organization_id', profile.organization_id)
         .single();
+
+      // SAFEGUARD: Prevent removing the last SuperAdmin
+      if (existingRole?.role === 'SuperAdmin' && newRole !== 'SuperAdmin') {
+        // Count how many SuperAdmins exist in this organization
+        const { data: superAdmins, error: countError } = await supabase
+          .from('user_roles')
+          .select('id')
+          .eq('organization_id', profile.organization_id)
+          .eq('role', 'SuperAdmin');
+
+        if (countError) throw countError;
+
+        if (superAdmins && superAdmins.length <= 1) {
+          toast({
+            title: "Action Blocked",
+            description: "Cannot remove the last SuperAdmin. You must have at least one SuperAdmin in your organization.",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
 
       if (existingRole) {
         const { error } = await supabase
@@ -168,7 +189,8 @@ export const useUserManagement = () => {
           resource_type: 'user_role',
           resource_id: userId,
           new_values: { role: newRole },
-          severity: 'medium'
+          old_values: existingRole ? { role: existingRole.role } : {},
+          severity: newRole === 'SuperAdmin' || existingRole?.role === 'SuperAdmin' ? 'high' : 'medium'
         }]);
 
       await fetchUsers();
