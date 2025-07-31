@@ -52,11 +52,19 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
   const [portalLink, setPortalLink] = useState<string>('');
   const [portalLinkGenerated, setPortalLinkGenerated] = useState(false);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
-  const [existingDocuments, setExistingDocuments] = useState<string[]>([]);
+  const [existingDocuments, setExistingDocuments] = useState<{ url: string; name: string; uploadedAt?: string }[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [portalLinkStatus, setPortalLinkStatus] = useState<'none' | 'generated' | 'used'>('none');
   const [existingPortalLink, setExistingPortalLink] = useState<string>('');
+  
+  // Form states for editable fields
+  const [incidentDate, setIncidentDate] = useState(claim.incident_date);
+  const [description, setDescription] = useState(claim.description || '');
+  const [furtherDetails, setFurtherDetails] = useState('');
+  
+  // Policy details for claim summary
+  const [policyDetails, setPolicyDetails] = useState<{ insurer: string; premium: number; sum_insured: number } | null>(null);
 
   const steps = [
     { id: 'notification', name: 'Claim Notification', icon: AlertCircle, description: 'Initial claim notification and client contact' },
@@ -89,7 +97,34 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
     loadExistingDocuments();
     // Check existing portal links
     checkExistingPortalLink();
+    // Load policy details for claim summary
+    loadPolicyDetails();
   }, [claim.status, claim.id]);
+
+  const loadPolicyDetails = async () => {
+    try {
+      const { data: policy, error } = await supabase
+        .from('policies')
+        .select('underwriter, premium, sum_insured')
+        .eq('id', claim.policy_id)
+        .single();
+
+      if (error) {
+        console.error('Error loading policy:', error);
+        return;
+      }
+
+      if (policy) {
+        setPolicyDetails({
+          insurer: policy.underwriter || 'Not specified',
+          premium: policy.premium || 0,
+          sum_insured: policy.sum_insured || 0
+        });
+      }
+    } catch (error) {
+      console.error('Error loading policy details:', error);
+    }
+  };
 
   const checkExistingPortalLink = async () => {
     try {
@@ -129,6 +164,8 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
 
   const loadExistingDocuments = async () => {
     try {
+      const documents: { url: string; name: string; uploadedAt?: string }[] = [];
+      
       // Check if documents were uploaded via portal by checking documents_complete status
       // and parsing documents from the claim notes
       if (claim.notes) {
@@ -142,30 +179,75 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
           /\.(pdf|jpg|jpeg|png|docx|doc)(\?|$)/i.test(url)
         );
         
-        console.log('Found document URLs:', documentUrls);
-        setExistingDocuments(documentUrls);
+        documentUrls.forEach((url, index) => {
+          const filename = url.split('/').pop()?.split('?')[0] || `Document ${index + 1}`;
+          documents.push({ url, name: filename });
+        });
       }
       
       // Also check for documents uploaded through other means
       const { data: documentRecords, error } = await supabase
         .from('claim_audit_trail')
-        .select('details')
+        .select('details, created_at')
         .eq('claim_id', claim.id)
         .eq('action', 'client_portal_submission')
-        .order('created_at', { ascending: false })
-        .limit(1);
+        .order('created_at', { ascending: false });
         
       if (!error && documentRecords && documentRecords.length > 0) {
-        const submission = documentRecords[0];
-        if (submission.details && typeof submission.details === 'object') {
-          const details = submission.details as { uploaded_files?: string[] };
-          if (details.uploaded_files && Array.isArray(details.uploaded_files)) {
-            setExistingDocuments(prev => [...new Set([...prev, ...details.uploaded_files])]);
+        documentRecords.forEach(record => {
+          if (record.details && typeof record.details === 'object') {
+            const details = record.details as { uploaded_files?: string[] };
+            if (details.uploaded_files && Array.isArray(details.uploaded_files)) {
+              details.uploaded_files.forEach((url, index) => {
+                const filename = url.split('/').pop()?.split('?')[0] || `Portal Document ${index + 1}`;
+                documents.push({ 
+                  url, 
+                  name: filename, 
+                  uploadedAt: new Date(record.created_at).toLocaleDateString() 
+                });
+              });
+            }
           }
-        }
+        });
       }
+      
+      // Remove duplicates based on URL
+      const uniqueDocuments = documents.filter((doc, index, self) => 
+        index === self.findIndex(d => d.url === doc.url)
+      );
+      
+      setExistingDocuments(uniqueDocuments);
     } catch (error) {
       console.error('Error loading existing documents:', error);
+    }
+  };
+
+  const removeExistingDocument = async (docUrl: string) => {
+    try {
+      // Remove from existing documents state
+      setExistingDocuments(prev => prev.filter(doc => doc.url !== docUrl));
+      
+      // Update claim notes to remove this document URL
+      const updatedNotes = claim.notes?.replace(docUrl, '') || '';
+      
+      const { error } = await supabase
+        .from('claims')
+        .update({ notes: updatedNotes, updated_at: new Date().toISOString() })
+        .eq('id', claim.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Document removed successfully"
+      });
+    } catch (error) {
+      console.error('Error removing document:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove document",
+        variant: "destructive"
+      });
     }
   };
 
@@ -421,6 +503,37 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
     }
   };
 
+  const updateClaimDetails = async () => {
+    try {
+      const { error } = await supabase
+        .from('claims')
+        .update({
+          incident_date: incidentDate,
+          description: description,
+          notes: (claim.notes || '') + (furtherDetails ? `\n\nFurther Details: ${furtherDetails}` : ''),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', claim.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Claim details updated successfully"
+      });
+
+      // Continue to next stage
+      handleStepComplete('registration');
+    } catch (error) {
+      console.error('Error updating claim:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update claim details",
+        variant: "destructive"
+      });
+    }
+  };
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 'notification':
@@ -463,6 +576,57 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
       case 'registration':
         return (
           <div className="space-y-6">
+            {/* Claim Summary with additional details */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Claim Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <label className="font-medium">Claim #:</label>
+                    <p className="text-muted-foreground">{claim.claim_number}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium">Client:</label>
+                    <p className="text-muted-foreground">{claim.client_name}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium">Type:</label>
+                    <p className="text-muted-foreground">{claim.claim_type}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium">Estimated Loss:</label>
+                    <p className="text-muted-foreground">₦{claim.estimated_loss?.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium">Policy:</label>
+                    <p className="text-muted-foreground">{claim.policy_number}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium">Status:</label>
+                    <p className="text-muted-foreground">{claim.status}</p>
+                  </div>
+                  {policyDetails && (
+                    <>
+                      <div>
+                        <label className="font-medium">Insurer:</label>
+                        <p className="text-muted-foreground">{policyDetails.insurer}</p>
+                      </div>
+                      <div>
+                        <label className="font-medium">Premium:</label>
+                        <p className="text-muted-foreground">₦{policyDetails.premium.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <label className="font-medium">Sum Insured:</label>
+                        <p className="text-muted-foreground">₦{policyDetails.sum_insured.toLocaleString()}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="grid md:grid-cols-2 gap-6">
               {/* Manual Registration Form */}
               <Card>
@@ -473,12 +637,6 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                    <p className="text-sm text-blue-800">
-                      For the manual process, no fields are editable. You can only continue to next stage or cancel.
-                    </p>
-                  </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="policy_number">Policy Number</Label>
                     <Input value={claim.policy_number} disabled className="bg-muted" />
@@ -491,17 +649,45 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
                   
                   <div className="space-y-2">
                     <Label htmlFor="incident_date">Date of Loss</Label>
-                    <Input type="date" value={claim.incident_date} disabled className="bg-muted" />
+                    <Input 
+                      type="date" 
+                      value={incidentDate} 
+                      onChange={(e) => setIncidentDate(e.target.value)}
+                      className="border-blue-300 focus:border-blue-500" 
+                    />
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="description">Description</Label>
                     <Textarea 
-                      value={claim.description || ''}
-                      disabled
-                      className="bg-muted"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="border-blue-300 focus:border-blue-500"
                       rows={3}
+                      placeholder="Update the claim description..."
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="further_details">Further Details</Label>
+                    <Textarea 
+                      value={furtherDetails}
+                      onChange={(e) => setFurtherDetails(e.target.value)}
+                      className="border-blue-300 focus:border-blue-500"
+                      rows={4}
+                      placeholder="Add additional details about the claim..."
+                    />
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                      <p className="text-sm text-yellow-800 font-medium mb-2">💡 AI Suggestion - Questions to ask the client:</p>
+                      <ul className="text-xs text-yellow-700 space-y-1">
+                        <li>• What were the exact circumstances leading to the incident?</li>
+                        <li>• Were there any witnesses present during the incident?</li>
+                        <li>• Has a police report been filed? If so, what is the reference number?</li>
+                        <li>• What immediate actions were taken following the incident?</li>
+                        <li>• Are there any photos or videos of the damage/incident scene?</li>
+                        <li>• Have any temporary repairs been made? If so, please provide receipts.</li>
+                      </ul>
+                    </div>
                   </div>
                   
                   <div className="flex gap-2">
@@ -514,9 +700,9 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
                     </Button>
                     <Button 
                       className="flex-1" 
-                      onClick={() => handleStepComplete('registration')}
+                      onClick={updateClaimDetails}
                     >
-                      Continue to Next Stage
+                      Update & Continue to Document Upload
                     </Button>
                   </div>
                 </CardContent>
@@ -671,24 +857,41 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
               {/* Existing Documents */}
               {existingDocuments.length > 0 && (
                 <div>
-                  <h4 className="font-medium mb-3">Client Submitted Documents</h4>
+                  <h4 className="font-medium mb-3">Uploaded Documents</h4>
                   <div className="space-y-2">
-                    {existingDocuments.map((docUrl, index) => (
+                    {existingDocuments.map((doc, index) => (
                       <div key={index} className="flex items-center justify-between bg-green-50 border border-green-200 p-3 rounded-lg">
                         <div className="flex items-center gap-2">
                           <FileText className="h-4 w-4 text-green-600" />
-                          <span className="text-sm text-green-800">
-                            Document {index + 1} (from client portal)
-                          </span>
+                          <div>
+                            <span className="text-sm text-green-800 block">
+                              {doc.name}
+                            </span>
+                            {doc.uploadedAt && (
+                              <span className="text-xs text-green-600">
+                                Uploaded: {doc.uploadedAt}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => window.open(docUrl, '_blank')}
-                          className="text-green-600 hover:text-green-700"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(doc.url, '_blank')}
+                            className="text-green-600 hover:text-green-700"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeExistingDocument(doc.url)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            ×
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -699,8 +902,8 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
                   {existingDocuments.length > 0 
-                    ? `✓ Client has submitted ${existingDocuments.length} document(s) via portal. You can upload additional documents below if needed.`
-                    : "Client has not yet submitted documents via portal. You can upload documents on their behalf or generate a portal link."
+                    ? `✓ ${existingDocuments.length} document(s) currently uploaded. You can upload additional documents below or remove existing ones as needed.`
+                    : "No documents uploaded yet. You can upload documents on their behalf or generate a portal link for the client."
                   }
                 </p>
               </div>
