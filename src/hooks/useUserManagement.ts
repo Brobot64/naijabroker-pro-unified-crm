@@ -250,26 +250,27 @@ export const useUserManagement = () => {
           .eq('id', profile.organization_id)
           .single();
 
-        const inviteMessage = `Hello ${invitation.firstName} ${invitation.lastName},
+        const adminMessage = `New Team Invitation Created
 
-You have been invited to join ${orgData?.name || 'our organization'} as a ${invitation.role}.
-
-To accept this invitation and create your account, please contact your administrator or use the following details:
+Invitation Details:
+- Name: ${invitation.firstName} ${invitation.lastName}
 - Email: ${invitation.email}
 - Role: ${invitation.role}
+- Organization: ${orgData?.name || 'Unknown'}
+- Invited by: ${user.email}
 
-If you have any questions, please contact your administrator.
+The user ${invitation.email} has been invited to join your organization. Please use the manual activation feature in the User Management section to activate their account.
 
-Best regards,
-${orgData?.name || 'The Team'}`;
+Note: Direct email invitations to external addresses require domain verification. Please activate the user manually from the admin panel.`;
 
         await supabase.functions.invoke('send-email-notification', {
           body: {
             type: 'team_invitation',
-            recipientEmail: invitation.email,
-            subject: `Invitation to join ${orgData?.name || 'our organization'}`,
-            message: inviteMessage,
+            recipientEmail: 'ngbrokerpro@gmail.com', // Send to verified email
+            subject: `Team Invitation Created: ${invitation.firstName} ${invitation.lastName}`,
+            message: adminMessage,
             metadata: {
+              original_recipient: invitation.email,
               role: invitation.role,
               organization_name: orgData?.name,
               invited_by: user.email
@@ -451,60 +452,20 @@ ${orgData?.name || 'The Team'}`;
 
       if (!profile?.organization_id) throw new Error('No organization found');
 
-      // Create the user account directly using admin API
-      const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-        email: invitation.email,
-        email_confirm: true, // Auto-confirm email
-        user_metadata: {
-          first_name: invitation.first_name,
-          last_name: invitation.last_name
+      // Use edge function to create user with admin privileges
+      const { data: result, error: createError } = await supabase.functions.invoke('create-user-admin', {
+        body: {
+          email: invitation.email,
+          firstName: invitation.first_name,
+          lastName: invitation.last_name,
+          role: invitation.role,
+          organizationId: profile.organization_id,
+          invitationId: invitation.id
         }
       });
 
       if (createError) throw createError;
-
-      if (!newUser.user) throw new Error('Failed to create user');
-
-      // Update their profile with organization
-      await supabase
-        .from('profiles')
-        .update({ 
-          organization_id: profile.organization_id,
-          first_name: invitation.first_name,
-          last_name: invitation.last_name
-        })
-        .eq('id', newUser.user.id);
-
-      // Assign role
-      await supabase
-        .from('user_roles')
-        .insert({
-          user_id: newUser.user.id,
-          role: invitation.role,
-          organization_id: profile.organization_id
-        });
-
-      // Delete the invitation
-      await supabase
-        .from('team_invitations')
-        .delete()
-        .eq('id', invitation.id);
-
-      // Log the action
-      await supabase
-        .from('audit_logs')
-        .insert([{
-          organization_id: profile.organization_id,
-          user_id: user.id,
-          action: 'USER_MANUALLY_ACTIVATED',
-          resource_type: 'user_activation',
-          new_values: { 
-            email: invitation.email, 
-            role: invitation.role,
-            activated_user_id: newUser.user.id
-          },
-          severity: 'high'
-        }]);
+      if (result?.error) throw new Error(result.error);
 
       await fetchUsers();
       
