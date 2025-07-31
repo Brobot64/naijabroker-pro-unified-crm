@@ -242,6 +242,47 @@ export const useUserManagement = () => {
 
       if (error) throw error;
 
+      // Send email notification
+      try {
+        const { data: orgData } = await supabase
+          .from('organizations')
+          .select('name')
+          .eq('id', profile.organization_id)
+          .single();
+
+        const inviteMessage = `Hello ${invitation.firstName} ${invitation.lastName},
+
+You have been invited to join ${orgData?.name || 'our organization'} as a ${invitation.role}.
+
+To accept this invitation and create your account, please contact your administrator or use the following details:
+- Email: ${invitation.email}
+- Role: ${invitation.role}
+
+If you have any questions, please contact your administrator.
+
+Best regards,
+${orgData?.name || 'The Team'}`;
+
+        await supabase.functions.invoke('send-email-notification', {
+          body: {
+            type: 'team_invitation',
+            recipientEmail: invitation.email,
+            subject: `Invitation to join ${orgData?.name || 'our organization'}`,
+            message: inviteMessage,
+            metadata: {
+              role: invitation.role,
+              organization_name: orgData?.name,
+              invited_by: user.email
+            }
+          }
+        });
+
+        console.log('✅ Invitation email sent successfully');
+      } catch (emailError) {
+        console.error('❌ Failed to send invitation email:', emailError);
+        // Don't fail the entire invitation if email fails
+      }
+
       // Log the action
       await supabase
         .from('audit_logs')
@@ -397,6 +438,91 @@ export const useUserManagement = () => {
     }
   };
 
+  const activateInvitedUser = async (invitation: TeamInvitation) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.organization_id) throw new Error('No organization found');
+
+      // Create the user account directly using admin API
+      const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+        email: invitation.email,
+        email_confirm: true, // Auto-confirm email
+        user_metadata: {
+          first_name: invitation.first_name,
+          last_name: invitation.last_name
+        }
+      });
+
+      if (createError) throw createError;
+
+      if (!newUser.user) throw new Error('Failed to create user');
+
+      // Update their profile with organization
+      await supabase
+        .from('profiles')
+        .update({ 
+          organization_id: profile.organization_id,
+          first_name: invitation.first_name,
+          last_name: invitation.last_name
+        })
+        .eq('id', newUser.user.id);
+
+      // Assign role
+      await supabase
+        .from('user_roles')
+        .insert({
+          user_id: newUser.user.id,
+          role: invitation.role,
+          organization_id: profile.organization_id
+        });
+
+      // Delete the invitation
+      await supabase
+        .from('team_invitations')
+        .delete()
+        .eq('id', invitation.id);
+
+      // Log the action
+      await supabase
+        .from('audit_logs')
+        .insert([{
+          organization_id: profile.organization_id,
+          user_id: user.id,
+          action: 'USER_MANUALLY_ACTIVATED',
+          resource_type: 'user_activation',
+          new_values: { 
+            email: invitation.email, 
+            role: invitation.role,
+            activated_user_id: newUser.user.id
+          },
+          severity: 'high'
+        }]);
+
+      await fetchUsers();
+      
+      toast({
+        title: "Success",
+        description: `User ${invitation.email} has been activated successfully`
+      });
+
+    } catch (err: any) {
+      console.error('Error activating invited user:', err);
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive"
+      });
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -412,6 +538,7 @@ export const useUserManagement = () => {
     inviteUser,
     deactivateUser,
     activateUser,
-    deleteInvitation
+    deleteInvitation,
+    activateInvitedUser
   };
 };

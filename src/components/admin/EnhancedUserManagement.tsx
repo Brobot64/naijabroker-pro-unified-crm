@@ -26,7 +26,8 @@ export const EnhancedUserManagement = () => {
     inviteUser,
     deactivateUser,
     activateUser,
-    deleteInvitation
+    deleteInvitation,
+    activateInvitedUser
   } = useUserManagement();
 
   const [showInviteDialog, setShowInviteDialog] = useState(false);
@@ -366,14 +367,25 @@ export const EnhancedUserManagement = () => {
                       {new Date(invitation.expires_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => deleteInvitation(invitation.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => activateInvitedUser(invitation)}
+                          className="text-green-600 hover:text-green-700"
+                          title="Manually activate user (bypasses email verification)"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => deleteInvitation(invitation.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
