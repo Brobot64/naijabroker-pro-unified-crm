@@ -80,13 +80,13 @@ export const useUserManagement = () => {
 
       if (rolesError) throw rolesError;
 
-      // Combine profiles with roles
+      // Combine profiles with roles and mock email/status data
       const enhancedUsers = profiles?.map(profile => {
         const userRole = roles?.find(role => role.user_id === profile.id);
         
         return {
           ...profile,
-          email: profile.id ? `user-${profile.id.slice(0, 8)}@company.com` : '',
+          email: `${profile.first_name?.toLowerCase() || 'user'}.${profile.last_name?.toLowerCase() || profile.id.slice(0, 8)}@company.com`,
           last_sign_in_at: profile.updated_at,
           role: (userRole?.role as AppRole) || 'User' as AppRole,
           status: 'active' as const

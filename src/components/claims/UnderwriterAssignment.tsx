@@ -331,7 +331,12 @@ export const UnderwriterAssignment = ({ claim, onAssignmentComplete }: Underwrit
               {teamMembers.map((member) => (
                 <SelectItem key={member.id} value={member.id}>
                   <div className="flex items-center gap-2">
-                    <span>{member.first_name} {member.last_name}</span>
+                    <span>
+                      {member.first_name && member.last_name 
+                        ? `${member.first_name} ${member.last_name}` 
+                        : member.role
+                      }
+                    </span>
                     <Badge variant="outline" className="text-xs">
                       {member.role}
                     </Badge>
@@ -363,7 +368,12 @@ export const UnderwriterAssignment = ({ claim, onAssignmentComplete }: Underwrit
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {teamMembers.map((member) => (
             <div key={member.id} className="text-xs text-muted-foreground flex justify-between items-center">
-              <span>{member.first_name} {member.last_name}</span>
+              <span>
+                {member.first_name && member.last_name 
+                  ? `${member.first_name} ${member.last_name}` 
+                  : member.role
+                }
+              </span>
               <Badge variant="outline" className="text-xs">
                 {member.role}
               </Badge>
