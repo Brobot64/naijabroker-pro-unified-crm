@@ -80,16 +80,30 @@ export const useUserManagement = () => {
 
       if (rolesError) throw rolesError;
 
-      // Combine profiles with roles and mock email/status data
+      // Fetch actual user data from auth.users using admin API
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      
+      // Create a map of auth users for quick lookup
+      const authUserMap = new Map();
+      if (authUsers?.users) {
+        authUsers.users.forEach((authUser: any) => {
+          authUserMap.set(authUser.id, authUser);
+        });
+      }
+
+      // Combine profiles with roles and real auth data
       const enhancedUsers = profiles?.map(profile => {
         const userRole = roles?.find(role => role.user_id === profile.id);
+        const authUser = authUserMap.get(profile.id);
         
         return {
           ...profile,
-          email: `${profile.first_name?.toLowerCase() || 'user'}.${profile.last_name?.toLowerCase() || profile.id.slice(0, 8)}@company.com`,
-          last_sign_in_at: profile.updated_at,
+          email: authUser?.email || `${profile.first_name?.toLowerCase() || 'user'}.${profile.last_name?.toLowerCase() || profile.id.slice(0, 8)}@company.com`,
+          last_sign_in_at: authUser?.last_sign_in_at || profile.updated_at,
           role: (userRole?.role as AppRole) || 'User' as AppRole,
-          status: 'active' as const
+          status: authUser?.ban_duration ? 'inactive' as const : 'active' as const,
+          confirmed_at: authUser?.confirmed_at,
+          email_confirmed_at: authUser?.email_confirmed_at
         };
       }) || [];
 
@@ -100,6 +114,7 @@ export const useUserManagement = () => {
       const { data: teamInvites, error: invitesError } = await supabase
         .from('team_invitations')
         .select('*')
+        .eq('organization_id', currentProfile.organization_id)
         .order('created_at', { ascending: false });
 
       if (invitesError) throw invitesError;
@@ -486,6 +501,62 @@ Note: Direct email invitations to external addresses require domain verification
 
   useEffect(() => {
     fetchUsers();
+
+    // Set up real-time subscriptions for live updates
+    const profilesChannel = supabase
+      .channel('profiles-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles'
+        },
+        (payload) => {
+          console.log('Profile change detected:', payload);
+          fetchUsers();
+        }
+      )
+      .subscribe();
+
+    const userRolesChannel = supabase
+      .channel('user-roles-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_roles'
+        },
+        (payload) => {
+          console.log('User role change detected:', payload);
+          fetchUsers();
+        }
+      )
+      .subscribe();
+
+    const invitationsChannel = supabase
+      .channel('invitations-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'team_invitations'
+        },
+        (payload) => {
+          console.log('Invitation change detected:', payload);
+          fetchUsers();
+        }
+      )
+      .subscribe();
+
+    // Cleanup function
+    return () => {
+      supabase.removeChannel(profilesChannel);
+      supabase.removeChannel(userRolesChannel);
+      supabase.removeChannel(invitationsChannel);
+    };
   }, []);
 
   return {
