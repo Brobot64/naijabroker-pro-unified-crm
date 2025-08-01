@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 type AppRole = 'SuperAdmin' | 'BrokerAdmin' | 'Agent' | 'Underwriter' | 'Compliance' | 'User';
 
 export const EnhancedUserManagement = () => {
+  console.log('EnhancedUserManagement component rendering...');
   const { toast } = useToast();
   const {
     users,
@@ -140,9 +141,9 @@ export const EnhancedUserManagement = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">User Management</h1>
+          <h1 className="text-3xl font-bold">🔥 Enhanced User Management v2.0</h1>
           <p className="text-muted-foreground mt-1">
-            Manage users, roles, and permissions with live updates
+            Manage users, roles, and permissions with live updates - NOW WITH REAL-TIME FEATURES!
           </p>
         </div>
         <div className="flex space-x-2">

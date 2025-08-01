@@ -41,6 +41,7 @@ export interface TeamInvitation {
 }
 
 export const useUserManagement = () => {
+  console.log('useUserManagement hook called...');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [invitations, setInvitations] = useState<TeamInvitation[]>([]);
@@ -48,7 +49,10 @@ export const useUserManagement = () => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  console.log('useUserManagement state:', { usersCount: users.length, loading, error });
+
   const fetchUsers = async () => {
+    console.log('🔄 fetchUsers called...');
     try {
       setLoading(true);
       setError(null);
@@ -83,14 +87,19 @@ export const useUserManagement = () => {
       if (rolesError) throw rolesError;
 
       // Fetch actual user data from auth.users using admin API
+      console.log('📡 Attempting to fetch auth users...');
       const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      console.log('📧 Auth users response:', { authUsers, authError });
       
       // Create a map of auth users for quick lookup
       const authUserMap = new Map();
       if (authUsers?.users) {
+        console.log('👥 Found auth users:', authUsers.users.length);
         authUsers.users.forEach((authUser: any) => {
           authUserMap.set(authUser.id, authUser);
         });
+      } else {
+        console.log('❌ No auth users found or error occurred');
       }
 
       // Combine profiles with roles and real auth data
