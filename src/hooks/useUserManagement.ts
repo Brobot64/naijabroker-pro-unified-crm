@@ -102,21 +102,48 @@ export const useUserManagement = () => {
         console.log('❌ No auth users found or error occurred');
       }
 
+      // Group roles by user_id to handle multiple roles
+      const userRolesMap = new Map<string, UserRole[]>();
+      roles?.forEach(role => {
+        if (!userRolesMap.has(role.user_id)) {
+          userRolesMap.set(role.user_id, []);
+        }
+        userRolesMap.get(role.user_id)?.push(role);
+      });
+
+      // Create unique profiles (handle potential duplicates)
+      const uniqueProfiles = profiles?.reduce((acc, profile) => {
+        if (!acc.find(p => p.id === profile.id)) {
+          acc.push(profile);
+        }
+        return acc;
+      }, [] as typeof profiles) || [];
+
       // Combine profiles with roles and real auth data
-      const enhancedUsers = profiles?.map(profile => {
-        const userRole = roles?.find(role => role.user_id === profile.id);
+      const enhancedUsers = uniqueProfiles.map(profile => {
+        const userRolesList = userRolesMap.get(profile.id) || [];
+        const primaryRole = userRolesList.find(r => r.role === 'SuperAdmin') || 
+                           userRolesList.find(r => r.role === 'BrokerAdmin') || 
+                           userRolesList[0];
         const authUser = authUserMap.get(profile.id);
+        
+        console.log(`👤 Processing user ${profile.id}: ${profile.first_name} ${profile.last_name}`, {
+          authUser: !!authUser,
+          roles: userRolesList.map(r => r.role),
+          primaryRole: primaryRole?.role
+        });
         
         return {
           ...profile,
           email: authUser?.email || `${profile.first_name?.toLowerCase() || 'user'}.${profile.last_name?.toLowerCase() || profile.id.slice(0, 8)}@company.com`,
           last_sign_in_at: authUser?.last_sign_in_at || profile.updated_at,
-          role: (userRole?.role as AppRole) || 'User' as AppRole,
-          status: authUser?.ban_duration ? 'inactive' as const : 'active' as const,
+          role: (primaryRole?.role as AppRole) || 'User' as AppRole,
+          status: authUser?.ban_duration ? 'inactive' as const : 
+                  authUser?.email_confirmed_at ? 'active' as const : 'pending' as const,
           confirmed_at: authUser?.confirmed_at,
           email_confirmed_at: authUser?.email_confirmed_at
         };
-      }) || [];
+      });
 
       setUsers(enhancedUsers);
       setUserRoles(roles || []);
