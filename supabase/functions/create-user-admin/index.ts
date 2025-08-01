@@ -78,54 +78,77 @@ serve(async (req) => {
 
     console.log('Creating user account for:', email);
 
-    // Create the user account using admin privileges
-    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email: email,
-      email_confirm: true, // Auto-confirm email
-      user_metadata: {
-        first_name: firstName,
-        last_name: lastName
+    // Check if user already exists first
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = existingUsers.users?.find(u => u.email === email);
+    
+    let newUser;
+    if (existingUser) {
+      console.log('User already exists, using existing user:', existingUser.id);
+      newUser = { user: existingUser };
+    } else {
+      // Create the user account using admin privileges
+      const { data: createUserResponse, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email: email,
+        email_confirm: true, // Auto-confirm email
+        user_metadata: {
+          first_name: firstName,
+          last_name: lastName
+        }
+      });
+
+      if (createError) {
+        console.error('Error creating user:', createError);
+        throw createError;
       }
-    });
 
-    if (createError) {
-      console.error('Error creating user:', createError);
-      throw createError;
+      if (!createUserResponse.user) {
+        throw new Error('Failed to create user');
+      }
+
+      newUser = createUserResponse;
+      console.log('User created successfully:', newUser.user.id);
     }
-
-    if (!newUser.user) {
-      throw new Error('Failed to create user');
-    }
-
-    console.log('User created successfully:', newUser.user.id);
 
     // Update their profile with organization (using admin client)
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .update({ 
+      .upsert({ 
+        id: newUser.user.id,
         organization_id: organizationId,
         first_name: firstName,
         last_name: lastName
-      })
-      .eq('id', newUser.user.id);
+      });
 
     if (profileError) {
       console.error('Error updating profile:', profileError);
       throw profileError;
     }
 
-    // Assign role (using admin client)
-    const { error: roleError } = await supabaseAdmin
+    // Check if role already exists, if not create it
+    const { data: existingRole } = await supabaseAdmin
       .from('user_roles')
-      .insert({
-        user_id: newUser.user.id,
-        role: role,
-        organization_id: organizationId
-      });
+      .select('*')
+      .eq('user_id', newUser.user.id)
+      .eq('organization_id', organizationId)
+      .single();
 
-    if (roleError) {
-      console.error('Error assigning role:', roleError);
-      throw roleError;
+    if (!existingRole) {
+      // Assign role (using admin client)
+      const { error: roleError } = await supabaseAdmin
+        .from('user_roles')
+        .insert({
+          user_id: newUser.user.id,
+          role: role,
+          organization_id: organizationId
+        });
+
+      if (roleError) {
+        console.error('Error assigning role:', roleError);
+        throw roleError;
+      }
+    } else {
+      console.log('User role already exists, skipping role assignment');
     }
 
     // Delete the invitation (using admin client)

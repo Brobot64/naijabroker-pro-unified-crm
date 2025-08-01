@@ -87,8 +87,8 @@ serve(async (req) => {
       const resend = new Resend(resendApiKey);
       
       try {
-        // Use the actual recipient email - no testing mode
-        const actualRecipient = recipientEmail;
+        // For team invitations, send to admin email due to domain verification
+        const actualRecipient = type === 'team_invitation' ? 'ngbrokerpro@gmail.com' : recipientEmail;
         
         // Prepare email options
         const emailOptions: any = {
