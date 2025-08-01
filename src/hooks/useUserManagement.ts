@@ -16,6 +16,8 @@ export interface UserProfile {
   last_sign_in_at?: string;
   role?: AppRole;
   status?: 'active' | 'inactive' | 'pending';
+  confirmed_at?: string;
+  email_confirmed_at?: string;
 }
 
 export interface UserRole {
