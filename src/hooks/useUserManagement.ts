@@ -53,6 +53,7 @@ export const useUserManagement = () => {
 
   const fetchUsers = async () => {
     console.log('🔄 fetchUsers called...');
+    console.log('🔄 Current state before fetch:', { usersCount: users.length, loading, error });
     try {
       setLoading(true);
       setError(null);
@@ -71,19 +72,23 @@ export const useUserManagement = () => {
       if (!currentProfile?.organization_id) throw new Error('No organization found');
 
       // Fetch profiles for the organization
+      console.log('📊 Fetching profiles for organization:', currentProfile.organization_id);
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .eq('organization_id', currentProfile.organization_id);
 
+      console.log('📊 Profiles query result:', { profiles, profilesError });
       if (profilesError) throw profilesError;
 
       // Fetch user roles for the organization
+      console.log('🔐 Fetching roles for organization:', currentProfile.organization_id);
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
         .select('*')
         .eq('organization_id', currentProfile.organization_id);
 
+      console.log('🔐 Roles query result:', { roles, rolesError });
       if (rolesError) throw rolesError;
 
       console.log('📋 Working with profile data only (admin API not available from frontend)');
@@ -139,6 +144,9 @@ export const useUserManagement = () => {
           email_confirmed_at: isCurrentUser ? currentAuthUser.email_confirmed_at : profile.created_at
         };
       });
+
+      console.log('✅ Enhanced users processed:', enhancedUsers.length);
+      console.log('👥 Enhanced users:', enhancedUsers.map(u => ({ id: u.id, name: `${u.first_name} ${u.last_name}`, role: u.role, status: u.status })));
 
       setUsers(enhancedUsers);
       setUserRoles(roles || []);
