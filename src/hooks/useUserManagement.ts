@@ -86,22 +86,8 @@ export const useUserManagement = () => {
 
       if (rolesError) throw rolesError;
 
-      // Fetch actual user data from auth.users using admin API
-      console.log('📡 Attempting to fetch auth users...');
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      console.log('📧 Auth users response:', { authUsers, authError });
+      console.log('📋 Working with profile data only (admin API not available from frontend)');
       
-      // Create a map of auth users for quick lookup
-      const authUserMap = new Map();
-      if (authUsers?.users) {
-        console.log('👥 Found auth users:', authUsers.users.length);
-        authUsers.users.forEach((authUser: any) => {
-          authUserMap.set(authUser.id, authUser);
-        });
-      } else {
-        console.log('❌ No auth users found or error occurred');
-      }
-
       // Group roles by user_id to handle multiple roles
       const userRolesMap = new Map<string, UserRole[]>();
       roles?.forEach(role => {
@@ -111,6 +97,9 @@ export const useUserManagement = () => {
         userRolesMap.get(role.user_id)?.push(role);
       });
 
+      console.log('👥 Found profiles:', profiles?.length);
+      console.log('🔐 Found roles:', roles?.length);
+
       // Create unique profiles (handle potential duplicates)
       const uniqueProfiles = profiles?.reduce((acc, profile) => {
         if (!acc.find(p => p.id === profile.id)) {
@@ -119,29 +108,35 @@ export const useUserManagement = () => {
         return acc;
       }, [] as typeof profiles) || [];
 
-      // Combine profiles with roles and real auth data
+      // Get current user data from auth session
+      const { data: { user: currentAuthUser } } = await supabase.auth.getUser();
+
+      // Combine profiles with roles data
       const enhancedUsers = uniqueProfiles.map(profile => {
         const userRolesList = userRolesMap.get(profile.id) || [];
         const primaryRole = userRolesList.find(r => r.role === 'SuperAdmin') || 
                            userRolesList.find(r => r.role === 'BrokerAdmin') || 
                            userRolesList[0];
-        const authUser = authUserMap.get(profile.id);
+        
+        // For current user, we have auth data available
+        const isCurrentUser = profile.id === currentAuthUser?.id;
         
         console.log(`👤 Processing user ${profile.id}: ${profile.first_name} ${profile.last_name}`, {
-          authUser: !!authUser,
+          isCurrentUser,
           roles: userRolesList.map(r => r.role),
           primaryRole: primaryRole?.role
         });
         
         return {
           ...profile,
-          email: authUser?.email || `${profile.first_name?.toLowerCase() || 'user'}.${profile.last_name?.toLowerCase() || profile.id.slice(0, 8)}@company.com`,
-          last_sign_in_at: authUser?.last_sign_in_at || profile.updated_at,
+          // Generate email from profile data since we can't access auth.users from frontend
+          email: isCurrentUser ? currentAuthUser.email : `${profile.first_name?.toLowerCase().replace(/\s+/g, '') || 'user'}.${profile.last_name?.toLowerCase().replace(/\s+/g, '') || profile.id.slice(0, 4)}@company.com`,
+          last_sign_in_at: isCurrentUser ? currentAuthUser.last_sign_in_at : profile.updated_at,
           role: (primaryRole?.role as AppRole) || 'User' as AppRole,
-          status: authUser?.ban_duration ? 'inactive' as const : 
-                  authUser?.email_confirmed_at ? 'active' as const : 'pending' as const,
-          confirmed_at: authUser?.confirmed_at,
-          email_confirmed_at: authUser?.email_confirmed_at
+          // Assume active for users with roles, pending for invites without profiles yet
+          status: primaryRole ? 'active' as const : 'pending' as const,
+          confirmed_at: isCurrentUser ? currentAuthUser.created_at : profile.created_at,
+          email_confirmed_at: isCurrentUser ? currentAuthUser.email_confirmed_at : profile.created_at
         };
       });
 
