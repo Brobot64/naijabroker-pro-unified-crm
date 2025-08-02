@@ -260,6 +260,26 @@ export default function ClaimPortal() {
                   <p className="font-semibold">{claimData?.client_name}</p>
                 </div>
                 <div>
+                  <label className="text-sm font-medium text-gray-500">Policy Number</label>
+                  <p className="font-semibold">{claimData?.policy_number}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Policy Type</label>
+                  <p className="font-semibold">{claimData?.policy_type}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Insurer</label>
+                  <p className="font-semibold">{claimData?.underwriter || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Premium (₦)</label>
+                  <p className="font-semibold">{claimData?.premium ? Number(claimData.premium).toLocaleString() : 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Sum Insured (₦)</label>
+                  <p className="font-semibold">{claimData?.sum_insured ? Number(claimData.sum_insured).toLocaleString() : 'N/A'}</p>
+                </div>
+                <div>
                   <label className="text-sm font-medium text-gray-500">Claim Type</label>
                   <p className="font-semibold">{claimData?.claim_type}</p>
                 </div>
