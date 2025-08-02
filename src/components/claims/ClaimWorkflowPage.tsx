@@ -12,6 +12,8 @@ import { Claim } from "@/services/database/types";
 import { ClaimsWorkflowProgress } from "./ClaimsWorkflowProgress";
 import { ClaimPortalLinkService } from "@/services/claimPortalLinkService";
 import { UnderwriterAssignment } from "./UnderwriterAssignment";
+import { useClaimWorkflow } from "@/hooks/useClaimWorkflow";
+import { Switch } from "@/components/ui/switch";
 import { 
   AlertCircle, 
   FileText, 
@@ -26,7 +28,18 @@ import {
   RefreshCw,
   Link,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Eye,
+  Calendar,
+  User,
+  Phone,
+  MapPin,
+  Camera,
+  AlertTriangle,
+  Shield,
+  Clock,
+  Star,
+  Save
 } from "lucide-react";
 
 type ClaimWorkflowStep = 
@@ -1014,6 +1027,12 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
           </Card>
         );
 
+      case 'review':
+        return <ClaimReviewStage claim={claim} policyDetails={policyDetails} onStepComplete={() => handleStepComplete('review')} />;
+
+      case 'validation':
+        return <ClaimValidationStage claim={claim} policyDetails={policyDetails} onStepComplete={() => handleStepComplete('validation')} />;
+
       default:
         const stepData = steps.find(s => s.id === currentStep);
         const StepIcon = stepData?.icon;
@@ -1168,6 +1187,750 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
       <div className="min-h-[400px]">
         {renderStepContent()}
       </div>
+    </div>
+  );
+};
+
+// Claim Review Stage Component
+interface ClaimReviewStageProps {
+  claim: Claim;
+  policyDetails: { insurer: string; premium: number; sum_insured: number } | null;
+  onStepComplete: () => void;
+}
+
+const ClaimReviewStage = ({ claim, policyDetails, onStepComplete }: ClaimReviewStageProps) => {
+  const { toast } = useToast();
+  const { transitionClaim, loading } = useClaimWorkflow();
+  const [investigationNotes, setInvestigationNotes] = useState('');
+  const [riskAssessment, setRiskAssessment] = useState('');
+  const [recommendedAction, setRecommendedAction] = useState<'approve' | 'reject' | 'request_more_info'>('approve');
+  const [fraudIndicators, setFraudIndicators] = useState<string[]>([]);
+  const [witnessContacts, setWitnessContacts] = useState<{ name: string; phone: string; email: string }[]>([]);
+  const [investigationChecklist, setInvestigationChecklist] = useState({
+    documentsReviewed: false,
+    clientInterviewed: false,
+    sceneInspected: false,
+    witnessesContacted: false,
+    policeReportObtained: false,
+    medicalRecordsReviewed: false,
+    repairEstimatesObtained: false,
+    previousClaimsChecked: false
+  });
+
+  const fraudRiskFactors = [
+    'Multiple claims in short timeframe',
+    'Inconsistent incident description',
+    'Delayed reporting of incident',
+    'No witnesses or uncooperative witnesses',
+    'Unusual damage patterns',
+    'High claim amount relative to premium',
+    'Previous fraud history',
+    'Missing or suspicious documentation'
+  ];
+
+  const handleFraudIndicatorToggle = (indicator: string) => {
+    setFraudIndicators(prev => 
+      prev.includes(indicator) 
+        ? prev.filter(i => i !== indicator)
+        : [...prev, indicator]
+    );
+  };
+
+  const handleChecklistUpdate = (key: keyof typeof investigationChecklist) => {
+    setInvestigationChecklist(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const addWitness = () => {
+    setWitnessContacts(prev => [...prev, { name: '', phone: '', email: '' }]);
+  };
+
+  const updateWitness = (index: number, field: 'name' | 'phone' | 'email', value: string) => {
+    setWitnessContacts(prev => prev.map((witness, i) => 
+      i === index ? { ...witness, [field]: value } : witness
+    ));
+  };
+
+  const removeWitness = (index: number) => {
+    setWitnessContacts(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleCompleteReview = async () => {
+    try {
+      const reviewData = {
+        investigation_notes: investigationNotes,
+        risk_assessment: riskAssessment,
+        recommended_action: recommendedAction,
+        fraud_indicators: fraudIndicators,
+        witness_contacts: witnessContacts,
+        investigation_checklist: investigationChecklist,
+        reviewed_at: new Date().toISOString()
+      };
+
+      // Update claim notes with review details
+      const updatedNotes = `${claim.notes || ''}\n\n--- CLAIM REVIEW COMPLETED ---\nReviewed: ${new Date().toLocaleDateString()}\nRecommendation: ${recommendedAction}\nRisk Level: ${fraudIndicators.length > 2 ? 'HIGH' : fraudIndicators.length > 0 ? 'MEDIUM' : 'LOW'}\n\nInvestigation Notes:\n${investigationNotes}\n\nRisk Assessment:\n${riskAssessment}`;
+
+      await supabase
+        .from('claims')
+        .update({ 
+          notes: updatedNotes,
+          investigation_complete: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', claim.id);
+
+      // Transition claim to assessed status
+      await transitionClaim(claim.id, 'assessed', `Review completed. Recommendation: ${recommendedAction}`);
+
+      toast({
+        title: "Review Completed",
+        description: "Claim review has been completed and moved to validation stage"
+      });
+
+      onStepComplete();
+    } catch (error) {
+      console.error('Error completing review:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete claim review",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const completedChecklist = Object.values(investigationChecklist).filter(Boolean).length;
+  const totalChecklist = Object.keys(investigationChecklist).length;
+  const isReviewComplete = completedChecklist >= totalChecklist * 0.7; // 70% completion required
+
+  return (
+    <div className="space-y-6">
+      {/* Claim Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            Claim Review - Internal Investigation
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+            <div>
+              <label className="font-medium">Claim #:</label>
+              <p className="text-muted-foreground">{claim.claim_number}</p>
+            </div>
+            <div>
+              <label className="font-medium">Client:</label>
+              <p className="text-muted-foreground">{claim.client_name}</p>
+            </div>
+            <div>
+              <label className="font-medium">Type:</label>
+              <p className="text-muted-foreground">{claim.claim_type}</p>
+            </div>
+            <div>
+              <label className="font-medium">Estimated Loss:</label>
+              <p className="text-muted-foreground">₦{claim.estimated_loss?.toLocaleString()}</p>
+            </div>
+            <div>
+              <label className="font-medium">Policy:</label>
+              <p className="text-muted-foreground">{claim.policy_number}</p>
+            </div>
+            <div>
+              <label className="font-medium">Status:</label>
+              <p className="text-muted-foreground">{claim.status}</p>
+            </div>
+            {policyDetails && (
+              <>
+                <div>
+                  <label className="font-medium">Insurer:</label>
+                  <p className="text-muted-foreground">{policyDetails.insurer}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Premium:</label>
+                  <p className="text-muted-foreground">₦{policyDetails.premium.toLocaleString()}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Sum Insured:</label>
+                  <p className="text-muted-foreground">₦{policyDetails.sum_insured.toLocaleString()}</p>
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Investigation Checklist */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5" />
+                Investigation Checklist
+              </div>
+              <Badge variant="outline">
+                {completedChecklist}/{totalChecklist} Complete
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Object.entries(investigationChecklist).map(([key, completed]) => (
+              <div key={key} className="flex items-center space-x-3">
+                <Switch
+                  checked={completed}
+                  onCheckedChange={() => handleChecklistUpdate(key as keyof typeof investigationChecklist)}
+                />
+                <label className="text-sm font-medium cursor-pointer">
+                  {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                </label>
+              </div>
+            ))}
+            
+            <div className={`p-3 rounded-lg ${isReviewComplete ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+              <p className={`text-sm ${isReviewComplete ? 'text-green-800' : 'text-yellow-800'}`}>
+                {isReviewComplete 
+                  ? '✓ Investigation checklist completed - Ready for review completion'
+                  : `Complete ${Math.ceil(totalChecklist * 0.7) - completedChecklist} more items to proceed`
+                }
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Fraud Risk Assessment */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Fraud Risk Assessment
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              {fraudRiskFactors.map(factor => (
+                <div key={factor} className="flex items-center space-x-3">
+                  <Switch
+                    checked={fraudIndicators.includes(factor)}
+                    onCheckedChange={() => handleFraudIndicatorToggle(factor)}
+                  />
+                  <label className="text-sm cursor-pointer">
+                    {factor}
+                  </label>
+                </div>
+              ))}
+            </div>
+            
+            <div className={`p-3 rounded-lg ${
+              fraudIndicators.length > 2 ? 'bg-red-50 border border-red-200' :
+              fraudIndicators.length > 0 ? 'bg-yellow-50 border border-yellow-200' :
+              'bg-green-50 border border-green-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                <Shield className={`h-4 w-4 ${
+                  fraudIndicators.length > 2 ? 'text-red-600' :
+                  fraudIndicators.length > 0 ? 'text-yellow-600' :
+                  'text-green-600'
+                }`} />
+                <span className={`font-medium text-sm ${
+                  fraudIndicators.length > 2 ? 'text-red-800' :
+                  fraudIndicators.length > 0 ? 'text-yellow-800' :
+                  'text-green-800'
+                }`}>
+                  Risk Level: {fraudIndicators.length > 2 ? 'HIGH' : fraudIndicators.length > 0 ? 'MEDIUM' : 'LOW'}
+                </span>
+              </div>
+              <p className={`text-xs mt-1 ${
+                fraudIndicators.length > 2 ? 'text-red-700' :
+                fraudIndicators.length > 0 ? 'text-yellow-700' :
+                'text-green-700'
+              }`}>
+                {fraudIndicators.length} risk factors identified
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Witness Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Witness Information
+            </div>
+            <Button variant="outline" size="sm" onClick={addWitness}>
+              Add Witness
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {witnessContacts.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No witnesses added. Click "Add Witness" to record witness information.
+            </p>
+          ) : (
+            witnessContacts.map((witness, index) => (
+              <div key={index} className="grid grid-cols-4 gap-4 p-4 border rounded-lg">
+                <div>
+                  <Label className="text-xs">Name</Label>
+                  <Input
+                    value={witness.name}
+                    onChange={(e) => updateWitness(index, 'name', e.target.value)}
+                    placeholder="Witness name"
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Phone</Label>
+                  <Input
+                    value={witness.phone}
+                    onChange={(e) => updateWitness(index, 'phone', e.target.value)}
+                    placeholder="Phone number"
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Email</Label>
+                  <Input
+                    value={witness.email}
+                    onChange={(e) => updateWitness(index, 'email', e.target.value)}
+                    placeholder="Email address"
+                    className="text-sm"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => removeWitness(index)}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Investigation Notes */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Investigation Notes
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Detailed Investigation Notes</Label>
+            <Textarea
+              value={investigationNotes}
+              onChange={(e) => setInvestigationNotes(e.target.value)}
+              placeholder="Document your investigation findings, interviews conducted, evidence reviewed, etc."
+              rows={6}
+              className="mt-2"
+            />
+          </div>
+          
+          <div>
+            <Label>Risk Assessment Summary</Label>
+            <Textarea
+              value={riskAssessment}
+              onChange={(e) => setRiskAssessment(e.target.value)}
+              placeholder="Summarize the overall risk assessment and key concerns..."
+              rows={4}
+              className="mt-2"
+            />
+          </div>
+
+          <div>
+            <Label>Recommended Action</Label>
+            <Select value={recommendedAction} onValueChange={(value: 'approve' | 'reject' | 'request_more_info') => setRecommendedAction(value)}>
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="approve">Approve for Assessment</SelectItem>
+                <SelectItem value="request_more_info">Request More Information</SelectItem>
+                <SelectItem value="reject">Recommend Rejection</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Action Buttons */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex gap-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={loading}
+            >
+              Save Draft
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={handleCompleteReview}
+              disabled={!isReviewComplete || !investigationNotes.trim() || loading}
+            >
+              {loading ? 'Processing...' : 'Complete Review & Move to Validation'}
+            </Button>
+          </div>
+          
+          {!isReviewComplete && (
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Complete the investigation checklist to proceed
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Claim Validation Stage Component
+interface ClaimValidationStageProps {
+  claim: Claim;
+  policyDetails: { insurer: string; premium: number; sum_insured: number } | null;
+  onStepComplete: () => void;
+}
+
+const ClaimValidationStage = ({ claim, policyDetails, onStepComplete }: ClaimValidationStageProps) => {
+  const { toast } = useToast();
+  const { transitionClaim, loading } = useClaimWorkflow();
+  const [validationNotes, setValidationNotes] = useState('');
+  const [approvedAmount, setApprovedAmount] = useState(claim.estimated_loss || 0);
+  const [validationDecision, setValidationDecision] = useState<'approved' | 'rejected' | 'pending'>('pending');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [policyCompliance, setPolicyCompliance] = useState({
+    withinCoverageLimit: false,
+    withinPolicyPeriod: false,
+    coverageTypeMatches: false,
+    deductibleApplied: false,
+    exclusionsChecked: false,
+    policyConditionsMet: false
+  });
+  const [documentValidation, setDocumentValidation] = useState({
+    claimFormComplete: false,
+    proofOfLossProvided: false,
+    repairEstimatesValid: false,
+    medicalReportsValid: false,
+    policeReportValid: false,
+    photographicEvidence: false
+  });
+
+  const handlePolicyComplianceUpdate = (key: keyof typeof policyCompliance) => {
+    setPolicyCompliance(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const handleDocumentValidationUpdate = (key: keyof typeof documentValidation) => {
+    setDocumentValidation(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const handleCompleteValidation = async () => {
+    try {
+      const validationData = {
+        validation_notes: validationNotes,
+        approved_amount: approvedAmount,
+        validation_decision: validationDecision,
+        rejection_reason: rejectionReason,
+        policy_compliance: policyCompliance,
+        document_validation: documentValidation,
+        validated_at: new Date().toISOString()
+      };
+
+      // Update claim with validation details
+      const updatedNotes = `${claim.notes || ''}\n\n--- CLAIM VALIDATION COMPLETED ---\nValidated: ${new Date().toLocaleDateString()}\nDecision: ${validationDecision.toUpperCase()}\nApproved Amount: ₦${approvedAmount.toLocaleString()}\n\nValidation Notes:\n${validationNotes}${rejectionReason ? `\n\nRejection Reason:\n${rejectionReason}` : ''}`;
+
+      await supabase
+        .from('claims')
+        .update({ 
+          notes: updatedNotes,
+          settlement_amount: validationDecision === 'approved' ? approvedAmount : 0,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', claim.id);
+
+      // Transition claim based on decision
+      const newStatus = validationDecision === 'approved' ? 'approved' : 'rejected';
+      await transitionClaim(claim.id, newStatus, `Validation completed. Decision: ${validationDecision}`);
+
+      toast({
+        title: "Validation Completed",
+        description: `Claim has been ${validationDecision} and moved to next stage`
+      });
+
+      onStepComplete();
+    } catch (error) {
+      console.error('Error completing validation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete claim validation",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const policyComplianceCompleted = Object.values(policyCompliance).filter(Boolean).length;
+  const documentValidationCompleted = Object.values(documentValidation).filter(Boolean).length;
+  const totalPolicyChecks = Object.keys(policyCompliance).length;
+  const totalDocumentChecks = Object.keys(documentValidation).length;
+  
+  const isPolicyCompliant = policyComplianceCompleted >= totalPolicyChecks * 0.8;
+  const isDocumentValidationComplete = documentValidationCompleted >= totalDocumentChecks * 0.7;
+  const canComplete = isPolicyCompliant && isDocumentValidationComplete && validationDecision !== 'pending';
+
+  return (
+    <div className="space-y-6">
+      {/* Claim Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle className="h-5 w-5" />
+            Claim Validation - Final Assessment
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+            <div>
+              <label className="font-medium">Claim #:</label>
+              <p className="text-muted-foreground">{claim.claim_number}</p>
+            </div>
+            <div>
+              <label className="font-medium">Client:</label>
+              <p className="text-muted-foreground">{claim.client_name}</p>
+            </div>
+            <div>
+              <label className="font-medium">Type:</label>
+              <p className="text-muted-foreground">{claim.claim_type}</p>
+            </div>
+            <div>
+              <label className="font-medium">Estimated Loss:</label>
+              <p className="text-muted-foreground">₦{claim.estimated_loss?.toLocaleString()}</p>
+            </div>
+            <div>
+              <label className="font-medium">Policy:</label>
+              <p className="text-muted-foreground">{claim.policy_number}</p>
+            </div>
+            <div>
+              <label className="font-medium">Status:</label>
+              <p className="text-muted-foreground">{claim.status}</p>
+            </div>
+            {policyDetails && (
+              <>
+                <div>
+                  <label className="font-medium">Insurer:</label>
+                  <p className="text-muted-foreground">{policyDetails.insurer}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Premium:</label>
+                  <p className="text-muted-foreground">₦{policyDetails.premium.toLocaleString()}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Sum Insured:</label>
+                  <p className="text-muted-foreground">₦{policyDetails.sum_insured.toLocaleString()}</p>
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Policy Compliance Check */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Policy Compliance
+              </div>
+              <Badge variant={isPolicyCompliant ? "secondary" : "outline"}>
+                {policyComplianceCompleted}/{totalPolicyChecks} Checked
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Object.entries(policyCompliance).map(([key, checked]) => (
+              <div key={key} className="flex items-center space-x-3">
+                <Switch
+                  checked={checked}
+                  onCheckedChange={() => handlePolicyComplianceUpdate(key as keyof typeof policyCompliance)}
+                />
+                <label className="text-sm font-medium cursor-pointer">
+                  {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                </label>
+              </div>
+            ))}
+            
+            <div className={`p-3 rounded-lg ${isPolicyCompliant ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+              <p className={`text-sm ${isPolicyCompliant ? 'text-green-800' : 'text-yellow-800'}`}>
+                {isPolicyCompliant 
+                  ? '✓ Policy compliance requirements met'
+                  : `Complete ${Math.ceil(totalPolicyChecks * 0.8) - policyComplianceCompleted} more checks`
+                }
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Document Validation */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Document Validation
+              </div>
+              <Badge variant={isDocumentValidationComplete ? "secondary" : "outline"}>
+                {documentValidationCompleted}/{totalDocumentChecks} Validated
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Object.entries(documentValidation).map(([key, validated]) => (
+              <div key={key} className="flex items-center space-x-3">
+                <Switch
+                  checked={validated}
+                  onCheckedChange={() => handleDocumentValidationUpdate(key as keyof typeof documentValidation)}
+                />
+                <label className="text-sm font-medium cursor-pointer">
+                  {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                </label>
+              </div>
+            ))}
+            
+            <div className={`p-3 rounded-lg ${isDocumentValidationComplete ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+              <p className={`text-sm ${isDocumentValidationComplete ? 'text-green-800' : 'text-yellow-800'}`}>
+                {isDocumentValidationComplete 
+                  ? '✓ Document validation completed'
+                  : `Validate ${Math.ceil(totalDocumentChecks * 0.7) - documentValidationCompleted} more documents`
+                }
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Validation Decision */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Star className="h-5 w-5" />
+            Validation Decision
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <Label>Validation Decision</Label>
+              <Select value={validationDecision} onValueChange={(value: 'approved' | 'rejected' | 'pending') => setValidationDecision(value)}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending Decision</SelectItem>
+                  <SelectItem value="approved">Approve Claim</SelectItem>
+                  <SelectItem value="rejected">Reject Claim</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {validationDecision === 'approved' && (
+              <div>
+                <Label>Approved Settlement Amount</Label>
+                <Input
+                  type="number"
+                  value={approvedAmount}
+                  onChange={(e) => setApprovedAmount(Number(e.target.value))}
+                  className="mt-2"
+                  placeholder="Enter approved amount"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Original estimate: ₦{claim.estimated_loss?.toLocaleString()}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {validationDecision === 'rejected' && (
+            <div>
+              <Label>Rejection Reason</Label>
+              <Textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Provide detailed reason for rejection..."
+                rows={3}
+                className="mt-2"
+              />
+            </div>
+          )}
+
+          <div>
+            <Label>Validation Notes</Label>
+            <Textarea
+              value={validationNotes}
+              onChange={(e) => setValidationNotes(e.target.value)}
+              placeholder="Document your validation findings, any concerns, and final assessment..."
+              rows={5}
+              className="mt-2"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Action Buttons */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex gap-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={loading}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Save Progress
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={handleCompleteValidation}
+              disabled={!canComplete || loading}
+              variant={validationDecision === 'approved' ? 'default' : validationDecision === 'rejected' ? 'destructive' : 'outline'}
+            >
+              {loading ? 'Processing...' : `Complete Validation - ${validationDecision.toUpperCase()}`}
+            </Button>
+          </div>
+          
+          {!canComplete && (
+            <div className="mt-4 space-y-2">
+              <p className="text-xs text-muted-foreground text-center">Complete all requirements to proceed:</p>
+              <div className="text-xs text-center space-x-4">
+                <span className={isPolicyCompliant ? 'text-green-600' : 'text-yellow-600'}>
+                  Policy Compliance {isPolicyCompliant ? '✓' : '○'}
+                </span>
+                <span className={isDocumentValidationComplete ? 'text-green-600' : 'text-yellow-600'}>
+                  Document Validation {isDocumentValidationComplete ? '✓' : '○'}
+                </span>
+                <span className={validationDecision !== 'pending' ? 'text-green-600' : 'text-yellow-600'}>
+                  Decision Made {validationDecision !== 'pending' ? '✓' : '○'}
+                </span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
