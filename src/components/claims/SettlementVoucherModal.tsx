@@ -149,26 +149,44 @@ export const SettlementVoucherModal = ({ open, onOpenChange, claim, onSuccess }:
             <CardHeader>
               <CardTitle className="text-lg">Claim Summary</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex justify-between">
-                <span className="font-medium">Claim ID:</span>
-                <span>{claim.id}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Policy Number:</span>
-                <span>{claim.policy_number}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Insured:</span>
-                <span>{claim.client_name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Claim Type:</span>
-                <span>{claim.claim_type}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Estimated Loss:</span>
-                <span className="font-semibold">₦{claim.estimated_loss.toLocaleString()}</span>
+            <CardContent>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <label className="font-medium">Claim #:</label>
+                  <p className="text-muted-foreground">{claim.claim_number}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Client:</label>
+                  <p className="text-muted-foreground">{claim.client_name}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Type:</label>
+                  <p className="text-muted-foreground">{claim.claim_type}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Estimated Loss:</label>
+                  <p className="text-muted-foreground">₦{claim.estimated_loss?.toLocaleString()}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Policy:</label>
+                  <p className="text-muted-foreground">{claim.policy_number}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Status:</label>
+                  <p className="text-muted-foreground">{claim.status}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Insurer:</label>
+                  <p className="text-muted-foreground">-</p>
+                </div>
+                <div>
+                  <label className="font-medium">Premium:</label>
+                  <p className="text-muted-foreground">-</p>
+                </div>
+                <div>
+                  <label className="font-medium">Sum Insured:</label>
+                  <p className="text-muted-foreground">-</p>
+                </div>
               </div>
             </CardContent>
           </Card>
