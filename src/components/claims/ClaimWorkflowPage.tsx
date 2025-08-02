@@ -576,7 +576,56 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
       case 'registration':
         return (
           <div className="space-y-6">
-            {/* Removed first basic claim summary - keeping only the enhanced version */}
+            {/* Claim Summary with additional details */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Claim Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <label className="font-medium">Claim #:</label>
+                    <p className="text-muted-foreground">{claim.claim_number}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium">Client:</label>
+                    <p className="text-muted-foreground">{claim.client_name}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium">Type:</label>
+                    <p className="text-muted-foreground">{claim.claim_type}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium">Estimated Loss:</label>
+                    <p className="text-muted-foreground">₦{claim.estimated_loss?.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium">Policy:</label>
+                    <p className="text-muted-foreground">{claim.policy_number}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium">Status:</label>
+                    <p className="text-muted-foreground">{claim.status}</p>
+                  </div>
+                  {policyDetails && (
+                    <>
+                      <div>
+                        <label className="font-medium">Insurer:</label>
+                        <p className="text-muted-foreground">{policyDetails.insurer}</p>
+                      </div>
+                      <div>
+                        <label className="font-medium">Premium:</label>
+                        <p className="text-muted-foreground">₦{policyDetails.premium.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <label className="font-medium">Sum Insured:</label>
+                        <p className="text-muted-foreground">₦{policyDetails.sum_insured.toLocaleString()}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
             <div className="grid md:grid-cols-2 gap-6">
               {/* Manual Registration Form */}
