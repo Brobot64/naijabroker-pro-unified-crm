@@ -40,9 +40,9 @@ const TeamCollaborationSection = () => {
               <div className="absolute inset-0 bg-gradient-to-tr from-indigo-600/20 to-transparent"></div>
             </div>
             
-            <div className="absolute -top-6 -left-6 bg-white rounded-full p-4 shadow-lg animate-bounce">
+            {/* <div className="absolute -top-6 -left-6 bg-white rounded-full p-4 shadow-lg animate-bounce">
               <Users className="h-8 w-8 text-indigo-600" />
-            </div>
+            </div> */}
             
             <div className="absolute -bottom-6 -right-6 bg-white rounded-full p-4 shadow-lg animate-pulse">
               <Shield className="h-8 w-8 text-blue-600" />

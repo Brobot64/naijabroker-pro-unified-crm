@@ -29,15 +29,15 @@ const Landing = () => {
       <HeroSection />
       <FeaturesSection />
       <InteractiveDemoSection />
-      <TeamSection />
-      <CaseStudiesSection />
-      <DeveloperPortalSection />
-      <TestimonialsSection />
-      <PricingSection />
+      {/* <TeamSection /> */}
+      {/* <CaseStudiesSection /> */}
+      {/* <DeveloperPortalSection /> */}
+      {/* <TestimonialsSection /> */}
+      {/* <PricingSection /> */}
       <TeamCollaborationSection />
       <FAQSection />
       <NewsletterSection />
-      <ContactSection />
+      {/* <ContactSection /> */}
       <Footer />
     </motion.div>
   );
