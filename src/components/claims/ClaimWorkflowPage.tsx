@@ -39,7 +39,13 @@ import {
   Shield,
   Clock,
   Star,
-  Save
+  Save,
+  Calculator,
+  CreditCard,
+  Users,
+  TrendingUp,
+  Edit,
+  Download
 } from "lucide-react";
 
 type ClaimWorkflowStep = 
@@ -1033,6 +1039,15 @@ export const ClaimWorkflowPage = ({ claim, onBack, onSuccess }: ClaimWorkflowPag
       case 'validation':
         return <ClaimValidationStage claim={claim} policyDetails={policyDetails} onStepComplete={() => handleStepComplete('validation')} />;
 
+      case 'settlement':
+        return <SettlementRecommendationStage claim={claim} policyDetails={policyDetails} onStepComplete={() => handleStepComplete('settlement')} />;
+
+      case 'feedback':
+        return <ClientFeedbackStage claim={claim} policyDetails={policyDetails} onStepComplete={() => handleStepComplete('feedback')} />;
+
+      case 'closure':
+        return <ClaimClosureStage claim={claim} policyDetails={policyDetails} onStepComplete={() => handleStepComplete('closure')} />;
+
       default:
         const stepData = steps.find(s => s.id === currentStep);
         const StepIcon = stepData?.icon;
@@ -1925,6 +1940,1007 @@ const ClaimValidationStage = ({ claim, policyDetails, onStepComplete }: ClaimVal
                 </span>
                 <span className={validationDecision !== 'pending' ? 'text-green-600' : 'text-yellow-600'}>
                   Decision Made {validationDecision !== 'pending' ? '✓' : '○'}
+                </span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Settlement Recommendation Stage Component
+interface SettlementRecommendationStageProps {
+  claim: Claim;
+  policyDetails: { insurer: string; premium: number; sum_insured: number } | null;
+  onStepComplete: () => void;
+}
+
+const SettlementRecommendationStage = ({ claim, policyDetails, onStepComplete }: SettlementRecommendationStageProps) => {
+  const { toast } = useToast();
+  const { transitionClaim, loading } = useClaimWorkflow();
+  const [settlementAmount, setSettlementAmount] = useState(claim.settlement_amount || claim.estimated_loss || 0);
+  const [settlementType, setSettlementType] = useState<'full' | 'partial' | 'final'>('full');
+  const [recommendationNotes, setRecommendationNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cheque' | 'bank_transfer' | 'cash'>('cheque');
+  const [chequeDetails, setChequeDetails] = useState({
+    chequeNumber: '',
+    bankName: '',
+    chequeDate: new Date().toISOString().split('T')[0]
+  });
+  const [approvalRequired, setApprovalRequired] = useState(false);
+  const [settlement, setSettlement] = useState({
+    deductibleApplied: false,
+    depreciation: 0,
+    salvageValue: 0,
+    additionalCosts: 0
+  });
+
+  useEffect(() => {
+    // Check if approval is required based on settlement amount
+    if (policyDetails && settlementAmount > policyDetails.sum_insured * 0.8) {
+      setApprovalRequired(true);
+    } else {
+      setApprovalRequired(false);
+    }
+  }, [settlementAmount, policyDetails]);
+
+  const calculateNetSettlement = () => {
+    let netAmount = settlementAmount;
+    if (settlement.deductibleApplied && policyDetails) {
+      netAmount -= policyDetails.sum_insured * 0.1; // Assume 10% deductible
+    }
+    netAmount -= settlement.depreciation;
+    netAmount -= settlement.salvageValue;
+    netAmount += settlement.additionalCosts;
+    return Math.max(0, netAmount);
+  };
+
+  const handleCreateSettlementVoucher = async () => {
+    try {
+      const voucherData = {
+        organization_id: claim.organization_id,
+        claim_id: claim.id,
+        voucher_number: `SV-${claim.claim_number}-${Date.now()}`,
+        policy_number: claim.policy_number,
+        client_name: claim.client_name,
+        agreed_amount: calculateNetSettlement(),
+        settlement_type: settlementType,
+        cheque_number: chequeDetails.chequeNumber,
+        cheque_date: chequeDetails.chequeDate,
+        bank_name: chequeDetails.bankName,
+        remarks: recommendationNotes,
+        discharging_officer: 'System Generated'
+      };
+
+      const { data: voucher, error: voucherError } = await supabase
+        .from('settlement_vouchers')
+        .insert(voucherData)
+        .select()
+        .single();
+
+      if (voucherError) throw voucherError;
+
+      // Update claim with settlement details
+      const updatedNotes = `${claim.notes || ''}\n\n--- SETTLEMENT RECOMMENDATION ---\nDate: ${new Date().toLocaleDateString()}\nRecommended Amount: ₦${settlementAmount.toLocaleString()}\nNet Settlement: ₦${calculateNetSettlement().toLocaleString()}\nSettlement Type: ${settlementType.toUpperCase()}\nPayment Method: ${paymentMethod.toUpperCase()}\n\nRecommendation Notes:\n${recommendationNotes}\n\nVoucher Number: ${voucherData.voucher_number}`;
+
+      await supabase
+        .from('claims')
+        .update({ 
+          notes: updatedNotes,
+          settlement_amount: calculateNetSettlement(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', claim.id);
+
+      // Transition claim to settled status
+      await transitionClaim(claim.id, 'settled', `Settlement voucher created: ${voucherData.voucher_number}`);
+
+      toast({
+        title: "Settlement Voucher Created",
+        description: `Voucher ${voucherData.voucher_number} has been generated and claim moved to settlement stage`
+      });
+
+      onStepComplete();
+    } catch (error) {
+      console.error('Error creating settlement voucher:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create settlement voucher",
+        variant: "destructive"
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Claim Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Settlement Recommendation
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+            <div>
+              <label className="font-medium">Claim #:</label>
+              <p className="text-muted-foreground">{claim.claim_number}</p>
+            </div>
+            <div>
+              <label className="font-medium">Client:</label>
+              <p className="text-muted-foreground">{claim.client_name}</p>
+            </div>
+            <div>
+              <label className="font-medium">Type:</label>
+              <p className="text-muted-foreground">{claim.claim_type}</p>
+            </div>
+            <div>
+              <label className="font-medium">Estimated Loss:</label>
+              <p className="text-muted-foreground">₦{claim.estimated_loss?.toLocaleString()}</p>
+            </div>
+            <div>
+              <label className="font-medium">Policy:</label>
+              <p className="text-muted-foreground">{claim.policy_number}</p>
+            </div>
+            <div>
+              <label className="font-medium">Status:</label>
+              <p className="text-muted-foreground">{claim.status}</p>
+            </div>
+            {policyDetails && (
+              <>
+                <div>
+                  <label className="font-medium">Insurer:</label>
+                  <p className="text-muted-foreground">{policyDetails.insurer}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Premium:</label>
+                  <p className="text-muted-foreground">₦{policyDetails.premium.toLocaleString()}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Sum Insured:</label>
+                  <p className="text-muted-foreground">₦{policyDetails.sum_insured.toLocaleString()}</p>
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Settlement Calculation */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5" />
+              Settlement Calculation
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Settlement Amount</Label>
+              <Input
+                type="number"
+                value={settlementAmount}
+                onChange={(e) => setSettlementAmount(Number(e.target.value))}
+                className="mt-2"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Original estimate: ₦{claim.estimated_loss?.toLocaleString()}
+              </p>
+            </div>
+
+            <div>
+              <Label>Settlement Type</Label>
+              <Select value={settlementType} onValueChange={(value: 'full' | 'partial' | 'final') => setSettlementType(value)}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="full">Full Settlement</SelectItem>
+                  <SelectItem value="partial">Partial Settlement</SelectItem>
+                  <SelectItem value="final">Final Payment</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="font-medium">Deductions & Adjustments</h4>
+              
+              <div className="flex items-center space-x-3">
+                <Switch
+                  checked={settlement.deductibleApplied}
+                  onCheckedChange={(checked) => setSettlement(prev => ({ ...prev, deductibleApplied: checked }))}
+                />
+                <label className="text-sm">Apply Policy Deductible</label>
+              </div>
+
+              <div>
+                <Label className="text-sm">Depreciation Amount</Label>
+                <Input
+                  type="number"
+                  value={settlement.depreciation}
+                  onChange={(e) => setSettlement(prev => ({ ...prev, depreciation: Number(e.target.value) }))}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label className="text-sm">Salvage Value</Label>
+                <Input
+                  type="number"
+                  value={settlement.salvageValue}
+                  onChange={(e) => setSettlement(prev => ({ ...prev, salvageValue: Number(e.target.value) }))}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label className="text-sm">Additional Costs</Label>
+                <Input
+                  type="number"
+                  value={settlement.additionalCosts}
+                  onChange={(e) => setSettlement(prev => ({ ...prev, additionalCosts: Number(e.target.value) }))}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Net Settlement Amount:</span>
+                <span className="text-lg font-bold text-blue-700">₦{calculateNetSettlement().toLocaleString()}</span>
+              </div>
+            </div>
+
+            {approvalRequired && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <p className="text-sm text-orange-800 font-medium">⚠️ Management Approval Required</p>
+                <p className="text-xs text-orange-700">Settlement amount exceeds 80% of sum insured</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Payment Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Payment Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Payment Method</Label>
+              <Select value={paymentMethod} onValueChange={(value: 'cheque' | 'bank_transfer' | 'cash') => setPaymentMethod(value)}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cheque">Cheque Payment</SelectItem>
+                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="cash">Cash Payment</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {paymentMethod === 'cheque' && (
+              <div className="space-y-3">
+                <div>
+                  <Label>Cheque Number</Label>
+                  <Input
+                    value={chequeDetails.chequeNumber}
+                    onChange={(e) => setChequeDetails(prev => ({ ...prev, chequeNumber: e.target.value }))}
+                    placeholder="Enter cheque number"
+                    className="mt-2"
+                  />
+                </div>
+
+                <div>
+                  <Label>Bank Name</Label>
+                  <Input
+                    value={chequeDetails.bankName}
+                    onChange={(e) => setChequeDetails(prev => ({ ...prev, bankName: e.target.value }))}
+                    placeholder="Enter bank name"
+                    className="mt-2"
+                  />
+                </div>
+
+                <div>
+                  <Label>Cheque Date</Label>
+                  <Input
+                    type="date"
+                    value={chequeDetails.chequeDate}
+                    onChange={(e) => setChequeDetails(prev => ({ ...prev, chequeDate: e.target.value }))}
+                    className="mt-2"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Label>Recommendation Notes</Label>
+              <Textarea
+                value={recommendationNotes}
+                onChange={(e) => setRecommendationNotes(e.target.value)}
+                placeholder="Document your settlement recommendation, basis for amount, and any special considerations..."
+                rows={6}
+                className="mt-2"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Action Buttons */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex gap-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={loading}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Save Draft
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={handleCreateSettlementVoucher}
+              disabled={loading || !recommendationNotes.trim() || (paymentMethod === 'cheque' && (!chequeDetails.chequeNumber || !chequeDetails.bankName))}
+            >
+              {loading ? 'Processing...' : 'Create Settlement Voucher'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Client Feedback Stage Component
+interface ClientFeedbackStageProps {
+  claim: Claim;
+  policyDetails: { insurer: string; premium: number; sum_insured: number } | null;
+  onStepComplete: () => void;
+}
+
+const ClientFeedbackStage = ({ claim, policyDetails, onStepComplete }: ClientFeedbackStageProps) => {
+  const { toast } = useToast();
+  const { transitionClaim, loading } = useClaimWorkflow();
+  const [feedbackCollected, setFeedbackCollected] = useState(false);
+  const [clientSatisfaction, setClientSatisfaction] = useState<1 | 2 | 3 | 4 | 5>(5);
+  const [feedbackComments, setFeedbackComments] = useState('');
+  const [improvementSuggestions, setImprovementSuggestions] = useState('');
+  const [additionalServices, setAdditionalServices] = useState<string[]>([]);
+  const [followUpRequired, setFollowUpRequired] = useState(false);
+  const [clientConfirmation, setClientConfirmation] = useState({
+    settlementReceived: false,
+    documentsComplete: false,
+    satisfiedWithService: false,
+    noFurtherClaims: false
+  });
+
+  const serviceOptions = [
+    'Risk Assessment Review',
+    'Policy Renewal Discussion',
+    'Additional Coverage Options',
+    'Premium Discount Eligibility',
+    'Claims Prevention Consultation',
+    'Other Insurance Products'
+  ];
+
+  const handleServiceToggle = (service: string) => {
+    setAdditionalServices(prev => 
+      prev.includes(service) 
+        ? prev.filter(s => s !== service)
+        : [...prev, service]
+    );
+  };
+
+  const handleConfirmationUpdate = (key: keyof typeof clientConfirmation) => {
+    setClientConfirmation(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const handleCloseClaim = async () => {
+    try {
+      const feedbackData = {
+        client_satisfaction: clientSatisfaction,
+        feedback_comments: feedbackComments,
+        improvement_suggestions: improvementSuggestions,
+        additional_services: additionalServices,
+        follow_up_required: followUpRequired,
+        client_confirmation: clientConfirmation,
+        feedback_collected_at: new Date().toISOString()
+      };
+
+      // Update claim with feedback details
+      const updatedNotes = `${claim.notes || ''}\n\n--- CLIENT FEEDBACK COLLECTED ---\nDate: ${new Date().toLocaleDateString()}\nSatisfaction Rating: ${clientSatisfaction}/5 stars\nServices Satisfied: ${Object.values(clientConfirmation).filter(Boolean).length}/4\n\nClient Comments:\n${feedbackComments}${improvementSuggestions ? `\n\nImprovement Suggestions:\n${improvementSuggestions}` : ''}${additionalServices.length > 0 ? `\n\nInterested Services:\n${additionalServices.join(', ')}` : ''}`;
+
+      await supabase
+        .from('claims')
+        .update({ 
+          notes: updatedNotes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', claim.id);
+
+      // Transition claim to closed status
+      await transitionClaim(claim.id, 'closed', 'Client feedback collected and claim ready for closure');
+
+      toast({
+        title: "Feedback Collected",
+        description: "Client feedback has been recorded and claim is ready for closure"
+      });
+
+      onStepComplete();
+    } catch (error) {
+      console.error('Error collecting feedback:', error);
+      toast({
+        title: "Error",
+        description: "Failed to collect client feedback",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const confirmationCompleted = Object.values(clientConfirmation).filter(Boolean).length;
+  const totalConfirmations = Object.keys(clientConfirmation).length;
+  const canProceed = confirmationCompleted >= totalConfirmations * 0.75 && feedbackCollected;
+
+  return (
+    <div className="space-y-6">
+      {/* Claim Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            Client Feedback Collection
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+            <div>
+              <label className="font-medium">Claim #:</label>
+              <p className="text-muted-foreground">{claim.claim_number}</p>
+            </div>
+            <div>
+              <label className="font-medium">Client:</label>
+              <p className="text-muted-foreground">{claim.client_name}</p>
+            </div>
+            <div>
+              <label className="font-medium">Type:</label>
+              <p className="text-muted-foreground">{claim.claim_type}</p>
+            </div>
+            <div>
+              <label className="font-medium">Settlement Amount:</label>
+              <p className="text-muted-foreground">₦{claim.settlement_amount?.toLocaleString() || '0'}</p>
+            </div>
+            <div>
+              <label className="font-medium">Policy:</label>
+              <p className="text-muted-foreground">{claim.policy_number}</p>
+            </div>
+            <div>
+              <label className="font-medium">Status:</label>
+              <p className="text-muted-foreground">{claim.status}</p>
+            </div>
+            {policyDetails && (
+              <>
+                <div>
+                  <label className="font-medium">Insurer:</label>
+                  <p className="text-muted-foreground">{policyDetails.insurer}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Premium:</label>
+                  <p className="text-muted-foreground">₦{policyDetails.premium.toLocaleString()}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Sum Insured:</label>
+                  <p className="text-muted-foreground">₦{policyDetails.sum_insured.toLocaleString()}</p>
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Client Confirmation Checklist */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5" />
+                Settlement Confirmation
+              </div>
+              <Badge variant="outline">
+                {confirmationCompleted}/{totalConfirmations} Confirmed
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Object.entries(clientConfirmation).map(([key, confirmed]) => (
+              <div key={key} className="flex items-center space-x-3">
+                <Switch
+                  checked={confirmed}
+                  onCheckedChange={() => handleConfirmationUpdate(key as keyof typeof clientConfirmation)}
+                />
+                <label className="text-sm font-medium cursor-pointer">
+                  {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                </label>
+              </div>
+            ))}
+
+            <div className="flex items-center space-x-3 pt-4 border-t">
+              <Switch
+                checked={feedbackCollected}
+                onCheckedChange={setFeedbackCollected}
+              />
+              <label className="text-sm font-medium cursor-pointer">
+                Feedback Form Completed
+              </label>
+            </div>
+            
+            <div className={`p-3 rounded-lg ${canProceed ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+              <p className={`text-sm ${canProceed ? 'text-green-800' : 'text-yellow-800'}`}>
+                {canProceed 
+                  ? '✓ Client confirmation completed - Ready to close claim'
+                  : `Complete ${Math.ceil(totalConfirmations * 0.75) - confirmationCompleted} more confirmations and feedback`
+                }
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Satisfaction & Feedback */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5" />
+              Client Satisfaction
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Overall Satisfaction Rating</Label>
+              <div className="flex gap-2 mt-2">
+                {[1, 2, 3, 4, 5].map((rating) => (
+                  <Button
+                    key={rating}
+                    variant={clientSatisfaction === rating ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setClientSatisfaction(rating as 1 | 2 | 3 | 4 | 5)}
+                    className="w-12 h-12"
+                  >
+                    <Star className={`h-4 w-4 ${clientSatisfaction >= rating ? 'fill-current' : ''}`} />
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {clientSatisfaction === 5 ? 'Excellent' : 
+                 clientSatisfaction === 4 ? 'Good' : 
+                 clientSatisfaction === 3 ? 'Average' : 
+                 clientSatisfaction === 2 ? 'Poor' : 'Very Poor'}
+              </p>
+            </div>
+
+            <div>
+              <Label>Client Comments</Label>
+              <Textarea
+                value={feedbackComments}
+                onChange={(e) => setFeedbackComments(e.target.value)}
+                placeholder="Record client's feedback about the claims process, service quality, and overall experience..."
+                rows={4}
+                className="mt-2"
+              />
+            </div>
+
+            <div>
+              <Label>Improvement Suggestions</Label>
+              <Textarea
+                value={improvementSuggestions}
+                onChange={(e) => setImprovementSuggestions(e.target.value)}
+                placeholder="Any suggestions from client for improving our claims process..."
+                rows={3}
+                className="mt-2"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Additional Services Interest */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Additional Services Interest
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {serviceOptions.map((service) => (
+              <div key={service} className="flex items-center space-x-3">
+                <Switch
+                  checked={additionalServices.includes(service)}
+                  onCheckedChange={() => handleServiceToggle(service)}
+                />
+                <label className="text-sm cursor-pointer">
+                  {service}
+                </label>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4">
+            <div className="flex items-center space-x-3">
+              <Switch
+                checked={followUpRequired}
+                onCheckedChange={setFollowUpRequired}
+              />
+              <label className="text-sm font-medium cursor-pointer">
+                Schedule Follow-up Call
+              </label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Action Buttons */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex gap-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={loading}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Save Progress
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={handleCloseClaim}
+              disabled={!canProceed || loading}
+            >
+              {loading ? 'Processing...' : 'Complete Feedback & Proceed to Closure'}
+            </Button>
+          </div>
+          
+          {!canProceed && (
+            <div className="mt-4 space-y-2">
+              <p className="text-xs text-muted-foreground text-center">Complete all requirements to proceed:</p>
+              <div className="text-xs text-center space-x-4">
+                <span className={confirmationCompleted >= totalConfirmations * 0.75 ? 'text-green-600' : 'text-yellow-600'}>
+                  Client Confirmations {confirmationCompleted >= totalConfirmations * 0.75 ? '✓' : '○'}
+                </span>
+                <span className={feedbackCollected ? 'text-green-600' : 'text-yellow-600'}>
+                  Feedback Collected {feedbackCollected ? '✓' : '○'}
+                </span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Claim Closure Stage Component
+interface ClaimClosureStageProps {
+  claim: Claim;
+  policyDetails: { insurer: string; premium: number; sum_insured: number } | null;
+  onStepComplete: () => void;
+}
+
+const ClaimClosureStage = ({ claim, policyDetails, onStepComplete }: ClaimClosureStageProps) => {
+  const { toast } = useToast();
+  const [closureNotes, setClosureNotes] = useState('');
+  const [archiveDocuments, setArchiveDocuments] = useState(true);
+  const [finalReports, setFinalReports] = useState({
+    claimSummaryGenerated: false,
+    financialReportCompleted: false,
+    complianceCheckCompleted: false,
+    auditTrailValidated: false
+  });
+  const [lessonsLearned, setLessonsLearned] = useState('');
+  const [processImprovements, setProcessImprovements] = useState('');
+
+  const handleFinalReportUpdate = (key: keyof typeof finalReports) => {
+    setFinalReports(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const handleClosureFinal = async () => {
+    try {
+      // Generate final closure documentation
+      const closureData = {
+        closed_date: new Date().toISOString(),
+        closure_notes: closureNotes,
+        archive_documents: archiveDocuments,
+        final_reports: finalReports,
+        lessons_learned: lessonsLearned,
+        process_improvements: processImprovements,
+        final_settlement: claim.settlement_amount || 0
+      };
+
+      // Update claim with final closure details
+      const finalNotes = `${claim.notes || ''}\n\n--- CLAIM CLOSURE COMPLETED ---\nClosure Date: ${new Date().toLocaleDateString()}\nFinal Settlement: ₦${(claim.settlement_amount || 0).toLocaleString()}\nArchive Documents: ${archiveDocuments ? 'Yes' : 'No'}\n\nClosure Notes:\n${closureNotes}${lessonsLearned ? `\n\nLessons Learned:\n${lessonsLearned}` : ''}${processImprovements ? `\n\nProcess Improvements:\n${processImprovements}` : ''}\n\n--- CLAIM OFFICIALLY CLOSED ---`;
+
+      await supabase
+        .from('claims')
+        .update({ 
+          notes: finalNotes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', claim.id);
+
+      // Log final audit entry
+      await supabase
+        .from('claim_audit_trail')
+        .insert({
+          claim_id: claim.id,
+          organization_id: claim.organization_id,
+          action: 'claim_closed',
+          stage: 'closure',
+          details: closureData
+        });
+
+      toast({
+        title: "Claim Officially Closed",
+        description: "All closure procedures completed and documented"
+      });
+
+      onStepComplete();
+    } catch (error) {
+      console.error('Error closing claim:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete claim closure",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const reportsCompleted = Object.values(finalReports).filter(Boolean).length;
+  const totalReports = Object.keys(finalReports).length;
+  const canClose = reportsCompleted === totalReports && closureNotes.trim();
+
+  return (
+    <div className="space-y-6">
+      {/* Claim Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Archive className="h-5 w-5" />
+            Claim Closure - Final Documentation
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+            <div>
+              <label className="font-medium">Claim #:</label>
+              <p className="text-muted-foreground">{claim.claim_number}</p>
+            </div>
+            <div>
+              <label className="font-medium">Client:</label>
+              <p className="text-muted-foreground">{claim.client_name}</p>
+            </div>
+            <div>
+              <label className="font-medium">Type:</label>
+              <p className="text-muted-foreground">{claim.claim_type}</p>
+            </div>
+            <div>
+              <label className="font-medium">Final Settlement:</label>
+              <p className="text-green-600 font-medium">₦{claim.settlement_amount?.toLocaleString() || '0'}</p>
+            </div>
+            <div>
+              <label className="font-medium">Policy:</label>
+              <p className="text-muted-foreground">{claim.policy_number}</p>
+            </div>
+            <div>
+              <label className="font-medium">Status:</label>
+              <p className="text-muted-foreground">{claim.status}</p>
+            </div>
+            {policyDetails && (
+              <>
+                <div>
+                  <label className="font-medium">Insurer:</label>
+                  <p className="text-muted-foreground">{policyDetails.insurer}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Premium:</label>
+                  <p className="text-muted-foreground">₦{policyDetails.premium.toLocaleString()}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Sum Insured:</label>
+                  <p className="text-muted-foreground">₦{policyDetails.sum_insured.toLocaleString()}</p>
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Final Reports Checklist */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Final Reports & Documentation
+              </div>
+              <Badge variant={reportsCompleted === totalReports ? "secondary" : "outline"}>
+                {reportsCompleted}/{totalReports} Complete
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Object.entries(finalReports).map(([key, completed]) => (
+              <div key={key} className="flex items-center space-x-3">
+                <Switch
+                  checked={completed}
+                  onCheckedChange={() => handleFinalReportUpdate(key as keyof typeof finalReports)}
+                />
+                <label className="text-sm font-medium cursor-pointer">
+                  {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                </label>
+              </div>
+            ))}
+
+            <div className="border-t pt-4">
+              <div className="flex items-center space-x-3">
+                <Switch
+                  checked={archiveDocuments}
+                  onCheckedChange={setArchiveDocuments}
+                />
+                <label className="text-sm font-medium cursor-pointer">
+                  Archive All Documents
+                </label>
+              </div>
+            </div>
+            
+            <div className={`p-3 rounded-lg ${reportsCompleted === totalReports ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+              <p className={`text-sm ${reportsCompleted === totalReports ? 'text-green-800' : 'text-yellow-800'}`}>
+                {reportsCompleted === totalReports 
+                  ? '✓ All final reports completed'
+                  : `Complete ${totalReports - reportsCompleted} more reports`
+                }
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Process Improvement Notes */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Process Improvement
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Lessons Learned</Label>
+              <Textarea
+                value={lessonsLearned}
+                onChange={(e) => setLessonsLearned(e.target.value)}
+                placeholder="Document any lessons learned during this claim process..."
+                rows={4}
+                className="mt-2"
+              />
+            </div>
+
+            <div>
+              <Label>Process Improvement Suggestions</Label>
+              <Textarea
+                value={processImprovements}
+                onChange={(e) => setProcessImprovements(e.target.value)}
+                placeholder="Suggest improvements to our claims handling process based on this case..."
+                rows={4}
+                className="mt-2"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Final Closure Notes */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Edit className="h-5 w-5" />
+            Final Closure Notes
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div>
+            <Label>Closure Summary</Label>
+            <Textarea
+              value={closureNotes}
+              onChange={(e) => setClosureNotes(e.target.value)}
+              placeholder="Provide a comprehensive summary of the claim closure, including key outcomes, client satisfaction, and final resolution..."
+              rows={6}
+              className="mt-2"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Summary Statistics */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Claim Summary Statistics</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-4 gap-4 text-center">
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-700">
+                {Math.round(((claim.settlement_amount || 0) / (claim.estimated_loss || 1)) * 100)}%
+              </div>
+              <div className="text-sm text-blue-600">Settlement Ratio</div>
+            </div>
+            <div className="p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-700">
+                {Math.round((new Date().getTime() - new Date(claim.created_at || '').getTime()) / (1000 * 60 * 60 * 24))}
+              </div>
+              <div className="text-sm text-green-600">Days to Close</div>
+            </div>
+            <div className="p-4 bg-purple-50 rounded-lg">
+              <div className="text-2xl font-bold text-purple-700">
+                ₦{claim.settlement_amount?.toLocaleString() || '0'}
+              </div>
+              <div className="text-sm text-purple-600">Final Settlement</div>
+            </div>
+            <div className="p-4 bg-orange-50 rounded-lg">
+              <div className="text-2xl font-bold text-orange-700">
+                {claim.status === 'closed' ? 'Closed' : 'Processing'}
+              </div>
+              <div className="text-sm text-orange-600">Final Status</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Action Buttons */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex gap-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download Closure Report
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={handleClosureFinal}
+              disabled={!canClose}
+              variant="default"
+            >
+              Finalize Claim Closure
+            </Button>
+          </div>
+          
+          {!canClose && (
+            <div className="mt-4 space-y-2">
+              <p className="text-xs text-muted-foreground text-center">Complete all requirements to finalize closure:</p>
+              <div className="text-xs text-center space-x-4">
+                <span className={reportsCompleted === totalReports ? 'text-green-600' : 'text-yellow-600'}>
+                  Final Reports {reportsCompleted === totalReports ? '✓' : '○'}
+                </span>
+                <span className={closureNotes.trim() ? 'text-green-600' : 'text-yellow-600'}>
+                  Closure Notes {closureNotes.trim() ? '✓' : '○'}
                 </span>
               </div>
             </div>
